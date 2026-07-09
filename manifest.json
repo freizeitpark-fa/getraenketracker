@@ -1,7 +1,7 @@
 {
   "name": "Kreuzfahrt Getränketracker",
   "short_name": "Getränke",
-  "description": "Offline Getränketracker für AIDA Kreuzfahrt",
+  "description": "Offline Getränketracker für AIDA Kreuzfahrten mit Reiseverwaltung und Geräte-Zusammenführung",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

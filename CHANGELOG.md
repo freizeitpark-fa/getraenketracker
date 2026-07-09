@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.0.0
+- Hauptversion mit Dashboard und iPhone-Bottom-Navigation.
+- Mehrfach nutzbare Reiseverwaltung.
+- Auswertung je Reise.
+- Eindeutige Geräte-ID je Installation.
+- Export/Import zum Zusammenführen mehrerer Geräte.
+- Dublettenvermeidung über eindeutige Eintrags-ID.
+- Verlauf zeigt konsumierende Person und erfassendes Gerät.
+- Favoriten, zuletzt getrunken und gängige Getränke werden priorisiert.
+- Verlaufseinträge können bearbeitet und gelöscht werden.
+- Changelog und Versionsinfo direkt in der App.
+
 ## 2.4.0
 - Reiseverwaltung fuer mehrfache Nutzung.
 - Auswertung pro Reise.
