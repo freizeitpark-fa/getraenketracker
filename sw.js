@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cruisesip-v4-0-0-20260709j';
+const CACHE_NAME = 'cruisesip-v4-0-0-20260709k';
 const ASSETS = [
   './',
   './index.html',

@@ -6,6 +6,9 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
+- Suchleiste in der Erfassen-Ansicht für iPhone/Safari korrigiert: echtes `type="search"`-Feld, Label-Fokusbereich, direkte Fokus-Absicherung und CSS-Pointer-Fix, damit beim Antippen zuverlässig die Tastatur erscheint.
+- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709k` erhöht.
+
 - Erfassen-Ansicht erneut vereinfacht: CruiseSip-Kopfzeile dient jetzt als fester Seitenkopf mit Tracken-Hinweis, die Kategorieauswahl bleibt ein eigenes horizontales Band und die Artikel erscheinen darunter als kompakte einspaltige Liste.
 - Horizontales Seiten-Scrolling nochmals unterbunden; vertikales Scrollen findet nur in der Artikelliste statt.
 - Favoritenstern links neben jedem Artikel bestätigt und Artikel-/Symbolgrößen weiter reduziert.

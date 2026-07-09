@@ -391,3 +391,40 @@ html[data-route="track"] .bottomNav{
   html[data-route="track"] .drinkTitle{font-size:14px !important;}
   html[data-route="track"] .pricePill,html[data-route="track"] .priceButton{min-height:32px !important;font-size:12px !important;padding:0 7px !important;grid-column:auto !important;justify-self:auto !important;}
 }
+
+
+/* Track search focus fix v4.0.0-k: make iPhone keyboard open reliably */
+html[data-route="track"] .searchBoxLarge{
+  position:relative !important;
+  z-index:40 !important;
+  pointer-events:auto !important;
+  touch-action:manipulation !important;
+  cursor:text;
+  overflow:visible !important;
+}
+html[data-route="track"] .searchBoxLarge span{
+  pointer-events:none !important;
+  flex:0 0 auto;
+}
+html[data-route="track"] #drinkSearch{
+  pointer-events:auto !important;
+  touch-action:auto !important;
+  -webkit-user-select:text !important;
+  user-select:text !important;
+  cursor:text !important;
+  appearance:none;
+  -webkit-appearance:none;
+  min-width:0;
+  width:100%;
+  height:44px !important;
+  font-size:16px !important;
+  line-height:44px;
+  padding:0 !important;
+}
+html[data-route="track"] #drinkSearch::-webkit-search-cancel-button{
+  -webkit-appearance:none;
+}
+html[data-route="track"] .searchBoxLarge:focus-within{
+  border-color:rgba(10,132,255,.65) !important;
+  box-shadow:0 0 0 4px rgba(10,132,255,.14) !important;
+}
