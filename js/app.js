@@ -103,7 +103,11 @@ function del(store, id) { return writeStore(store, objectStore => objectStore.de
 function clearStore(store) { return writeStore(store, objectStore => objectStore.clear()); }
 async function putSetting(id, value) { await put('settings', { id, value, updatedAt: nowIso() }); state.settings[id] = value; }
 async function getSetting(id) { const row = await get('settings', id); return row ? row.value : undefined; }
-function formValue(form, name) { return form.elements.namedItem(name)?.value ?? ''; }
+function formValue(form, name) { return form?.elements?.namedItem(name)?.value ?? ''; }
+function setFormValue(form, name, value) {
+  const element = form?.elements?.namedItem(name);
+  if (element) element.value = value ?? '';
+}
 
 async function tryLegacyMigration() {
   const done = await getSetting('legacyMigrationV3Done');
@@ -208,6 +212,10 @@ async function loadState() {
   state.barkarten = await all('barkarten');
   state.currentTripId = state.settings.currentTripId || state.trips.find(t => !t.archived)?.id || state.trips[0]?.id || null;
   if (!state.trips.find(t => t.id === state.currentTripId) && state.trips[0]) state.currentTripId = state.trips[0].id;
+  if (state.currentTripId && state.settings.currentTripId !== state.currentTripId) {
+    await put('settings', { id: 'currentTripId', value: state.currentTripId, updatedAt: nowIso() });
+    state.settings.currentTripId = state.currentTripId;
+  }
   if (!state.selectedPersonId || !currentPersons().some(p => p.id === state.selectedPersonId)) state.selectedPersonId = currentPersons()[0]?.id || null;
 }
 
@@ -251,10 +259,13 @@ async function handleClick(event) {
   if (action === 'archiveTrip') { await toggleArchiveTrip(id); return; }
   if (action === 'deleteTrip') { await deleteTrip(id); return; }
   if (action === 'resetTripForm') { fillTripForm(null); return; }
+  if (action === 'saveTrip') { await saveTripForm($('#tripForm')); return; }
   if (action === 'selectPerson') { state.selectedPersonId = id; render(); return; }
   if (action === 'editPerson') { fillPersonForm(id); return; }
   if (action === 'deletePerson') { await deletePerson(id); return; }
   if (action === 'resetPersonForm') { fillPersonForm(null); return; }
+  if (action === 'savePerson') { await savePersonForm($('#personForm')); return; }
+  if (action === 'saveDevice') { await saveDeviceForm($('#deviceForm')); return; }
   if (action === 'setCategory') { state.category = id; renderTrackList(); renderCategoryChips(); return; }
   if (action === 'setHistoryFilter') { state.historyFilter = id; render(); return; }
   if (action === 'trackDrink') { await trackDrink(id); return; }
@@ -275,10 +286,11 @@ async function handleSubmit(event) {
   if (!event.target.matches('form')) return;
   event.preventDefault();
   const form = event.target;
-  if (form.id === 'tripForm') await saveTripForm(form);
-  if (form.id === 'personForm') await savePersonForm(form);
-  if (form.id === 'deviceForm') await saveDeviceForm(form);
-  if (form.id === 'onboardingTripForm') await saveOnboardingTrip(form);
+  const formId = form.getAttribute('id') || '';
+  if (formId === 'tripForm') await saveTripForm(form);
+  if (formId === 'personForm') await savePersonForm(form);
+  if (formId === 'deviceForm') await saveDeviceForm(form);
+  if (formId === 'onboardingTripForm') await saveOnboardingTrip(form);
 }
 
 function openFile(mode) {
@@ -304,9 +316,25 @@ async function handleFileInput(event) {
   }
 }
 
-function currentTrip() { return state.trips.find(t => t.id === state.currentTripId) || state.trips[0] || null; }
-function currentPersons() { return state.persons.filter(p => p.tripId === state.currentTripId); }
-function currentLogs() { return state.logs.filter(l => l.tripId === state.currentTripId); }
+function activeTripId() {
+  const preferred = state.currentTripId || state.settings.currentTripId || '';
+  if (preferred && state.trips.some(t => t.id === preferred)) return preferred;
+  return state.trips.find(t => !t.archived)?.id || state.trips[0]?.id || null;
+}
+function currentTrip() {
+  const id = activeTripId();
+  return state.trips.find(t => t.id === id) || state.trips[0] || null;
+}
+function currentPersons() {
+  const id = activeTripId();
+  if (!id) return [];
+  return state.persons.filter(p => (p.tripId || id) === id);
+}
+function currentLogs() {
+  const id = activeTripId();
+  if (!id) return [];
+  return state.logs.filter(l => (l.tripId || id) === id);
+}
 function favoriteIds() { return Array.isArray(state.settings.favorites) ? state.settings.favorites : []; }
 function activeBarkarteVersion() { return state.settings.barkarteVersion || { version: 'unbekannt', source: 'nicht gesetzt', count: state.drinks.length }; }
 
@@ -600,7 +628,7 @@ function viewTrips() {
         <label>Name<input name="name" required placeholder="z. B. AIDA Metropolen 2026"></label>
         <label>Schiff<input name="ship" placeholder="z. B. AIDAprima"></label>
         <div class="twoCols"><label>Start<input name="startDate" type="date"></label><label>Ende<input name="endDate" type="date"></label></div>
-        <button class="primary" type="submit">Speichern</button>
+        <button class="primary" type="button" data-action="saveTrip">Speichern</button>
         <button class="secondary" type="button" data-action="resetTripForm">Formular leeren</button>
       </form>
       <div class="card"><h2>Vorhandene Reisen</h2><div class="itemList">${state.trips.map(tripCardHtml).join('')}</div></div>
@@ -623,7 +651,7 @@ function viewDevices() {
         <h2>Gerät</h2>
         <label>Gerätename<input name="deviceName" required value="${esc(state.settings.deviceName || '')}"></label>
         <div class="infoBox"><span>Geräte-ID</span><code>${esc(state.settings.deviceId || '')}</code></div>
-        <button class="primary" type="submit">Gerätename speichern</button>
+        <button class="primary" type="button" data-action="saveDevice">Gerätename speichern</button>
       </form>
       <form id="personForm" class="card formCard">
         <input type="hidden" name="id" value="">
@@ -631,7 +659,7 @@ function viewDevices() {
         <label>Name<input name="name" required placeholder="Name"></label>
         <label>Getränkepaket<select name="packageId">${state.packages.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>
         <label>Paketpreis gesamt<input name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00"></label>
-        <button class="primary" type="submit">Person speichern</button>
+        <button class="primary" type="button" data-action="savePerson">Person speichern</button>
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
       </form>
       <div class="card"><h2>Personen dieser Reise</h2><div class="itemList">${currentPersons().map(personCardHtml).join('') || '<p class="emptyText">Noch keine Personen angelegt.</p>'}</div></div>
@@ -778,15 +806,16 @@ async function deleteLog(id) {
 function fillTripForm(id) {
   const form = $('#tripForm'); if (!form) return;
   const trip = id ? state.trips.find(t => t.id === id) : null;
-  form.elements.id.value = trip?.id || '';
-  form.elements.name.value = trip?.name || '';
-  form.elements.ship.value = trip?.ship || '';
-  form.elements.startDate.value = trip?.startDate || '';
-  form.elements.endDate.value = trip?.endDate || '';
+  setFormValue(form, 'id', trip?.id || '');
+  setFormValue(form, 'name', trip?.name || '');
+  setFormValue(form, 'ship', trip?.ship || '');
+  setFormValue(form, 'startDate', trip?.startDate || '');
+  setFormValue(form, 'endDate', trip?.endDate || '');
   $('h2', form).textContent = trip ? 'Reise bearbeiten' : 'Reise anlegen';
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 async function saveTripForm(form) {
+  if (!form) { alert('Reiseformular nicht gefunden. Bitte Seite neu laden.'); return; }
   const id = formValue(form, 'id') || `trip_${uid()}`;
   const name = formValue(form, 'name').trim();
   if (!name) {
@@ -808,6 +837,8 @@ async function saveTripForm(form) {
   };
   try {
     await put('trips', trip);
+    const savedTrip = await get('trips', id);
+    if (!savedTrip || savedTrip.id !== id) throw new Error('IndexedDB hat den Reisedatensatz nicht bestätigt.');
     await putSetting('currentTripId', id);
     await loadState();
     state.currentTripId = id;
@@ -847,16 +878,18 @@ async function deleteTrip(id) {
 function fillPersonForm(id) {
   const form = $('#personForm'); if (!form) return;
   const person = id ? state.persons.find(p => p.id === id) : null;
-  form.elements.id.value = person?.id || '';
-  form.elements.name.value = person?.name || '';
-  form.elements.packageId.value = person?.packageId || 'none';
-  form.elements.packagePrice.value = person?.packagePrice || '';
+  setFormValue(form, 'id', person?.id || '');
+  setFormValue(form, 'name', person?.name || '');
+  setFormValue(form, 'packageId', person?.packageId || 'none');
+  setFormValue(form, 'packagePrice', person?.packagePrice || '');
   $('h2', form).textContent = person ? 'Person bearbeiten' : 'Person anlegen';
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 async function savePersonForm(form) {
+  if (!form) { alert('Personenformular nicht gefunden. Bitte Seite neu laden.'); return; }
   const trip = currentTrip();
-  if (!trip) { alert('Bitte zuerst eine Reise anlegen.'); return; }
+  const tripId = activeTripId() || trip?.id;
+  if (!trip || !tripId) { alert('Bitte zuerst eine Reise anlegen.'); return; }
 
   const name = formValue(form, 'name').trim();
   if (!name) {
@@ -869,7 +902,6 @@ async function savePersonForm(form) {
   const existing = state.persons.find(p => p.id === id) || {};
   const rawPackagePrice = formValue(form, 'packagePrice').trim();
   const packagePrice = rawPackagePrice ? num(rawPackagePrice) : '';
-  const tripId = state.currentTripId || trip.id;
   const person = {
     ...existing,
     id,
@@ -884,9 +916,14 @@ async function savePersonForm(form) {
 
   try {
     await put('persons', person);
+    const savedPerson = await get('persons', id);
+    if (!savedPerson || savedPerson.id !== id) throw new Error('IndexedDB hat den Personendatensatz nicht bestätigt.');
+    if (savedPerson.tripId !== tripId) throw new Error('Die gespeicherte Person ist nicht der aktiven Reise zugeordnet.');
     await putSetting('currentTripId', tripId);
+    state.currentTripId = tripId;
     state.selectedPersonId = id;
     await loadState();
+    state.currentTripId = tripId;
     state.selectedPersonId = id;
     render();
     toast(existing.id ? 'Personenänderungen gespeichert' : 'Person angelegt');
@@ -895,6 +932,7 @@ async function savePersonForm(form) {
   }
 }
 async function saveDeviceForm(form) {
+  if (!form) { alert('Geräteformular nicht gefunden. Bitte Seite neu laden.'); return; }
   await putSetting('deviceName', formValue(form, 'deviceName').trim() || 'Mein iPhone');
   await loadState(); render(); toast('Gerätename gespeichert');
 }
@@ -1058,6 +1096,7 @@ const CHANGELOG_HTML = `
   <h2>Version 4.0.0</h2>
   <ul>
     <li>Fix: Bearbeitete Reisen werden jetzt zuverlässig in IndexedDB gespeichert; Schreibvorgänge warten auf den vollständigen Transaktionsabschluss und zeigen eine Speicherbestätigung.</li>
+    <li>Fix: Personen speichern jetzt auch dann zuverlässig, wenn iPhone/Safari den nativen Formular-Submit nicht auslöst. Der Button nutzt zusätzlich eine direkte Speicheraktion und prüft die gespeicherte Reisezuordnung.</li>
     <li>Fix: Personen lassen sich jetzt zuverlässig anlegen und bearbeiten; der Paketpreis akzeptiert deutsche Kommaschreibweise und blockiert den Speichervorgang auf iPhone/Safari nicht mehr.</li>
     <li>Fix: Aktionsbuttons verhindern jetzt konsequent unbeabsichtigte Standardaktionen im Formularumfeld.</li>
     <li>Projektstruktur vollständig neu aufgebaut: css, js, data, icons, assets und docs.</li>
