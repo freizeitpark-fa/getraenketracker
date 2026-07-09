@@ -450,7 +450,8 @@ function bindRenderedControls() {
 
 function bindInputs() {
   const search = $('#drinkSearch');
-  if (search) {
+  if (search && search.dataset.bound !== '1') {
+    search.dataset.bound = '1';
     search.value = state.query;
     search.addEventListener('input', event => {
       state.query = event.target.value;
@@ -461,15 +462,13 @@ function bindInputs() {
     const searchBox = search.closest('.searchBox');
     if (searchBox && searchBox.dataset.focusBound !== '1') {
       searchBox.dataset.focusBound = '1';
-      const focusSearch = event => {
+      searchBox.addEventListener('click', event => {
         if (event.target === search) return;
-        event.preventDefault();
-        search.focus({ preventScroll: true });
-      };
-      searchBox.addEventListener('pointerdown', focusSearch, { passive: false });
-      searchBox.addEventListener('touchend', focusSearch, { passive: false });
-      searchBox.addEventListener('click', focusSearch);
+        search.focus();
+      });
     }
+  } else if (search) {
+    search.value = state.query;
   }
   const dateInputs = $$('.dateDefaultToday');
   dateInputs.forEach(input => { if (!input.value) input.value = new Date().toISOString().slice(0, 10); });
@@ -578,7 +577,7 @@ function viewTrack() {
         <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
         ${persons.length ? personChips(persons) : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
         ${selectedPerson ? `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>` : ''}
-        <label class="searchBox searchBoxLarge" for="drinkSearch"><span>⌕</span><input id="drinkSearch" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
+        <div class="searchBox searchBoxLarge" role="search"><span>⌕</span><input id="drinkSearch" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></div>
         <div id="categoryChips">${categoryChipsHtml()}</div>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>
@@ -590,7 +589,7 @@ function renderCategoryChips() { const el = $('#categoryChips'); if (el) el.inne
 function renderTrackList() { const el = $('#drinkList'); if (el) el.innerHTML = drinkListHtml(); }
 function categories() {
   const cats = [...new Set(state.drinks.map(d => d.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
-  return ['Empfohlen', 'Favoriten', 'Zuletzt', ...cats, 'Alle'];
+  return ['Empfohlen', 'Favoriten', 'Zuletzt', 'Alle', ...cats.filter(cat => cat !== 'Alle')];
 }
 function categoryIcon(category = '', name = '') {
   const n = normalize(`${category} ${name}`);

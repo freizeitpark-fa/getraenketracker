@@ -393,38 +393,57 @@ html[data-route="track"] .bottomNav{
 }
 
 
-/* Track search focus fix v4.0.0-k: make iPhone keyboard open reliably */
-html[data-route="track"] .searchBoxLarge{
-  position:relative !important;
-  z-index:40 !important;
+
+
+/* Input focus safety v4.0.0-l: restore native click/touch behavior */
+input,select,textarea{
   pointer-events:auto !important;
-  touch-action:manipulation !important;
+  touch-action:auto !important;
+  -webkit-user-select:text !important;
+  user-select:text !important;
+}
+button{touch-action:manipulation;}
+.searchBox,.searchBoxLarge{
+  pointer-events:auto !important;
   cursor:text;
-  overflow:visible !important;
 }
-html[data-route="track"] .searchBoxLarge span{
-  pointer-events:none !important;
-  flex:0 0 auto;
-}
+.searchBox span{pointer-events:none;}
+.searchBox input,
 html[data-route="track"] #drinkSearch{
   pointer-events:auto !important;
   touch-action:auto !important;
   -webkit-user-select:text !important;
   user-select:text !important;
-  cursor:text !important;
-  appearance:none;
-  -webkit-appearance:none;
+  position:relative;
+  z-index:2;
   min-width:0;
   width:100%;
-  height:44px !important;
   font-size:16px !important;
-  line-height:44px;
-  padding:0 !important;
-}
-html[data-route="track"] #drinkSearch::-webkit-search-cancel-button{
-  -webkit-appearance:none;
 }
 html[data-route="track"] .searchBoxLarge:focus-within{
   border-color:rgba(10,132,255,.65) !important;
   box-shadow:0 0 0 4px rgba(10,132,255,.14) !important;
 }
+
+
+/* Track filter/input final stabilization v4.0.0-m */
+html,body,.appShell{max-width:100%;overflow-x:hidden;}
+input,select,textarea,button{pointer-events:auto;}
+input,select,textarea{-webkit-user-select:text;user-select:text;touch-action:auto;font-size:16px;}
+html[data-route="track"] .trackStickyHeader{overflow:visible !important;}
+html[data-route="track"] .searchBoxLarge{position:relative;z-index:5;display:flex;align-items:center;min-height:48px;pointer-events:auto;background:var(--cardSolid);}
+html[data-route="track"] .searchBoxLarge input{display:block;flex:1 1 auto;min-width:0;width:100%;height:44px;border:0;background:transparent;pointer-events:auto;touch-action:auto;-webkit-user-select:text;user-select:text;font-size:16px !important;line-height:44px;}
+html[data-route="track"] #categoryChips{position:relative;z-index:4;width:100%;max-width:100%;overflow:hidden;}
+html[data-route="track"] .categoryBand{display:block;width:100%;max-width:100%;overflow:hidden;margin:0 !important;padding:0 !important;}
+html[data-route="track"] .categoryScroller{display:flex !important;flex-wrap:nowrap !important;gap:8px;width:100%;max-width:100%;overflow-x:auto !important;overflow-y:hidden !important;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x !important;padding:2px 1px 7px !important;scrollbar-width:none;}
+html[data-route="track"] .categoryScroller::-webkit-scrollbar{display:none;}
+html[data-route="track"] .categoryScroller .filterChip{flex:0 0 auto !important;white-space:nowrap;min-width:max-content;min-height:36px;padding:7px 12px;font-size:13px;}
+html[data-route="track"] #drinkList{position:relative;z-index:1;overflow-y:auto !important;overflow-x:hidden !important;touch-action:pan-y !important;}
+html[data-route="track"] .drinkGrid{display:grid !important;grid-template-columns:1fr !important;gap:7px !important;}
+html[data-route="track"] .drinkCard{display:grid !important;grid-template-columns:34px minmax(0,1fr) !important;align-items:center;gap:7px !important;padding:6px 7px !important;border-radius:15px !important;min-height:54px;}
+html[data-route="track"] .favButton{width:34px !important;height:42px !important;min-height:42px !important;font-size:20px !important;border-radius:12px !important;}
+html[data-route="track"] .drinkMain{grid-template-columns:22px minmax(0,1fr) auto !important;gap:7px !important;}
+html[data-route="track"] .drinkIcon{width:22px !important;height:22px !important;border-radius:8px !important;font-size:13px !important;}
+html[data-route="track"] .drinkTitle{font-size:14px !important;line-height:1.15 !important;}
+html[data-route="track"] .drinkMeta{font-size:11px !important;}
+html[data-route="track"] .pricePill,html[data-route="track"] .priceButton{min-height:32px !important;border-radius:11px !important;font-size:12px !important;padding:0 7px !important;}
