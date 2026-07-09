@@ -571,7 +571,7 @@ function viewTrack() {
     </section>`;
 }
 function personChips(persons) { return `<div class="chipScroller personScroller">${persons.map((p, i) => `<button class="personChip ${p.id === state.selectedPersonId ? 'active' : ''}" style="--person:${esc(p.color || PERSON_COLORS[i % PERSON_COLORS.length])}" data-action="selectPerson" data-id="${esc(p.id)}"><span>${esc(p.name)}</span><small>${esc(packageName(p.packageId))}</small></button>`).join('')}</div>`; }
-function categoryChipsHtml() { return `<div class="chipScroller">${categories().map(cat => `<button class="filterChip ${cat === state.category ? 'active' : ''}" data-action="setCategory" data-id="${esc(cat)}">${esc(cat)}</button>`).join('')}</div>`; }
+function categoryChipsHtml() { return `<div class="categoryBand"><div class="chipScroller categoryScroller">${categories().map(cat => `<button class="filterChip ${cat === state.category ? 'active' : ''}" data-action="setCategory" data-id="${esc(cat)}">${esc(cat)}</button>`).join('')}</div></div>`; }
 function renderCategoryChips() { const el = $('#categoryChips'); if (el) el.innerHTML = categoryChipsHtml(); }
 function renderTrackList() { const el = $('#drinkList'); if (el) el.innerHTML = drinkListHtml(); }
 function categories() {
