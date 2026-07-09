@@ -4,3 +4,14 @@
 
 .quickdrink{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:14px;min-height:44px;padding:9px 10px;text-align:left;font:inherit}.quickdrink span{font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quickdrink b{font-size:13px;color:var(--brand2)}
 @media (max-width:430px){.topnav{display:none}.topbar{min-height:56px}main{padding-top:10px}.app{padding-bottom:86px}}
+
+/* v3.1: ruhigere Verlaufsliste und Personenfarben */
+.personpill{display:inline-flex;align-items:center;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:750;line-height:1.2;color:#111827;border:1px solid rgba(17,24,39,.06)}
+.personchip{border-width:1px;font-weight:750}
+.personchip.active{box-shadow:inset 0 0 0 1px rgba(255,255,255,.7)}
+.pcolor0{background:#e0f2fe!important}.pcolor1{background:#dcfce7!important}.pcolor2{background:#fef3c7!important}.pcolor3{background:#fce7f3!important}.pcolor4{background:#ede9fe!important}.pcolor5{background:#ffedd5!important}.pcolor6{background:#ccfbf1!important}.pcolor7{background:#f1f5f9!important}
+.chip.personchip.active{color:#111827;border-color:rgba(17,24,39,.18)}
+.logitem b{display:flex;align-items:center;gap:7px;font-size:14px;line-height:1.25}.statusdot{display:inline-block;width:7px;height:7px;border-radius:999px;opacity:.55;flex:0 0 auto}.statusdot.included{background:#0f766e}.statusdot.notincluded{background:#b91c1c}.statusdot.unclear{background:#b45309}.logitem .actions{align-self:center}.logitem .badge{display:none}
+@media (max-width:390px){.logitem{grid-template-columns:minmax(0,1fr);gap:7px}.logitem .actions{justify-content:flex-start}.logitem .mini{min-height:32px}}
+/* v3.1 Ergänzung: Filter, Undo und Reise-Dashboard */
+.undo{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;background:#f0fdfa;border-color:#99f6e4}.undo b{font-size:13px;line-height:1.3}.stat .actions{justify-content:flex-end;flex-wrap:wrap}.kpi+.card,.card .kpi{margin-top:8px}.card .chips{margin:4px 0 8px}

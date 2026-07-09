@@ -1,6 +1,13 @@
 # Changelog
 
-## 3.0.0
+## 3.1.0
+- Reisen können nachträglich bearbeitet werden.
+- Beim Löschen einer Reise erscheint eine deutliche Sicherheitsabfrage mit Anzahl Personen und Einträge.
+- Personen werden grafisch durch dezente Hintergrundfarben unterschieden.
+- Verlauf optisch beruhigt: dezente Statuspunkte statt großer grüner/roter Symbole.
+- Verlauf zeigt weiterhin Person und erfassendes Gerät.
+
+## 3.1.0
 - Hauptversion mit Dashboard und iPhone-Bottom-Navigation.
 - Mehrfach nutzbare Reiseverwaltung.
 - Auswertung je Reise.

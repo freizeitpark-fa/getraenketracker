@@ -1,9 +1,9 @@
-Getraenketracker PWA v3.0.0
+Getraenketracker PWA v31.1.0
 
 Upload per GitHub Desktop:
 1. ZIP entpacken.
 2. Den kompletten Inhalt in den lokalen Repository-Ordner kopieren.
-3. In GitHub Desktop Commit erstellen, z. B. 'Version 3.0.0'.
+3. In GitHub Desktop Commit erstellen, z. B. 'Version 3.1.0'.
 4. Push origin.
 5. Auf dem iPhone die PWA einmal komplett schließen und neu öffnen.
 
