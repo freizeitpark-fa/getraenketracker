@@ -439,6 +439,7 @@ function updateShell() {
   $('#onlineDot').textContent = state.online ? 'Online' : 'Offline';
   $$('.navButton').forEach(b => b.classList.toggle('active', b.dataset.route === state.route || (state.route === 'onboarding' && b.dataset.route === 'settings')));
   document.documentElement.dataset.theme = state.settings.theme || 'system';
+  document.documentElement.dataset.route = state.route || 'dashboard';
 }
 
 function bindRenderedControls() {

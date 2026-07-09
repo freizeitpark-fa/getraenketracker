@@ -6,6 +6,9 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
+- Scrollverhalten in der Erfassen-Ansicht korrigiert: CruiseSip-Kopfbereich, Tracken-Header, Personenauswahl, Suche und Kategoriechips bleiben stehen; nur die Getränkeliste unterhalb der Kategorien scrollt. Inhalte laufen dadurch nicht mehr hinter Suchleiste oder Logo.
+- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709h` erhöht.
+
 - Erfassen-Ansicht für iPhone überarbeitet: größere Suchleiste, 16px Eingabeschrift gegen Safari-Zoom, stabilere Darstellung ohne ungewolltes Verkleinern sowie eine neue Schnellwahl mit großen Kacheln, Symbolen, Favoriten und intelligenten Empfehlungen aus den bisher erfassten Getränken.
 - Service-Worker-Cache auf `cruisesip-v4-0-0-20260709g` erhöht.
 
