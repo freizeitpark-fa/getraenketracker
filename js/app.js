@@ -67,11 +67,43 @@ function tx(store, mode = 'readonly') { return db.transaction(store, mode).objec
 function reqToPromise(request) { return new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
 function all(store) { return reqToPromise(tx(store).getAll()); }
 function get(store, id) { return reqToPromise(tx(store).get(id)); }
-function put(store, obj) { return reqToPromise(tx(store, 'readwrite').put(obj)); }
-function del(store, id) { return reqToPromise(tx(store, 'readwrite').delete(id)); }
-function clearStore(store) { return reqToPromise(tx(store, 'readwrite').clear()); }
+function writeStore(store, operation) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(store, 'readwrite');
+    const objectStore = transaction.objectStore(store);
+    let request;
+    let settled = false;
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error || transaction.error || request?.error || new Error('IndexedDB-Schreibvorgang fehlgeschlagen.'));
+    };
+    try {
+      request = operation(objectStore);
+    } catch (error) {
+      try { transaction.abort(); } catch (_) {}
+      fail(error);
+      return;
+    }
+    request.onerror = () => {
+      try { transaction.abort(); } catch (_) {}
+      fail(request.error);
+    };
+    transaction.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      resolve(request?.result);
+    };
+    transaction.onerror = () => fail(transaction.error);
+    transaction.onabort = () => fail(transaction.error || request?.error);
+  });
+}
+function put(store, obj) { return writeStore(store, objectStore => objectStore.put(obj)); }
+function del(store, id) { return writeStore(store, objectStore => objectStore.delete(id)); }
+function clearStore(store) { return writeStore(store, objectStore => objectStore.clear()); }
 async function putSetting(id, value) { await put('settings', { id, value, updatedAt: nowIso() }); state.settings[id] = value; }
 async function getSetting(id) { const row = await get('settings', id); return row ? row.value : undefined; }
+function formValue(form, name) { return form.elements.namedItem(name)?.value ?? ''; }
 
 async function tryLegacyMigration() {
   const done = await getSetting('legacyMigrationV3Done');
@@ -200,6 +232,7 @@ function bindShell() {
 async function handleClick(event) {
   const target = event.target.closest('[data-action], [data-route]');
   if (!target) return;
+  event.preventDefault();
   if (target.dataset.route) {
     state.route = target.dataset.route;
     state.query = '';
@@ -597,7 +630,7 @@ function viewDevices() {
         <h2>Person anlegen</h2>
         <label>Name<input name="name" required placeholder="Name"></label>
         <label>Getränkepaket<select name="packageId">${state.packages.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>
-        <label>Paketpreis gesamt<input name="packagePrice" type="number" inputmode="decimal" step="0.01" placeholder="optional"></label>
+        <label>Paketpreis gesamt<input name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00"></label>
         <button class="primary" type="submit">Person speichern</button>
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
       </form>
@@ -754,19 +787,40 @@ function fillTripForm(id) {
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 async function saveTripForm(form) {
-  const id = form.elements.id.value || `trip_${uid()}`;
+  const id = formValue(form, 'id') || `trip_${uid()}`;
+  const name = formValue(form, 'name').trim();
+  if (!name) {
+    alert('Bitte gib einen Reisenamen ein.');
+    form.elements.namedItem('name')?.focus();
+    return;
+  }
   const existing = state.trips.find(t => t.id === id) || {};
-  const trip = { ...existing, id, name: form.elements.name.value.trim(), ship: form.elements.ship.value.trim(), startDate: form.elements.startDate.value, endDate: form.elements.endDate.value, archived: !!existing.archived, createdAt: existing.createdAt || nowIso(), updatedAt: nowIso() };
-  await put('trips', trip);
-  await putSetting('currentTripId', id);
-  await loadState();
-  state.currentTripId = id;
-  render();
+  const trip = {
+    ...existing,
+    id,
+    name,
+    ship: formValue(form, 'ship').trim(),
+    startDate: formValue(form, 'startDate'),
+    endDate: formValue(form, 'endDate'),
+    archived: !!existing.archived,
+    createdAt: existing.createdAt || nowIso(),
+    updatedAt: nowIso()
+  };
+  try {
+    await put('trips', trip);
+    await putSetting('currentTripId', id);
+    await loadState();
+    state.currentTripId = id;
+    render();
+    toast(existing.id ? 'Reiseänderungen gespeichert' : 'Reise angelegt');
+  } catch (error) {
+    alert(`Reise konnte nicht gespeichert werden: ${error.message || error}`);
+  }
 }
 async function saveOnboardingTrip(form) {
   const current = currentTrip();
   const id = current?.id || `trip_${uid()}`;
-  const trip = { ...(current || {}), id, name: form.elements.name.value.trim() || 'Aktuelle Reise', ship: form.elements.ship.value.trim(), startDate: form.elements.startDate.value, endDate: form.elements.endDate.value, archived: false, createdAt: current?.createdAt || nowIso(), updatedAt: nowIso() };
+  const trip = { ...(current || {}), id, name: formValue(form, 'name').trim() || 'Aktuelle Reise', ship: formValue(form, 'ship').trim(), startDate: formValue(form, 'startDate'), endDate: formValue(form, 'endDate'), archived: false, createdAt: current?.createdAt || nowIso(), updatedAt: nowIso() };
   await put('trips', trip);
   await putSetting('currentTripId', id);
   await loadState();
@@ -801,17 +855,48 @@ function fillPersonForm(id) {
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 async function savePersonForm(form) {
-  if (!currentTrip()) { alert('Bitte zuerst eine Reise anlegen.'); return; }
-  const id = form.elements.id.value || `person_${uid()}`;
+  const trip = currentTrip();
+  if (!trip) { alert('Bitte zuerst eine Reise anlegen.'); return; }
+
+  const name = formValue(form, 'name').trim();
+  if (!name) {
+    alert('Bitte gib einen Namen ein.');
+    form.elements.namedItem('name')?.focus();
+    return;
+  }
+
+  const id = formValue(form, 'id') || `person_${uid()}`;
   const existing = state.persons.find(p => p.id === id) || {};
-  const person = { ...existing, id, tripId: state.currentTripId, name: form.elements.name.value.trim(), packageId: form.elements.packageId.value || 'none', packagePrice: num(form.elements.packagePrice.value) || '', color: existing.color || PERSON_COLORS[currentPersons().length % PERSON_COLORS.length], createdAt: existing.createdAt || nowIso(), updatedAt: nowIso() };
-  await put('persons', person);
-  state.selectedPersonId = id;
-  await loadState(); render();
+  const rawPackagePrice = formValue(form, 'packagePrice').trim();
+  const packagePrice = rawPackagePrice ? num(rawPackagePrice) : '';
+  const tripId = state.currentTripId || trip.id;
+  const person = {
+    ...existing,
+    id,
+    tripId,
+    name,
+    packageId: formValue(form, 'packageId') || 'none',
+    packagePrice,
+    color: existing.color || PERSON_COLORS[currentPersons().length % PERSON_COLORS.length],
+    createdAt: existing.createdAt || nowIso(),
+    updatedAt: nowIso()
+  };
+
+  try {
+    await put('persons', person);
+    await putSetting('currentTripId', tripId);
+    state.selectedPersonId = id;
+    await loadState();
+    state.selectedPersonId = id;
+    render();
+    toast(existing.id ? 'Personenänderungen gespeichert' : 'Person angelegt');
+  } catch (error) {
+    alert(`Person konnte nicht gespeichert werden: ${error.message || error}`);
+  }
 }
 async function saveDeviceForm(form) {
-  await putSetting('deviceName', form.elements.deviceName.value.trim() || 'Mein iPhone');
-  await loadState(); render();
+  await putSetting('deviceName', formValue(form, 'deviceName').trim() || 'Mein iPhone');
+  await loadState(); render(); toast('Gerätename gespeichert');
 }
 async function deletePerson(id) {
   const person = state.persons.find(p => p.id === id); if (!person) return;
@@ -972,6 +1057,9 @@ function toast(message) {
 const CHANGELOG_HTML = `
   <h2>Version 4.0.0</h2>
   <ul>
+    <li>Fix: Bearbeitete Reisen werden jetzt zuverlässig in IndexedDB gespeichert; Schreibvorgänge warten auf den vollständigen Transaktionsabschluss und zeigen eine Speicherbestätigung.</li>
+    <li>Fix: Personen lassen sich jetzt zuverlässig anlegen und bearbeiten; der Paketpreis akzeptiert deutsche Kommaschreibweise und blockiert den Speichervorgang auf iPhone/Safari nicht mehr.</li>
+    <li>Fix: Aktionsbuttons verhindern jetzt konsequent unbeabsichtigte Standardaktionen im Formularumfeld.</li>
     <li>Projektstruktur vollständig neu aufgebaut: css, js, data, icons, assets und docs.</li>
     <li>Redesign im iPhone-App-Stil mit Bottom Navigation, Cards, Dark Mode, flüssigen Übergängen und einhändiger Bedienung.</li>
     <li>Onboarding für Offline-Einrichtung, Home-Bildschirm-Installation, Geräteprüfung, Barkarte, Backup-Test und Reiseanlage.</li>

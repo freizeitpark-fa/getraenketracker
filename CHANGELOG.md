@@ -4,6 +4,14 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ## 4.0.0 - laufende Entwicklungsfassung
 
+### Korrekturen
+
+- Reiseverwaltung korrigiert: Bearbeitete Reisen werden jetzt zuverlässig gespeichert. IndexedDB-Schreibvorgänge warten auf den vollständigen Transaktionsabschluss, bevor die Ansicht neu geladen wird.
+- Personenverwaltung korrigiert: Personen können jetzt zuverlässig angelegt und bearbeitet werden. Der Speichervorgang wartet ebenfalls auf den vollständigen IndexedDB-Transaktionsabschluss.
+- Paketpreis-Feld bei Personen korrigiert: Es akzeptiert nun deutsche Kommaschreibweise, ohne dass iPhone/Safari den Formularversand blockiert.
+- Beim Speichern einer Reise oder Person erscheint jetzt eine sichtbare Bestätigung.
+- Aktionsbuttons verhindern jetzt konsequent unbeabsichtigte Standardaktionen im Formularumfeld.
+
 ### Neu strukturiert
 
 - Projektstruktur vollständig neu aufgebaut:
