@@ -279,8 +279,31 @@ function setOnlineState() {
 
 function bindShell() {
   document.addEventListener('click', handleClick);
+  document.addEventListener('click', handleFieldFocus, true);
+  document.addEventListener('touchend', handleFieldFocus, { capture: true, passive: true });
   document.addEventListener('submit', handleSubmit);
   $('#fileInput').addEventListener('change', handleFileInput);
+}
+
+function handleFieldFocus(event) {
+  const interactive = event.target.closest('button, [data-action], [data-route], a, input, textarea, select');
+  if (interactive && !interactive.matches('input, textarea, select')) return;
+  const area = event.target.closest('.formField, .searchBoxNative');
+  if (!area) return;
+  const field = area.matches('input, textarea, select') ? area : area.querySelector('input, textarea, select');
+  if (!field || field.disabled || field.readOnly) return;
+  // Keine preventDefault-Logik: Safari/iOS darf die native Tastatur selbst öffnen.
+  window.setTimeout(() => {
+    try {
+      field.focus({ preventScroll: true });
+      if (field.matches('input[type="text"], input[type="search"], input:not([type]), textarea')) {
+        const len = field.value.length;
+        field.setSelectionRange(len, len);
+      }
+    } catch (_) {
+      try { field.focus(); } catch (__) {}
+    }
+  }, 0);
 }
 
 async function handleClick(event) {
@@ -569,7 +592,7 @@ function viewTrack() {
         <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
         ${persons.length ? personChips(persons) : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
         ${selectedPerson ? `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>` : ''}
-        <input id="drinkSearch" class="searchBox searchBoxLarge searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="⌕ Getränk suchen …" value="${esc(state.query)}">
+        <div class="searchBox searchBoxLarge searchBoxNative"><span aria-hidden="true">⌕</span><input id="drinkSearch" class="searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></div>
         <div id="categoryChips">${categoryChipsHtml()}</div>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>
