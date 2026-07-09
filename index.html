@@ -31,6 +31,7 @@
     </nav>
 
     <main id="view"></main>
+    <div id="undoDock" class="undoDock" hidden></div>
 
     <nav class="tabs" aria-label="Schnellnavigation">
       <button data-route="home" class="tab active">⌂<span>Start</span></button>
@@ -57,7 +58,7 @@
 
   <dialog id="editDialog">
     <form method="dialog" class="menu" id="editForm">
-      <h2>Eintrag bearbeiten</h2>
+      <h2 id="editTitle">Eintrag bearbeiten</h2>
       <input type="hidden" id="editId" />
       <label>Reise<select id="editTrip"></select></label>
       <label>Person<select id="editPerson"></select></label>
