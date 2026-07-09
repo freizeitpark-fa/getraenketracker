@@ -1,0 +1,8 @@
+[
+  {"id":"none","name":"Kein Paket"},
+  {"id":"light","name":"Light / Softdrink-Paket"},
+  {"id":"comfort","name":"Comfort"},
+  {"id":"comfort_deluxe","name":"Comfort Deluxe"},
+  {"id":"kids_teens","name":"Kids & Teens"},
+  {"id":"unclear","name":"Unklar / später prüfen"}
+]

@@ -1,0 +1,13 @@
+{
+  "version": "2026-07-09-stamm-vorlaeufig",
+  "source": "Vorläufige Stammdaten; echte AIDA-Barkarte per Import ergänzen/ersetzen.",
+  "drinks": [
+    {"id":"espresso","name":"Espresso","category":"Kaffee","price":2.7,"packages":{"comfort":"included","comfort_deluxe":"included","light":"unclear","kids_teens":"unclear"}},
+    {"id":"cappuccino","name":"Cappuccino","category":"Kaffee","price":3.6,"packages":{"comfort":"included","comfort_deluxe":"included","light":"unclear","kids_teens":"unclear"}},
+    {"id":"wasser_05","name":"Mineralwasser 0,5 l","category":"Wasser","price":3.2,"packages":{"light":"included","comfort":"included","comfort_deluxe":"included","kids_teens":"included"}},
+    {"id":"cola_03","name":"Cola 0,3 l","category":"Softdrink","price":3.5,"packages":{"light":"included","comfort":"included","comfort_deluxe":"included","kids_teens":"included"}},
+    {"id":"bier_03","name":"Bier vom Fass 0,3 l","category":"Bier","price":4.2,"packages":{"comfort":"included","comfort_deluxe":"included","light":"not_included","kids_teens":"not_included"}},
+    {"id":"wein_glas","name":"Wein Glas","category":"Wein","price":5.9,"packages":{"comfort":"unclear","comfort_deluxe":"included","light":"not_included","kids_teens":"not_included"}},
+    {"id":"cocktail","name":"Cocktail","category":"Cocktail","price":8.9,"packages":{"comfort":"unclear","comfort_deluxe":"included","light":"not_included","kids_teens":"not_included"}}
+  ]
+}

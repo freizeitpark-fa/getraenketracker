@@ -1,15 +1,25 @@
-{
-  "name": "Kreuzfahrt Getränketracker",
-  "short_name": "Getränke",
-  "description": "Offline Getränketracker für Kreuzfahrt-Getränkepakete",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#f6f7f8",
-  "theme_color": "#0f766e",
-  "orientation": "portrait",
-  "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
-  ]
-}
+const CACHE_NAME = 'getraenketracker-v2-0-0';
+const ASSETS = [
+  './', './index.html', './style.css', './app.js', './manifest.json',
+  './icons/icon-192.png', './icons/icon-512.png',
+  './data/barkarte.json', './data/pakete.json'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))));
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+    const copy = response.clone();
+    caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+    return response;
+  }).catch(() => caches.match('./index.html'))));
+});
