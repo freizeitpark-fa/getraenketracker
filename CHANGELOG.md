@@ -1,40 +1,118 @@
 # Changelog
 
+Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
+
+## 4.0.0 - laufende Entwicklungsfassung
+
+### Neu strukturiert
+
+- Projektstruktur vollständig neu aufgebaut:
+  - `css/`
+  - `js/`
+  - `data/`
+  - `icons/`
+  - `assets/`
+  - `docs/`
+- App-Version bleibt bewusst bei `4.0.0`, bis diese Hauptversion vollständig stabil ist.
+- README, ROADMAP, OFFLINE und technische Dokumentation ergänzt.
+
+### Redesign
+
+- Komplettes iPhone-orientiertes Redesign.
+- Bottom Navigation im nativen App-Stil.
+- Card-basiertes Layout.
+- SF-Pro-nahe Systemtypografie über Apple-Systemfonts.
+- Dark Mode über Systempräferenz.
+- Safe-Area-Unterstützung für iPhone.
+- Einhändige Bedienung priorisiert.
+- Dezente Animationen und reduzierte Bewegung bei entsprechender Systemeinstellung.
+- Haptisches Feedback wird ausgelöst, sofern der Browser es unterstützt.
+
+### Onboarding
+
+- Erststart-Onboarding ergänzt:
+  - Offline-Einrichtung
+  - Hinweis „Zum Home-Bildschirm“
+  - Geräteprüfung
+  - Offline-Status
+  - Barkartenprüfung
+  - Backup-Test
+  - Reiseanlage
+
+### Dashboard
+
+- Dashboard neu aufgebaut:
+  - Heute
+  - Gesamtreise
+  - Ersparnis
+  - zu zahlender Betrag
+  - Schnellzugriff
+  - Favoriten
+  - zuletzt getrunkene Getränke
+
+### Tracking
+
+- Tracking neu aufgebaut.
+- Personenauswahl als farbige Chips.
+- Getränkesuche ohne Fokusverlust.
+- Kategorien, Favoriten und zuletzt verwendete Getränke integriert.
+- Rückgängig dauerhaft sichtbar über fixierten Dock.
+- Paketstatus wird pro Person und Getränk angezeigt.
+
+### Verlauf
+
+- Verlauf als Timeline umgesetzt.
+- Personen farbig unterscheidbar.
+- Filter ergänzt:
+  - Heute
+  - Gestern
+  - Reise
+- Einträge können bearbeitet und gelöscht werden.
+
+### Reiseverwaltung
+
+- Reisen können angelegt, bearbeitet, archiviert und gelöscht werden.
+- Löschen nur mit Sicherheitsabfrage durch Eingabe von `LÖSCHEN`.
+
+### Geräteverwaltung und Zusammenführen
+
+- Geräte-ID und Gerätename sichtbar.
+- Export je Reise.
+- Import und Zusammenführen mehrerer Geräte.
+- Dublettenerkennung über Geräte-ID und ursprüngliche Eintrags-ID.
+- Mehrfachimporte desselben Exports werden übersprungen.
+- Importprotokoll ergänzt.
+
+### Auswertungen
+
+- Auswertungen ergänzt nach:
+  - Person
+  - Getränk
+  - Kategorie
+  - Tag
+  - Reise
+  - Lieblingsgetränke
+- Ersparnis wird konservativ berechnet: Nur `included` zählt als Ersparnis; `unclear` zählt nicht als Ersparnis.
+
+### Barkartenverwaltung
+
+- Aktuelle Barkarte sichtbar.
+- Import strukturierter Barkarten per JSON oder CSV.
+- Preisvergleich ergänzt.
+- Neue Getränke werden erkannt.
+- Paketänderungen werden erkannt.
+- PDF-Auswertung bewusst nicht offline integriert, da keine externen Bibliotheken genutzt werden.
+
+### Migration
+
+- Beim ersten Start wird eine Migration aus der bisherigen v3-IndexedDB (`gt_db_v3`) versucht.
+
 ## 3.1.0
 
-- Neues App-Icon mit Kreuzfahrtschiff und Cocktailglas
-- Maritimes Farbschema und iPhone-Feinschliff ergänzt
-- Apple Touch Icon und Favicons ergänzt
-- Reisen können nachträglich bearbeitet werden.
-- Beim Löschen einer Reise erscheint eine deutliche Sicherheitsabfrage mit Anzahl Personen und Einträge.
-- Personen werden grafisch durch dezente Hintergrundfarben unterschieden.
-- Verlauf optisch beruhigt: dezente Statuspunkte statt großer grüner/roter Symbole.
-- Verlauf zeigt weiterhin Person und erfassendes Gerät.
-
-## 3.1.0
-- Hauptversion mit Dashboard und iPhone-Bottom-Navigation.
-- Mehrfach nutzbare Reiseverwaltung.
-- Auswertung je Reise.
-- Eindeutige Geräte-ID je Installation.
-- Export/Import zum Zusammenführen mehrerer Geräte.
-- Dublettenvermeidung über eindeutige Eintrags-ID.
-- Verlauf zeigt konsumierende Person und erfassendes Gerät.
-- Favoriten, zuletzt getrunken und gängige Getränke werden priorisiert.
-- Verlaufseinträge können bearbeitet und gelöscht werden.
-- Changelog und Versionsinfo direkt in der App.
-
-## 2.4.0
-- Reiseverwaltung fuer mehrfache Nutzung.
-- Auswertung pro Reise.
-- Eindeutige Geraete-ID je Installation.
-- Import/Export mit Dublettenvermeidung ueber Eintrags-ID.
-- Verlauf zeigt, wer konsumiert hat und auf welchem Geraet erfasst wurde.
-
-## 2.3.0
-- Favoriten.
-- Verlauf bearbeiten und loeschen.
-- Navigation oben.
-
-## 2.2.0
-- AIDA Barkarte 01.11.2025.
-- Paketnamen ALL IN, FUN, Kids & Teens ALL IN, Kids & Teens FUN.
+- Neues App-Icon mit Kreuzfahrtschiff und Cocktailglas.
+- Visueller Feinschliff mit maritimem Farbschema.
+- Apple Touch Icon und Favicons ergänzt.
+- Reise-Dashboard ergänzt.
+- Rückgängig-Leiste dauerhaft sichtbar.
+- Sucheingabe stabilisiert.
+- Import weiter dublettensicher auch bei mehrfachen Exporten eines Zweitgeräts.

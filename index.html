@@ -1,81 +1,57 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-online="online">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#07182f" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="CruiseSip" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <link rel="icon" href="favicon.ico" sizes="any" />
-  <link rel="icon" href="icons/favicon-32x32.png" type="image/png" />
-  <link rel="stylesheet" href="style.css" />
-  <title>CruiseSip Getränketracker</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#05070b" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="CruiseSip">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" href="icons/favicon-32x32.png" type="image/png">
+  <link rel="stylesheet" href="css/styles.css">
+  <title>CruiseSip</title>
 </head>
 <body>
-  <div id="app" class="app">
-    <header class="topbar">
-      <div class="title">
-        <h1>CruiseSip</h1>
-        <p id="subtitle">Version 3.0.0 · AIDA 01.11.2025</p>
+  <div class="appShell">
+    <header class="topBar">
+      <div class="brandBlock">
+        <div class="appIcon" aria-hidden="true"></div>
+        <div class="brandText">
+          <strong>CruiseSip</strong>
+          <span id="tripTitle">Lädt …</span>
+        </div>
       </div>
-      <button id="menuBtn" class="iconbtn" aria-label="Menü">☰</button>
+      <div class="statusPill"><span id="onlineDot">Online</span> · <span id="appVersion">v4.0.0</span></div>
     </header>
 
-    <nav class="topnav" aria-label="Hauptnavigation">
-      <button data-route="home" class="tab active">Start</button>
-      <button data-route="track" class="tab">Tracken</button>
-      <button data-route="history" class="tab">Verlauf</button>
-      <button data-route="stats" class="tab">Auswertung</button>
-      <button data-route="trips" class="tab">Reisen</button><button data-route="settings" class="tab">Setup</button>
-    </nav>
-
-    <main id="view"></main>
+    <main id="view" aria-live="polite"></main>
     <div id="undoDock" class="undoDock" hidden></div>
+    <div id="toast" class="toast" hidden></div>
 
-    <nav class="tabs" aria-label="Schnellnavigation">
-      <button data-route="home" class="tab active">⌂<span>Start</span></button>
-      <button data-route="track" class="tab">＋<span>Tracken</span></button>
-      <button data-route="history" class="tab">↺<span>Verlauf</span></button>
-      <button data-route="stats" class="tab">∑<span>Auswertung</span></button>
-      <button data-route="data" class="tab">⋯<span>Mehr</span></button>
+    <nav class="bottomNav" aria-label="Hauptnavigation">
+      <button class="navButton active" data-route="dashboard" aria-label="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg><span>Heute</span>
+      </button>
+      <button class="navButton" data-route="track" aria-label="Tracken">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg><span>Tracken</span>
+      </button>
+      <button class="navButton" data-route="history" aria-label="Verlauf">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12a8 8 0 1 0 2.34-5.66"/><path d="M4 4v6h6"/><path d="M12 8v5l3 2"/></svg><span>Verlauf</span>
+      </button>
+      <button class="navButton" data-route="stats" aria-label="Auswertungen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg><span>Analyse</span>
+      </button>
+      <button class="navButton" data-route="settings" aria-label="Einstellungen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.36a1.7 1.7 0 0 0-1 .64 1.7 1.7 0 0 0-.34 1.08V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.64 15a1.7 1.7 0 0 0-.64-1H4a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 5.6 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06A2 2 0 1 1 8.03 3.84l.06.06A1.7 1.7 0 0 0 10 4.64a1.7 1.7 0 0 0 1-.64V4a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 10c.4.26.64.67.64 1.09H20a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-.51-.09Z"/></svg><span>Setup</span>
+      </button>
     </nav>
+    <input id="fileInput" type="file" hidden>
   </div>
-
-  <dialog id="menuDialog">
-    <form method="dialog" class="menu">
-      <h2>Menü</h2>
-      <button value="home">Start</button>
-      <button value="track">Getränk erfassen</button>
-      <button value="history">Verlauf bearbeiten</button>
-      <button value="stats">Auswertung</button>
-      <button value="trips">Reisen verwalten</button>
-      <button value="settings">Personen / Gerät</button>
-      <button value="data">Import / Export / Info</button>
-      <button value="close">Schließen</button>
-    </form>
-  </dialog>
-
-  <dialog id="editDialog">
-    <form method="dialog" class="menu" id="editForm">
-      <h2 id="editTitle">Eintrag bearbeiten</h2>
-      <input type="hidden" id="editId" />
-      <label>Reise<select id="editTrip"></select></label>
-      <label>Person<select id="editPerson"></select></label>
-      <label>Getränk<select id="editDrink"></select></label>
-      <label>Preis<input id="editPrice" type="number" step="0.01" /></label>
-      <label>Paketstatus<select id="editStatus"><option value="included">enthalten</option><option value="not_included">nicht enthalten</option><option value="unclear">unklar</option></select></label>
-      <label>Datum/Uhrzeit<input id="editTs" type="datetime-local" /></label>
-      <menu>
-        <button value="cancel" type="submit">Abbrechen</button>
-        <button value="save" class="primary" type="submit">Speichern</button>
-      </menu>
-    </form>
-  </dialog>
-
-  <input id="fileInput" type="file" hidden />
-  <script src="app.js" defer></script>
+  <script src="js/app.js" defer></script>
 </body>
 </html>
