@@ -555,12 +555,15 @@ function kpi(label, value, sub) { return `<article class="kpi"><span>${esc(label
 
 function viewTrack() {
   const persons = currentPersons();
+  const selectedPerson = personById(state.selectedPersonId) || persons[0] || null;
+  const logsCount = selectedPerson ? currentLogs().filter(log => log.personId === selectedPerson.id).length : 0;
   return `
     <section class="screen trackScreen">
-      <div class="stickyHeader">
+      <div class="stickyHeader trackStickyHeader">
         <div class="sectionHead"><h1>Tracken</h1><button class="mini" data-route="devices">Personen</button></div>
         ${persons.length ? personChips(persons) : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
-        <div class="searchBox"><span>⌕</span><input id="drinkSearch" inputmode="search" autocomplete="off" placeholder="Getränk suchen …" value="${esc(state.query)}"></div>
+        ${selectedPerson ? `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>` : ''}
+        <div class="searchBox searchBoxLarge"><span>⌕</span><input id="drinkSearch" inputmode="search" autocomplete="off" placeholder="Getränk suchen …" value="${esc(state.query)}"></div>
         <div id="categoryChips">${categoryChipsHtml()}</div>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>
@@ -574,42 +577,108 @@ function categories() {
   const cats = [...new Set(state.drinks.map(d => d.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
   return ['Empfohlen', 'Favoriten', 'Zuletzt', ...cats, 'Alle'];
 }
+function categoryIcon(category = '', name = '') {
+  const n = normalize(`${category} ${name}`);
+  if (/(kaffee|espresso|cappuccino|latte|macchiato|tee|kakao)/.test(n)) return '☕';
+  if (/(cocktail|sprizz|spritz|hugo|aperol|longdrink)/.test(n)) return '🍹';
+  if (/(wein|prosecco|sekt|champagner|prickelnd)/.test(n)) return '🍷';
+  if (/(bier|pils|radler|weizen)/.test(n)) return '🍺';
+  if (/(wasser)/.test(n)) return '💧';
+  if (/(saft|nektar|schorle|smoothie)/.test(n)) return '🧃';
+  if (/(cola|fanta|sprite|limonade|softdrink|iced tea|lemonade)/.test(n)) return '🥤';
+  if (/(milchshake|shake)/.test(n)) return '🥛';
+  if (/(spirituose|gin|rum|vodka|whisky|schnaps)/.test(n)) return '🥃';
+  return '🍸';
+}
+function drinkUsageMap(personId = null) {
+  const map = new Map();
+  currentLogs().forEach(log => {
+    if (personId && log.personId !== personId) return;
+    const key = log.drinkId;
+    const row = map.get(key) || { count: 0, lastTs: 0 };
+    row.count += 1;
+    row.lastTs = Math.max(row.lastTs, Number(log.ts) || 0);
+    map.set(key, row);
+  });
+  return map;
+}
+function favoriteDrinks(limit = 8) { return favoriteIds().map(id => drinkById(id)).filter(Boolean).slice(0, limit); }
+function recentDrinks(limit = 8) { return recentDrinkIds().map(id => drinkById(id)).filter(Boolean).slice(0, limit); }
+function recommendedDrinks(limit = 8) {
+  const q = normalize(state.query);
+  const fav = new Set(favoriteIds());
+  const recent = new Set(recentDrinkIds());
+  const usage = drinkUsageMap(state.selectedPersonId || null);
+  const now = Date.now();
+  return state.drinks
+    .map(drink => {
+      const stat = usage.get(drink.id);
+      let score = 0;
+      if (fav.has(drink.id)) score += 1200;
+      if (recent.has(drink.id)) score += 900;
+      if (stat) {
+        score += 300 + stat.count * 45;
+        const hoursSince = Math.max(0, (now - stat.lastTs) / 3600000);
+        score += Math.max(0, 220 - hoursSince * 3);
+      }
+      if (QUICK_TERMS.some(term => normalize(drink.name).includes(term))) score += 120;
+      if (q && !normalize(`${drink.name} ${drink.category} ${drink.notes || ''} ${drink.volume || ''}`).includes(q)) score -= 5000;
+      return { drink, score };
+    })
+    .filter(row => row.score > 0)
+    .sort((a, b) => b.score - a.score || String(a.drink.name).localeCompare(String(b.drink.name), 'de'))
+    .map(row => row.drink)
+    .slice(0, limit);
+}
 function filteredDrinks() {
   const q = normalize(state.query);
   const fav = new Set(favoriteIds());
   const recent = new Set(recentDrinkIds());
+  const recommendedIds = new Set(recommendedDrinks(24).map(d => d.id));
+  const usage = drinkUsageMap(state.selectedPersonId || null);
   let list = state.drinks;
   if (state.category === 'Favoriten') list = list.filter(d => fav.has(d.id));
   else if (state.category === 'Zuletzt') list = list.filter(d => recent.has(d.id));
-  else if (state.category === 'Empfohlen') list = list.filter(d => fav.has(d.id) || recent.has(d.id) || QUICK_TERMS.some(t => normalize(d.name).includes(t)));
+  else if (state.category === 'Empfohlen') list = list.filter(d => recommendedIds.has(d.id));
   else if (state.category !== 'Alle') list = list.filter(d => d.category === state.category);
   if (q) list = list.filter(d => normalize(`${d.name} ${d.category} ${d.notes || ''} ${d.volume || ''}`).includes(q));
   return list.sort((a, b) => {
+    const aStat = usage.get(a.id)?.count || 0;
+    const bStat = usage.get(b.id)?.count || 0;
     const favDiff = Number(fav.has(b.id)) - Number(fav.has(a.id));
     if (favDiff) return favDiff;
-    const recDiff = Number(recent.has(b.id)) - Number(recent.has(a.id));
+    const recDiff = Number(recommendedIds.has(b.id)) - Number(recommendedIds.has(a.id));
     if (recDiff) return recDiff;
+    if (bStat !== aStat) return bStat - aStat;
+    const recentDiff = Number(recent.has(b.id)) - Number(recent.has(a.id));
+    if (recentDiff) return recentDiff;
     return String(a.name).localeCompare(String(b.name), 'de');
   }).slice(0, 80);
+}
+function quickTrackSection(title, subtitle, drinks, badge = '') {
+  if (!drinks.length) return '';
+  return `<section class="card trackQuickSection"><div class="sectionHead"><div><h2>${esc(title)}</h2><p class="trackSectionNote">${esc(subtitle)}</p></div><span class="subtle">${drinks.length}</span></div><div class="quickDrinkGrid">${drinks.map(drink => `<button class="quickDrinkTile" data-action="trackDrink" data-id="${esc(drink.id)}"><span class="quickDrinkTop"><span class="quickDrinkIcon">${categoryIcon(drink.category, drink.name)}</span>${badge ? `<span class="quickDrinkBadge">${esc(badge)}</span>` : ''}</span><b>${esc(drink.name)}</b><small>${esc(drink.category || 'Getränk')}${drink.volume ? ` · ${esc(drink.volume)}` : ''}</small><strong>${eur(drink.price)}</strong></button>`).join('')}</div></section>`;
+}
+function trackQuickSectionsHtml() {
+  if (state.query) return '';
+  const recommended = recommendedDrinks(6);
+  const favorites = favoriteDrinks(6);
+  const recent = recentDrinks(6);
+  return `<div class="trackQuickStack">${quickTrackSection('Empfehlungen', 'Aus Favoriten und bisher erfassten Getränken.', recommended, 'Schnellwahl')}${quickTrackSection('Favoriten', 'Deine gemerkten Getränke für schnelles Erfassen.', favorites, 'Favorit')}${quickTrackSection('Zuletzt erfasst', 'Ideal für die nächste Runde an Bord.', recent, 'Zuletzt')}</div>`;
 }
 function drinkListHtml() {
   const person = personById(state.selectedPersonId);
   const fav = new Set(favoriteIds());
+  const usage = drinkUsageMap(state.selectedPersonId || null);
   const drinks = filteredDrinks();
   if (!currentPersons().length) return '';
   if (!drinks.length) return '<div class="card emptyText">Keine passenden Getränke gefunden.</div>';
-  return `<div class="drinkGrid">${drinks.map(d => {
+  const listTitle = state.query ? 'Suchergebnisse' : state.category === 'Alle' ? 'Alle Getränke' : state.category;
+  return `<div class="trackContent">${trackQuickSectionsHtml()}<section class="card trackListSection"><div class="sectionHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Große Kacheln für schnelle Erfassung mit einer Hand.</p></div><span class="subtle">${drinks.length} Getränke</span></div><div class="drinkGrid">${drinks.map(d => {
     const status = person ? statusForDrink(d, person.packageId) : 'unclear';
-    return `<article class="drinkCard">
-      <button class="favButton ${fav.has(d.id) ? 'active' : ''}" data-action="toggleFavorite" data-id="${esc(d.id)}" aria-label="Favorit">★</button>
-      <button class="drinkMain" data-action="trackDrink" data-id="${esc(d.id)}">
-        <span class="drinkTitle">${esc(d.name)}</span>
-        <span class="drinkMeta">${esc(d.category || '')}${d.volume ? ` · ${esc(d.volume)}` : ''}</span>
-        <span class="statusBadge ${statusClass(status)}">${esc(statusLabel(status))}</span>
-      </button>
-      <button class="priceButton" data-action="trackDrink" data-id="${esc(d.id)}">${eur(d.price)}</button>
-    </article>`;
-  }).join('')}</div>`;
+    const count = usage.get(d.id)?.count || 0;
+    return `<article class="drinkCard"><button class="favButton ${fav.has(d.id) ? 'active' : ''}" data-action="toggleFavorite" data-id="${esc(d.id)}" aria-label="Favorit">★</button><button class="drinkMain" data-action="trackDrink" data-id="${esc(d.id)}"><span class="drinkIcon">${categoryIcon(d.category, d.name)}</span><span class="drinkBody"><span class="drinkTitle">${esc(d.name)}</span><span class="drinkMeta">${esc(d.category || '')}${d.volume ? ` · ${esc(d.volume)}` : ''}${count ? ` · ${count}× gewählt` : ''}</span><span class="statusBadge ${statusClass(status)}">${esc(statusLabel(status))}</span></span><span class="priceButton pricePill">${eur(d.price)}</span></button></article>`;
+  }).join('')}</div></section></div>`;
 }
 
 function viewHistory() {

@@ -6,6 +6,9 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
+- Erfassen-Ansicht für iPhone überarbeitet: größere Suchleiste, 16px Eingabeschrift gegen Safari-Zoom, stabilere Darstellung ohne ungewolltes Verkleinern sowie eine neue Schnellwahl mit großen Kacheln, Symbolen, Favoriten und intelligenten Empfehlungen aus den bisher erfassten Getränken.
+- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709g` erhöht.
+
 - Speicherlogik erneut gehärtet: Reise- und Personenformulare sind jetzt wieder echte `<form>`-Elemente mit Submit-Handler. Zusätzlich bleibt ein direkter Touch-/Click-Fallback auf den Speicherbuttons aktiv. Dadurch funktionieren Speichern, Bearbeiten und Neuanlage auch dann, wenn Safari/iOS einzelne Events anders auslöst.
 - Service-Worker-Cache auf `cruisesip-v4-0-0-20260709f` erhöht.
 
