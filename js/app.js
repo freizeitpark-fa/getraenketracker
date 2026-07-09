@@ -450,25 +450,12 @@ function bindRenderedControls() {
 
 function bindInputs() {
   const search = $('#drinkSearch');
-  if (search && search.dataset.bound !== '1') {
-    search.dataset.bound = '1';
+  if (search) {
     search.value = state.query;
     search.addEventListener('input', event => {
       state.query = event.target.value;
       renderTrackList();
     });
-    search.addEventListener('focus', () => search.classList.add('isFocused'));
-    search.addEventListener('blur', () => search.classList.remove('isFocused'));
-    const searchBox = search.closest('.searchBox');
-    if (searchBox && searchBox.dataset.focusBound !== '1') {
-      searchBox.dataset.focusBound = '1';
-      searchBox.addEventListener('click', event => {
-        if (event.target === search) return;
-        search.focus();
-      });
-    }
-  } else if (search) {
-    search.value = state.query;
   }
   const dateInputs = $$('.dateDefaultToday');
   dateInputs.forEach(input => { if (!input.value) input.value = new Date().toISOString().slice(0, 10); });
@@ -577,7 +564,7 @@ function viewTrack() {
         <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
         ${persons.length ? personChips(persons) : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
         ${selectedPerson ? `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>` : ''}
-        <div class="searchBox searchBoxLarge" role="search"><span>⌕</span><input id="drinkSearch" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></div>
+        <label class="searchBox searchBoxLarge" for="drinkSearch"><span>⌕</span><input id="drinkSearch" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
         <div id="categoryChips">${categoryChipsHtml()}</div>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>

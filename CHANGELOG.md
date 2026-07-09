@@ -6,16 +6,9 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
-- Eingabefelder nach dem Suchleisten-Fix wieder auf normales natives Klick-/Touch-Verhalten zurückgestellt.
-- Filterband unter der Suche stabilisiert: `Alle` steht jetzt direkt neben den Schnellfiltern und das Band scrollt separat horizontal von links nach rechts.
-- Getränkeliste bleibt darunter als kompakte vertikale Liste; horizontales Seiten-Scrolling wird weiter unterbunden.
-- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709m` erhöht.
-
-- Eingabefelder wieder auf natives Klick-/Touch-Verhalten zurückgestellt: Der vorherige Suchleisten-Fokus-Fix mit `pointerdown`/`touchend` und `preventDefault()` wurde entfernt, damit iPhone/Safari die Tastatur in allen Formularfeldern wieder zuverlässig öffnet.
-- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709l` erhöht.
-
-- Suchleiste in der Erfassen-Ansicht für iPhone/Safari korrigiert: echtes `type="search"`-Feld, Label-Fokusbereich, direkte Fokus-Absicherung und CSS-Pointer-Fix, damit beim Antippen zuverlässig die Tastatur erscheint.
-- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709k` erhöht.
+- Eingabefelder und Suchfeld wieder auf native iPhone-/Safari-Bedienung zurückgeführt: keine globalen Pointer-/Touch-Hacks mehr. Die Track-Suche ist jetzt ein echtes Label-Feld, sodass auch der freie Bereich der Suchleiste die Tastatur öffnet.
+- Filterband korrigiert: `Empfohlen`, `Favoriten`, `Zuletzt`, `Alle` und weitere Kategorien sind in einem eigenen horizontal scrollbareren Band.
+- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709n` erhöht.
 
 - Erfassen-Ansicht erneut vereinfacht: CruiseSip-Kopfzeile dient jetzt als fester Seitenkopf mit Tracken-Hinweis, die Kategorieauswahl bleibt ein eigenes horizontales Band und die Artikel erscheinen darunter als kompakte einspaltige Liste.
 - Horizontales Seiten-Scrolling nochmals unterbunden; vertikales Scrollen findet nur in der Artikelliste statt.
