@@ -1,8 +1,37 @@
 [
-  {"id":"none","name":"Kein Paket"},
-  {"id":"light","name":"Light / Softdrink-Paket"},
-  {"id":"comfort","name":"Comfort"},
-  {"id":"comfort_deluxe","name":"Comfort Deluxe"},
-  {"id":"kids_teens","name":"Kids & Teens"},
-  {"id":"unclear","name":"Unklar / später prüfen"}
+  {
+    "id": "none",
+    "name": "Kein Getränkepaket",
+    "minAge": null,
+    "source": "system"
+  },
+  {
+    "id": "all_in",
+    "name": "ALL IN",
+    "minAge": 18,
+    "source": "AIDA Barkarte Stand 01.11.2025"
+  },
+  {
+    "id": "fun",
+    "name": "FUN",
+    "minAge": 16,
+    "source": "AIDA Barkarte Stand 01.11.2025"
+  },
+  {
+    "id": "kids_teens_all_in",
+    "name": "Kids & Teens ALL IN",
+    "age": "4–17 Jahre",
+    "source": "AIDA Barkarte Stand 01.11.2025"
+  },
+  {
+    "id": "kids_teens_fun",
+    "name": "Kids & Teens FUN",
+    "age": "4–17 Jahre",
+    "source": "AIDA Barkarte Stand 01.11.2025"
+  },
+  {
+    "id": "unclear",
+    "name": "Unklar / an Bord prüfen",
+    "source": "manual"
+  }
 ]

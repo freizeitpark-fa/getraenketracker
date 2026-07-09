@@ -1,4 +1,4 @@
-const CACHE_NAME = 'getraenketracker-v2-0-0';
+const CACHE_NAME = 'getraenketracker-v2-2-0';
 const ASSETS = [
   './', './index.html', './style.css', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png',

@@ -1,13 +1,3268 @@
 {
-  "version": "2026-07-09-stamm-vorlaeufig",
-  "source": "Vorläufige Stammdaten; echte AIDA-Barkarte per Import ergänzen/ersetzen.",
+  "version": "2025-11-01_aida_barkarte_v2_2",
+  "source": "AIDA Barkarte PDF, Stand 01.11.2025, manuell strukturiert aus hochgeladener PDF. Paketstatus nach Paketmatrix Seite 25 konservativ gesetzt.",
   "drinks": [
-    {"id":"espresso","name":"Espresso","category":"Kaffee","price":2.7,"packages":{"comfort":"included","comfort_deluxe":"included","light":"unclear","kids_teens":"unclear"}},
-    {"id":"cappuccino","name":"Cappuccino","category":"Kaffee","price":3.6,"packages":{"comfort":"included","comfort_deluxe":"included","light":"unclear","kids_teens":"unclear"}},
-    {"id":"wasser_05","name":"Mineralwasser 0,5 l","category":"Wasser","price":3.2,"packages":{"light":"included","comfort":"included","comfort_deluxe":"included","kids_teens":"included"}},
-    {"id":"cola_03","name":"Cola 0,3 l","category":"Softdrink","price":3.5,"packages":{"light":"included","comfort":"included","comfort_deluxe":"included","kids_teens":"included"}},
-    {"id":"bier_03","name":"Bier vom Fass 0,3 l","category":"Bier","price":4.2,"packages":{"comfort":"included","comfort_deluxe":"included","light":"not_included","kids_teens":"not_included"}},
-    {"id":"wein_glas","name":"Wein Glas","category":"Wein","price":5.9,"packages":{"comfort":"unclear","comfort_deluxe":"included","light":"not_included","kids_teens":"not_included"}},
-    {"id":"cocktail","name":"Cocktail","category":"Cocktail","price":8.9,"packages":{"comfort":"unclear","comfort_deluxe":"included","light":"not_included","kids_teens":"not_included"}}
+    {
+      "id": "coconut_mai_tai",
+      "name": "Coconut Mai Tai",
+      "category": "Cocktails",
+      "price": 10.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "white_basil",
+      "name": "White Basil",
+      "category": "Cocktails",
+      "price": 8.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_icebreaker",
+      "name": "AIDA Icebreaker",
+      "category": "Cocktails",
+      "price": 10.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_honey_mule",
+      "name": "AIDA Honey Mule",
+      "category": "Cocktails",
+      "price": 10.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "deep_purple_magic_sour",
+      "name": "Deep Purple Magic Sour",
+      "category": "Cocktails",
+      "price": 11.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "dark_stormy",
+      "name": "Dark & Stormy",
+      "category": "Cocktails",
+      "price": 9.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "mojito",
+      "name": "Mojito",
+      "category": "Cocktails",
+      "price": 9.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "sex_on_the_beach",
+      "name": "Sex on the Beach",
+      "category": "Cocktails",
+      "price": 9.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_mai_tai",
+      "name": "AIDA Mai Tai",
+      "category": "Cocktails",
+      "price": 10.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "caipirinha",
+      "name": "Caipirinha",
+      "category": "Cocktails",
+      "price": 9.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "pina_colada",
+      "name": "Piña Colada",
+      "category": "Cocktails",
+      "price": 9.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "original_pat_o_brien_s_hurricane",
+      "name": "Original Pat O'Brien's Hurricane",
+      "category": "Cocktails",
+      "price": 10.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "swimming_pool",
+      "name": "Swimming Pool",
+      "category": "Cocktails",
+      "price": 10.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "long_island_iced_tea",
+      "name": "Long Island Iced Tea",
+      "category": "Cocktails",
+      "price": 11.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "margarita",
+      "name": "Margarita",
+      "category": "Cocktails",
+      "price": 8.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "whiskey_sour",
+      "name": "Whiskey Sour",
+      "category": "Cocktails",
+      "price": 8.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "cosmopolitan",
+      "name": "Cosmopolitan",
+      "category": "Cocktails",
+      "price": 7.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "espresso_martini",
+      "name": "Espresso Martini",
+      "category": "Cocktails",
+      "price": 8.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "negroni",
+      "name": "Negroni",
+      "category": "Cocktails",
+      "price": 10.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "coconut_mai_tai_alkoholfrei",
+      "name": "Coconut Mai Tai alkoholfrei",
+      "category": "Cocktails alkoholfrei",
+      "price": 8.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_honey_mule_alkoholfrei",
+      "name": "AIDA Honey Mule alkoholfrei",
+      "category": "Cocktails alkoholfrei",
+      "price": 8.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "mojito_alkoholfrei",
+      "name": "Mojito alkoholfrei",
+      "category": "Cocktails alkoholfrei",
+      "price": 8.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "caipirinha_alkoholfrei",
+      "name": "Caipirinha alkoholfrei",
+      "category": "Cocktails alkoholfrei",
+      "price": 8.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "margarita_alkoholfrei",
+      "name": "Margarita alkoholfrei",
+      "category": "Cocktails alkoholfrei",
+      "price": 7.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "whiskey_sour_alkoholfrei",
+      "name": "Whiskey Sour alkoholfrei",
+      "category": "Cocktails alkoholfrei",
+      "price": 7.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "cuba_libre_alkoholfrei",
+      "name": "Cuba Libre alkoholfrei",
+      "category": "Cocktails alkoholfrei",
+      "price": 7.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "erdbeer_colada",
+      "name": "Erdbeer Colada",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 7.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "ipanema",
+      "name": "Ipanema",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 7.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "banana_split",
+      "name": "Banana Split",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 6.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "coco_choco_loco",
+      "name": "Coco Choco Loco",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "apple_crumble",
+      "name": "Apple Crumble",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "sunrise",
+      "name": "Sunrise",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 6.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aquarium",
+      "name": "Aquarium",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 7.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "palm_beach",
+      "name": "Palm Beach",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 6.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "cherry_bomb",
+      "name": "Cherry Bomb",
+      "category": "Juicy Cocktails alkoholfrei",
+      "price": 7.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "gin_tonic",
+      "name": "Gin Tonic",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 10.6,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "vodka_red_bull",
+      "name": "Vodka Red Bull",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 9.6,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "vodka_cranberry",
+      "name": "Vodka Cranberry",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 8.3,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "whiskey_cola",
+      "name": "Whiskey Cola",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 9.3,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "campari_soda",
+      "name": "Campari Soda",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 8.3,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "campari_orange",
+      "name": "Campari Orange",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 8.3,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "rum_cola",
+      "name": "Rum Cola",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 8.3,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "cuba_libre",
+      "name": "Cuba Libre",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 7.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "deep_purple_g_t",
+      "name": "Deep & Purple G & T",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 11.6,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_guilty_pleasure",
+      "name": "AIDA Guilty Pleasure",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 11.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "garden_tonic",
+      "name": "Garden & Tonic",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 10.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "italian_g_t",
+      "name": "Italian G & T",
+      "category": "Longdrinks & Gin Tonics",
+      "price": 12.0,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aperol_sprizz",
+      "name": "Aperol Sprizz",
+      "category": "Sprizz",
+      "price": 9.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "lillet_berry",
+      "name": "Lillet Berry",
+      "category": "Sprizz",
+      "price": 9.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_sprizz",
+      "name": "AIDA Sprizz",
+      "category": "Sprizz",
+      "price": 8.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "hugo",
+      "name": "Hugo",
+      "category": "Sprizz",
+      "price": 8.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "little_berry_alkoholfrei",
+      "name": "Little Berry alkoholfrei",
+      "category": "Sprizz alkoholfrei",
+      "price": 8.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aperitivo_sprizz_alkoholfrei",
+      "name": "Aperitivo Sprizz alkoholfrei",
+      "category": "Sprizz alkoholfrei",
+      "price": 8.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_sprizz_alkoholfrei",
+      "name": "AIDA Sprizz alkoholfrei",
+      "category": "Sprizz alkoholfrei",
+      "price": 7.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "hugo_alkoholfrei",
+      "name": "Hugo alkoholfrei",
+      "category": "Sprizz alkoholfrei",
+      "price": 7.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_hot_lips_4_cl",
+      "name": "AIDA Hot Lips",
+      "category": "Shots",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "b_52_4_cl",
+      "name": "B-52",
+      "category": "Shots",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "hellfire_4_cl",
+      "name": "Hellfire",
+      "category": "Shots",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "radeberger_pilsner_vom_fass_0_5_l",
+      "name": "Radeberger Pilsner vom Fass",
+      "category": "Biere",
+      "price": 5.5,
+      "volume": "0,5 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "radeberger_pilsner_vom_fass_0_3_l",
+      "name": "Radeberger Pilsner vom Fass",
+      "category": "Biere",
+      "price": 4.0,
+      "volume": "0,3 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "schofferhofer_weizen_0_0_0_5_l",
+      "name": "Schöfferhofer Weizen 0,0 %",
+      "category": "Biere",
+      "price": 5.5,
+      "volume": "0,5 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jever_fun_0_33_l",
+      "name": "Jever Fun",
+      "category": "Biere",
+      "price": 4.6,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "schofferhofer_grapefruit_alkoholfrei_0_33_l",
+      "name": "Schöfferhofer Grapefruit alkoholfrei",
+      "category": "Biere",
+      "price": 4.6,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "schofferhofer_hefeweizen_0_5_l",
+      "name": "Schöfferhofer Hefeweizen",
+      "category": "Biere",
+      "price": 5.5,
+      "volume": "0,5 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "radeberger_pilsner_flasche_0_33_l",
+      "name": "Radeberger Pilsner Flasche",
+      "category": "Biere",
+      "price": 4.0,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "corona_0_355_l",
+      "name": "Corona",
+      "category": "Biere",
+      "price": 4.8,
+      "volume": "0,355 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "salitos_0_33_l",
+      "name": "Salitos",
+      "category": "Biere",
+      "price": 4.6,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "heineken_0_33_l",
+      "name": "Heineken",
+      "category": "Biere",
+      "price": 4.6,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "schofferhofer_grapefruit_0_33_l",
+      "name": "Schöfferhofer Grapefruit",
+      "category": "Biere",
+      "price": 4.6,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_edition_aida_weiwein_glas_0_2_l",
+      "name": "Brogsitter Edition AIDA Weißwein Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 8.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "pinot_grigio_glas_0_2_l",
+      "name": "Pinot Grigio Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 8.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "bio_riesling_glas_0_2_l",
+      "name": "Bio-Riesling Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 8.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_edition_aida_rotwein_glas_0_2_l",
+      "name": "Brogsitter Edition AIDA Rotwein Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 8.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "primitivo_glas_0_2_l",
+      "name": "Primitivo Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 10.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "cabernet_sauvignon_glas_0_2_l",
+      "name": "Cabernet Sauvignon Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 10.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_pinot_noir_rose_glas_0_2_l",
+      "name": "Brogsitter Pinot Noir Rosé Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 8.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "bardolino_chiaretto_glas_0_2_l",
+      "name": "Bardolino Chiaretto Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 8.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_biced_demi_sec_glas_0_1_l",
+      "name": "Brogsitter B•ICED Demi Sec Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 5.9,
+      "volume": "0,1 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_biced_rose_demi_sec_glas_0_1_l",
+      "name": "Brogsitter B•ICED Rosé Demi Sec Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 5.9,
+      "volume": "0,1 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_prestige_edition_aida_brut_glas_0_1_l",
+      "name": "Brogsitter Prestige Edition AIDA Brut Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 4.9,
+      "volume": "0,1 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_prestige_edition_aida_rose_glas_0_1_l",
+      "name": "Brogsitter Prestige Edition AIDA Rosé Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 4.9,
+      "volume": "0,1 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "prosecco_extra_dry_glas_0_1_l",
+      "name": "Prosecco Extra Dry Glas",
+      "category": "Wein & Sekt im Glas",
+      "price": 4.9,
+      "volume": "0,1 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "sekt_prosecco_auf_eis_0_15_l",
+      "name": "Sekt / Prosecco auf Eis",
+      "category": "Wein & Sekt im Glas",
+      "price": 6.6,
+      "volume": "0,15 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_edition_aida_weiwein_flasche_0_75_l",
+      "name": "Brogsitter Edition AIDA Weißwein Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 27.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "pinot_grigio_flasche_0_75_l",
+      "name": "Pinot Grigio Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 27.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "bio_riesling_flasche_0_75_l",
+      "name": "Bio-Riesling Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 27.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_edition_aida_rotwein_flasche_0_75_l",
+      "name": "Brogsitter Edition AIDA Rotwein Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 27.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "primitivo_flasche_0_75_l",
+      "name": "Primitivo Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 34.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "cabernet_sauvignon_flasche_0_75_l",
+      "name": "Cabernet Sauvignon Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 34.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_pinot_noir_rose_flasche_0_75_l",
+      "name": "Brogsitter Pinot Noir Rosé Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 27.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "bardolino_chiaretto_flasche_0_75_l",
+      "name": "Bardolino Chiaretto Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 27.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_biced_demi_sec_flasche_0_75_l",
+      "name": "Brogsitter B•ICED Demi Sec Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 34.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_biced_rose_demi_sec_flasche_0_75_l",
+      "name": "Brogsitter B•ICED Rosé Demi Sec Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 34.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "brogsitter_prestige_edition_aida_brut_flasche_0_75_l",
+      "name": "Brogsitter Prestige Edition AIDA Brut Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 27.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "prosecco_extra_dry_flasche_0_75_l",
+      "name": "Prosecco Extra Dry Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 27.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jacquart_millesime_cuvee_alpha_0_75_l",
+      "name": "Jacquart Millésimé Cuvée Alpha",
+      "category": "Prickelndes / Flaschenware",
+      "price": 149.0,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jacquart_rose_brut_flasche_0_75_l",
+      "name": "Jacquart Rosé Brut Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 89.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jacquart_rose_brut_glas_0_1_l",
+      "name": "Jacquart Rosé Brut Glas",
+      "category": "Prickelndes / Flaschenware",
+      "price": 12.6,
+      "volume": "0,1 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jm_gobillard_fils_rose_brut_flasche_0_75_l",
+      "name": "JM. Gobillard & Fils Rosé Brut Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 64.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jm_gobillard_fils_rose_brut_glas_0_1_l",
+      "name": "JM. Gobillard & Fils Rosé Brut Glas",
+      "category": "Prickelndes / Flaschenware",
+      "price": 9.6,
+      "volume": "0,1 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jm_gobillard_fils_tradition_brut_flasche_0_75_l",
+      "name": "JM. Gobillard & Fils Tradition Brut Flasche",
+      "category": "Prickelndes / Flaschenware",
+      "price": 59.9,
+      "volume": "0,75 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jm_gobillard_fils_tradition_brut_glas_0_1_l",
+      "name": "JM. Gobillard & Fils Tradition Brut Glas",
+      "category": "Prickelndes / Flaschenware",
+      "price": 9.6,
+      "volume": "0,1 l",
+      "notes": "Flaschenware ggf. vom Paket ausgenommen; Paketstatus konservativ prüfen.",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_deep_purple_gin_4_cl",
+      "name": "AIDA Deep & Purple Gin",
+      "category": "Spirituosen · Gin",
+      "price": 7.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "monkey_47_schwarzwald_dry_gin_4_cl",
+      "name": "Monkey 47 Schwarzwald Dry Gin",
+      "category": "Spirituosen · Gin",
+      "price": 7.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_gin_4_cl",
+      "name": "AIDA Gin",
+      "category": "Spirituosen · Gin",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "undone_no_2_alkoholfrei_london_dry_juniper_4_cl",
+      "name": "UNDONE No. 2 Alkoholfrei London Dry Juniper",
+      "category": "Spirituosen · Alkoholfreie Spirituose",
+      "price": 5.5,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "unclear",
+        "fun": "unclear",
+        "kids_teens_all_in": "unclear",
+        "kids_teens_fun": "unclear"
+      }
+    },
+    {
+      "id": "bombay_sapphire_gin_4_cl",
+      "name": "Bombay Sapphire Gin",
+      "category": "Spirituosen · Gin",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "hendrick_s_gin_4_cl",
+      "name": "Hendrick's Gin",
+      "category": "Spirituosen · Gin",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "the_botanist_islay_gin_4_cl",
+      "name": "The Botanist Islay Gin",
+      "category": "Spirituosen · Gin",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aida_vodka_4_cl",
+      "name": "AIDA Vodka",
+      "category": "Spirituosen · Vodka",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "grey_goose_altius_4_cl",
+      "name": "Grey Goose Altius",
+      "category": "Spirituosen · Vodka",
+      "price": 9.5,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "grey_goose_4_cl",
+      "name": "Grey Goose",
+      "category": "Spirituosen · Vodka",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "absolut_vodka_4_cl",
+      "name": "Absolut Vodka",
+      "category": "Spirituosen · Vodka",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "olmeca_silver_4_cl",
+      "name": "Olmeca Silver",
+      "category": "Spirituosen · Tequila",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "patron_reposado_4_cl",
+      "name": "Patrón Reposado",
+      "category": "Spirituosen · Tequila",
+      "price": 7.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "patron_silver_4_cl",
+      "name": "Patrón Silver",
+      "category": "Spirituosen · Tequila",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "martell_vsop_4_cl",
+      "name": "Martell VSOP",
+      "category": "Spirituosen · Brandy & Cognac",
+      "price": 7.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "martell_vs_4_cl",
+      "name": "Martell VS",
+      "category": "Spirituosen · Brandy & Cognac",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "cardenal_mendoza_4_cl",
+      "name": "Cardenal Mendoza",
+      "category": "Spirituosen · Brandy & Cognac",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "osborne_veterano_4_cl",
+      "name": "Osborne Veterano",
+      "category": "Spirituosen · Brandy & Cognac",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "don_papa_baroko_4_cl",
+      "name": "Don Papa Baroko",
+      "category": "Spirituosen · Rum",
+      "price": 7.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "mount_gay_eclipse_4_cl",
+      "name": "Mount Gay Eclipse",
+      "category": "Spirituosen · Rum",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "bacardi_superior_4_cl",
+      "name": "Bacardí Superior",
+      "category": "Spirituosen · Rum",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "bacardi_ron_8_anos_4_cl",
+      "name": "Bacardí Ron 8 Años",
+      "category": "Spirituosen · Rum",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "bacardi_gold_4_cl",
+      "name": "Bacardí Gold",
+      "category": "Spirituosen · Rum",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "ron_santa_teresa_1796_4_cl",
+      "name": "Ron Santa Teresa 1796",
+      "category": "Spirituosen · Rum",
+      "price": 7.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "undone_no_1_alkoholfrei_jamaican_dark_cane_4_cl",
+      "name": "UNDONE No. 1 Alkoholfrei Jamaican Dark Cane",
+      "category": "Spirituosen · Alkoholfreie Spirituose",
+      "price": 5.5,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "unclear",
+        "fun": "unclear",
+        "kids_teens_all_in": "unclear",
+        "kids_teens_fun": "unclear"
+      }
+    },
+    {
+      "id": "buffalo_trace_4_cl",
+      "name": "Buffalo Trace",
+      "category": "Spirituosen · Whisk[e]y",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "maker_s_mark_4_cl",
+      "name": "Maker's Mark",
+      "category": "Spirituosen · Whisk[e]y",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jack_daniel_s_4_cl",
+      "name": "Jack Daniel's",
+      "category": "Spirituosen · Whisk[e]y",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jameson_4_cl",
+      "name": "Jameson",
+      "category": "Spirituosen · Whisk[e]y",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "chivas_regal_12_years_4_cl",
+      "name": "Chivas Regal 12 Years",
+      "category": "Spirituosen · Whisk[e]y",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aberfeldy_12_years_4_cl",
+      "name": "Aberfeldy 12 Years",
+      "category": "Spirituosen · Whisk[e]y",
+      "price": 5.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "the_glenlivet_master_s_distiller_s_reserve_4_cl",
+      "name": "The Glenlivet Master's Distiller's Reserve",
+      "category": "Spirituosen · Whisk[e]y",
+      "price": 7.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "undone_no_3_alkoholfrei_american_blend_4_cl",
+      "name": "UNDONE No. 3 Alkoholfrei American Blend",
+      "category": "Spirituosen · Alkoholfreie Spirituose",
+      "price": 5.5,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "unclear",
+        "fun": "unclear",
+        "kids_teens_all_in": "unclear",
+        "kids_teens_fun": "unclear"
+      }
+    },
+    {
+      "id": "campari_4_5_cl",
+      "name": "Campari",
+      "category": "Spirituosen · Aperitifs",
+      "price": 5.7,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "noilly_prat_original_dry_4_5_cl",
+      "name": "Noilly Prat Original Dry",
+      "category": "Spirituosen · Aperitifs",
+      "price": 5.7,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "martini_bianco_4_5_cl",
+      "name": "Martini Bianco",
+      "category": "Spirituosen · Aperitifs",
+      "price": 4.9,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "martini_rosso_4_5_cl",
+      "name": "Martini Rosso",
+      "category": "Spirituosen · Aperitifs",
+      "price": 4.9,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "aperol_4_5_cl",
+      "name": "Aperol",
+      "category": "Spirituosen · Aperitifs",
+      "price": 4.9,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "lillet_blanc_4_5_cl",
+      "name": "Lillet Blanc",
+      "category": "Spirituosen · Aperitifs",
+      "price": 4.9,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "tio_pepe_palomino_fino_4_5_cl",
+      "name": "Tio Pepe Palomino Fino",
+      "category": "Spirituosen · Sherry",
+      "price": 4.9,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "sandeman_medium_dry_4_5_cl",
+      "name": "Sandeman Medium Dry",
+      "category": "Spirituosen · Sherry",
+      "price": 4.9,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "sandeman_medium_sweet_4_5_cl",
+      "name": "Sandeman Medium Sweet",
+      "category": "Spirituosen · Sherry",
+      "price": 4.9,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "grahams_late_bottled_vintage_port_4_5_cl",
+      "name": "Graham’s Late Bottled Vintage Port",
+      "category": "Spirituosen · Port",
+      "price": 5.9,
+      "volume": "4/5 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "sambuca_molinari_4_cl",
+      "name": "Sambuca Molinari",
+      "category": "Spirituosen · Anisés",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "ouzo_12_4_cl",
+      "name": "Ouzo 12",
+      "category": "Spirituosen · Anisés",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jagermeister_4_cl",
+      "name": "Jägermeister",
+      "category": "Spirituosen · Bitter",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "ramazzotti_4_cl",
+      "name": "Ramazzotti",
+      "category": "Spirituosen · Bitter",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "averna_4_cl",
+      "name": "Averna",
+      "category": "Spirituosen · Bitter",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "fernet_branca_4_cl",
+      "name": "Fernet-Branca",
+      "category": "Spirituosen · Bitter",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "helbing_kummel_4_cl",
+      "name": "Helbing Kümmel",
+      "category": "Spirituosen · Kümmel",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "linie_aquavit_4_cl",
+      "name": "Linie Aquavit",
+      "category": "Spirituosen · Aquavit",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "jubilaeums_akvavit_4_cl",
+      "name": "Jubilaeums Akvavit",
+      "category": "Spirituosen · Aquavit",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "malteser_aquavit_4_cl",
+      "name": "Malteser Aquavit",
+      "category": "Spirituosen · Aquavit",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "baileys_4_cl",
+      "name": "Baileys",
+      "category": "Spirituosen · Likör",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "nonino_il_prosecco_4_cl",
+      "name": "Nonino Il Prosecco",
+      "category": "Spirituosen · Grappa",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "nonino_lo_chardonnay_4_cl",
+      "name": "Nonino Lo Chardonnay",
+      "category": "Spirituosen · Grappa",
+      "price": 6.7,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "malibu_4_cl",
+      "name": "Malibu",
+      "category": "Spirituosen · Likör",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "herzog_pistazienlikor_4_cl",
+      "name": "Herzog Pistazienlikör",
+      "category": "Spirituosen · Likör",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "dom_benedictine_4_cl",
+      "name": "Dom Bénédictine",
+      "category": "Spirituosen · Likör",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "ramazzotti_limoncello_4_cl",
+      "name": "Ramazzotti Limoncello",
+      "category": "Spirituosen · Likör",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "mozart_white_chocolate_4_cl",
+      "name": "Mozart White Chocolate",
+      "category": "Spirituosen · Likör",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "mozart_black_4_cl",
+      "name": "Mozart Black",
+      "category": "Spirituosen · Likör",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "st_germain_holunderblutenlikor_4_cl",
+      "name": "St. Germain Holunderblütenlikör",
+      "category": "Spirituosen · Likör",
+      "price": 4.9,
+      "volume": "4 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "williams_birne_2_cl",
+      "name": "Williams Birne",
+      "category": "Obstbrand & Obstgeist",
+      "price": 4.9,
+      "volume": "2 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "alter_apfel_2_cl",
+      "name": "Alter Apfel",
+      "category": "Obstbrand & Obstgeist",
+      "price": 4.9,
+      "volume": "2 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "alte_kirsche_2_cl",
+      "name": "Alte Kirsche",
+      "category": "Obstbrand & Obstgeist",
+      "price": 4.9,
+      "volume": "2 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "alte_zwetschge_2_cl",
+      "name": "Alte Zwetschge",
+      "category": "Obstbrand & Obstgeist",
+      "price": 4.9,
+      "volume": "2 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "waldhimbeergeist_2_cl",
+      "name": "Waldhimbeergeist",
+      "category": "Obstbrand & Obstgeist",
+      "price": 4.9,
+      "volume": "2 cl",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "coca_cola_0_2_l",
+      "name": "Coca-Cola",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "coca_cola_zero_0_2_l",
+      "name": "Coca-Cola Zero",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "fanta_0_2_l",
+      "name": "Fanta",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "sprite_0_2_l",
+      "name": "Sprite",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "mineralwasser_flasche_0_75_l",
+      "name": "Mineralwasser Flasche",
+      "category": "Wasser",
+      "price": 6.9,
+      "volume": "0,75 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "mineralwasser_flasche_0_25_l",
+      "name": "Mineralwasser Flasche",
+      "category": "Wasser",
+      "price": 2.6,
+      "volume": "0,25 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "sodawasser_0_2_l",
+      "name": "Sodawasser",
+      "category": "Wasser",
+      "price": 2.0,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "ananas_saft_nektar_schorle_0_2_l",
+      "name": "Ananas Saft/Nektar/Schorle",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "apfel_saft_nektar_schorle_0_2_l",
+      "name": "Apfel Saft/Nektar/Schorle",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "banane_saft_nektar_schorle_0_2_l",
+      "name": "Banane Saft/Nektar/Schorle",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "cranberry_saft_nektar_schorle_0_2_l",
+      "name": "Cranberry Saft/Nektar/Schorle",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "kirsche_saft_nektar_schorle_0_2_l",
+      "name": "Kirsche Saft/Nektar/Schorle",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "mango_saft_nektar_schorle_0_2_l",
+      "name": "Mango Saft/Nektar/Schorle",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "maracuja_saft_nektar_schorle_0_2_l",
+      "name": "Maracuja Saft/Nektar/Schorle",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "orange_saft_nektar_schorle_0_2_l",
+      "name": "Orange Saft/Nektar/Schorle",
+      "category": "Softdrinks und Säfte",
+      "price": 2.6,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "aida_lemonade",
+      "name": "AIDA Lemonade",
+      "category": "Softdrinks und Säfte",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "aida_iced_tea",
+      "name": "AIDA Iced Tea",
+      "category": "Softdrinks und Säfte",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "red_bull_energydrink_0_25_l",
+      "name": "Red Bull Energydrink",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,25 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "red_bull_zuckerfrei_0_25_l",
+      "name": "Red Bull Zuckerfrei",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,25 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "premium_indian_tonic_water_0_2_l",
+      "name": "Premium Indian Tonic Water",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "mediterranean_tonic_water_0_2_l",
+      "name": "Mediterranean Tonic Water",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "premium_wild_berry_0_2_l",
+      "name": "Premium Wild Berry",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "mexican_lime_soda_0_2_l",
+      "name": "Mexican Lime Soda",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "raspberry_orange_blossom_soda_0_2_l",
+      "name": "Raspberry & Orange Blossom Soda",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "premium_ginger_ale_0_2_l",
+      "name": "Premium Ginger Ale",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "premium_ginger_beer_0_2_l",
+      "name": "Premium Ginger Beer",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "pink_grapefruit_soda_0_2_l",
+      "name": "Pink Grapefruit Soda",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "lemon_tonic_water_0_2_l",
+      "name": "Lemon Tonic Water",
+      "category": "Fever-Tree Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,2 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "voelkel_biozisch_ingwer_0_33_l",
+      "name": "Voelkel BioZisch Ingwer",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "voelkel_biozisch_blutorange_0_33_l",
+      "name": "Voelkel BioZisch Blutorange",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "voelkel_biozisch_holunderblute_0_33_l",
+      "name": "Voelkel BioZisch Holunderblüte",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "voelkel_biozisch_maracuja_orange_light_0_33_l",
+      "name": "Voelkel BioZisch Maracuja Orange Light",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "voelkel_biozisch_himbeer_cassis_light_0_33_l",
+      "name": "Voelkel BioZisch Himbeer Cassis Light",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "charitea_mint_0_33_l",
+      "name": "ChariTea Mint",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "kombucha_original_0_33_l",
+      "name": "Kombucha Original",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "kombucha_sauerkirsche_minze_0_33_l",
+      "name": "Kombucha Sauerkirsche Minze",
+      "category": "Premium-Softdrinks",
+      "price": 3.9,
+      "volume": "0,33 l",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "not_included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "cappuccino",
+      "name": "Cappuccino",
+      "category": "Heißgetränke",
+      "price": 4.1,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "milchkaffee",
+      "name": "Milchkaffee",
+      "category": "Heißgetränke",
+      "price": 4.1,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "kaffee",
+      "name": "Kaffee",
+      "category": "Heißgetränke",
+      "price": 2.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "entkoffeinierter_kaffee",
+      "name": "Entkoffeinierter Kaffee",
+      "category": "Heißgetränke",
+      "price": 2.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "doppelter_espresso",
+      "name": "Doppelter Espresso",
+      "category": "Heißgetränke",
+      "price": 3.6,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "espresso_macchiato",
+      "name": "Espresso Macchiato",
+      "category": "Heißgetränke",
+      "price": 2.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "espresso",
+      "name": "Espresso",
+      "category": "Heißgetränke",
+      "price": 2.2,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "latte_macchiato",
+      "name": "Latte Macchiato",
+      "category": "Heißgetränke",
+      "price": 4.1,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "not_included",
+        "kids_teens_fun": "not_included"
+      }
+    },
+    {
+      "id": "heie_schokolade",
+      "name": "Heiße Schokolade",
+      "category": "Heißgetränke",
+      "price": 2.9,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "kakao",
+      "name": "Kakao",
+      "category": "Heißgetränke",
+      "price": 1.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "bio_darjeeling_grun",
+      "name": "Bio Darjeeling Grün",
+      "category": "Eilles Tee",
+      "price": 3.4,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "bio_fruchte_natur",
+      "name": "Bio Früchte Natur",
+      "category": "Eilles Tee",
+      "price": 3.4,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "assam_special_broken",
+      "name": "Assam Special Broken",
+      "category": "Eilles Tee",
+      "price": 3.4,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "pfefferminze",
+      "name": "Pfefferminze",
+      "category": "Eilles Tee",
+      "price": 3.4,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "earl_grey",
+      "name": "Earl Grey",
+      "category": "Eilles Tee",
+      "price": 3.4,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "tea_spa_magica",
+      "name": "Tea Spa Magica",
+      "category": "Eilles Tee",
+      "price": 3.4,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "karamell_flavor",
+      "name": "Karamell Flavor",
+      "category": "Flavors",
+      "price": 0.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "unclear",
+        "fun": "unclear",
+        "kids_teens_all_in": "unclear",
+        "kids_teens_fun": "unclear"
+      }
+    },
+    {
+      "id": "macadamia_flavor",
+      "name": "Macadamia Flavor",
+      "category": "Flavors",
+      "price": 0.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "unclear",
+        "fun": "unclear",
+        "kids_teens_all_in": "unclear",
+        "kids_teens_fun": "unclear"
+      }
+    },
+    {
+      "id": "vanille_flavor",
+      "name": "Vanille Flavor",
+      "category": "Flavors",
+      "price": 0.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "unclear",
+        "fun": "unclear",
+        "kids_teens_all_in": "unclear",
+        "kids_teens_fun": "unclear"
+      }
+    },
+    {
+      "id": "alwine",
+      "name": "Alwine",
+      "category": "Kids & Teens Cocktails",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "itzi",
+      "name": "Itzi",
+      "category": "Kids & Teens Cocktails",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "dodo",
+      "name": "Dodo",
+      "category": "Kids & Teens Cocktails",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "achwasachwas",
+      "name": "Achwasachwas",
+      "category": "Kids & Teens Cocktails",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "erdbeer_milchshake",
+      "name": "Erdbeer-Milchshake",
+      "category": "Milchshakes",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "vanille_milchshake",
+      "name": "Vanille-Milchshake",
+      "category": "Milchshakes",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "bananen_milchshake",
+      "name": "Bananen-Milchshake",
+      "category": "Milchshakes",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    },
+    {
+      "id": "schokoladen_milchshake",
+      "name": "Schokoladen-Milchshake",
+      "category": "Milchshakes",
+      "price": 5.5,
+      "volume": "",
+      "notes": "",
+      "packages": {
+        "all_in": "included",
+        "fun": "included",
+        "kids_teens_all_in": "included",
+        "kids_teens_fun": "included"
+      }
+    }
   ]
 }

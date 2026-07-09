@@ -1,17 +1,17 @@
-Upload-Anleitung fuer GitHub Pages
+Getraenketracker PWA v2.1
 
-1. ZIP lokal entpacken.
-2. Den INHALT des Ordners getraenketracker_v2 in dein lokales GitHub-Repository kopieren.
-3. Wichtig: index.html muss direkt im Repository-Hauptverzeichnis liegen.
-4. GitHub Desktop oeffnen.
-5. Commit message z. B. Version 2.0 eintragen.
-6. Commit to main klicken.
-7. Push origin klicken.
-8. In GitHub: Settings > Pages > Deploy from branch > main > /root.
-9. App-URL in Safari am iPhone oeffnen und ueber Teilen > Zum Home-Bildschirm installieren.
+Aenderungen:
+- iPhone-Layout verschlankt: max. 430px, keine breiten Karten, kompaktere Buttons.
+- Paketnamen korrigiert/enger gefasst:
+  Aktuell: FUN, ALL IN, Kids & Teens FUN, Kids & Teens ALL IN.
+  Alt/Bestandsbuchungen vor 15.07.2025: AIDA Light, AIDA Comfort, AIDA Comfort Deluxe, AIDA Kids & Teens Light, AIDA Kids & Teens Comfort.
+- Barkarten-Stammdaten klar als vorlaeufig markiert.
 
-Offline:
-Nach dem ersten erfolgreichen Online-Aufruf werden die Dateien per Service Worker zwischengespeichert. Danach funktioniert die App offline.
+Upload:
+1. ZIP entpacken.
+2. Den INHALT dieses Ordners ins lokale Repository kopieren.
+3. Commit: Version 2.1 - iPhone Layout und Paketnamen.
+4. Push origin.
 
-Hinweis:
-PDF-Import ist in dieser Version bewusst nicht als automatische Ausleselogik enthalten. Fuer verlaessliche Vergleiche ist JSON/CSV zu verwenden.
+Wichtig:
+Die vollstaendige Barkarte ist in dieser ZIP nicht belastbar enthalten, solange die konkrete PDF nicht erneut verarbeitet wurde. Bitte die AIDA-Barkarte als PDF hier wieder hochladen, dann kann daraus eine vollstaendige barkarte.json erstellt werden.
