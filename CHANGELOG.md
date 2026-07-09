@@ -1,6 +1,10 @@
 # Changelog
 
 ## 3.1.0
+
+- Neues App-Icon mit Kreuzfahrtschiff und Cocktailglas
+- Maritimes Farbschema und iPhone-Feinschliff ergänzt
+- Apple Touch Icon und Favicons ergänzt
 - Reisen können nachträglich bearbeitet werden.
 - Beim Löschen einer Reise erscheint eine deutliche Sicherheitsabfrage mit Anzahl Personen und Einträge.
 - Personen werden grafisch durch dezente Hintergrundfarben unterschieden.
