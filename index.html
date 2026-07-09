@@ -3,41 +3,67 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#0f766e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Getränke" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="style.css" />
   <title>Kreuzfahrt Getränketracker</title>
 </head>
 <body>
-  <div id="app" class="app-shell">
+  <div id="app" class="app">
     <header class="topbar">
-      <div>
+      <div class="title">
         <h1>Getränketracker</h1>
-        <p id="subtitle">Offline PWA</p>
+        <p id="subtitle">Version 2.3.0 · AIDA 01.11.2025</p>
       </div>
-      <button id="menuBtn" class="icon-btn" aria-label="Menü">☰</button>
+      <button id="menuBtn" class="iconbtn" aria-label="Menü">☰</button>
     </header>
 
-    <main id="view" class="view"></main>
-
-    <nav class="tabbar" aria-label="Navigation">
+    <nav class="topnav" aria-label="Hauptnavigation">
       <button data-route="track" class="tab active">Tracken</button>
+      <button data-route="history" class="tab">Verlauf</button>
       <button data-route="stats" class="tab">Auswertung</button>
-      <button data-route="data" class="tab">Daten</button>
       <button data-route="settings" class="tab">Setup</button>
+    </nav>
+
+    <main id="view"></main>
+
+    <nav class="tabs" aria-label="Schnellnavigation">
+      <button data-route="track" class="tab active">＋<span>Tracken</span></button>
+      <button data-route="history" class="tab">↺<span>Verlauf</span></button>
+      <button data-route="stats" class="tab">∑<span>Auswertung</span></button>
+      <button data-route="data" class="tab">☁<span>Daten</span></button>
     </nav>
   </div>
 
-  <dialog id="menuDialog" class="dialog">
-    <form method="dialog">
+  <dialog id="menuDialog">
+    <form method="dialog" class="menu">
       <h2>Menü</h2>
-      <button value="settings">Setup öffnen</button>
+      <button value="track">Tracken</button>
+      <button value="history">Verlauf bearbeiten</button>
+      <button value="stats">Auswertung</button>
+      <button value="settings">Setup Personen</button>
       <button value="data">Import / Export</button>
       <button value="close">Schließen</button>
+    </form>
+  </dialog>
+
+  <dialog id="editDialog">
+    <form method="dialog" class="menu" id="editForm">
+      <h2>Eintrag bearbeiten</h2>
+      <input type="hidden" id="editId" />
+      <label>Person<select id="editPerson"></select></label>
+      <label>Getränk<select id="editDrink"></select></label>
+      <label>Preis<input id="editPrice" type="number" step="0.01" /></label>
+      <label>Paketstatus<select id="editStatus"><option value="included">enthalten</option><option value="not_included">nicht enthalten</option><option value="unclear">unklar</option></select></label>
+      <label>Datum/Uhrzeit<input id="editTs" type="datetime-local" /></label>
+      <menu>
+        <button value="cancel" type="submit">Abbrechen</button>
+        <button value="save" class="primary" type="submit">Speichern</button>
+      </menu>
     </form>
   </dialog>
 

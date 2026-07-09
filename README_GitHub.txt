@@ -1,17 +1,19 @@
-Getraenketracker PWA v2.1
+Getränketracker PWA Version 2.3.0
 
-Aenderungen:
-- iPhone-Layout verschlankt: max. 430px, keine breiten Karten, kompaktere Buttons.
-- Paketnamen korrigiert/enger gefasst:
-  Aktuell: FUN, ALL IN, Kids & Teens FUN, Kids & Teens ALL IN.
-  Alt/Bestandsbuchungen vor 15.07.2025: AIDA Light, AIDA Comfort, AIDA Comfort Deluxe, AIDA Kids & Teens Light, AIDA Kids & Teens Comfort.
-- Barkarten-Stammdaten klar als vorlaeufig markiert.
-
-Upload:
+Upload/Update:
 1. ZIP entpacken.
-2. Den INHALT dieses Ordners ins lokale Repository kopieren.
-3. Commit: Version 2.1 - iPhone Layout und Paketnamen.
+2. Inhalt in das lokale GitHub-Repository kopieren und vorhandene Dateien ersetzen.
+3. In GitHub Desktop committen: "Version 2.3.0 - Favoriten und Verlauf bearbeiten".
 4. Push origin.
+5. Auf dem iPhone App vollständig schließen und neu öffnen.
 
-Wichtig:
-Die vollstaendige Barkarte ist in dieser ZIP nicht belastbar enthalten, solange die konkrete PDF nicht erneut verarbeitet wurde. Bitte die AIDA-Barkarte als PDF hier wieder hochladen, dann kann daraus eine vollstaendige barkarte.json erstellt werden.
+Neu in 2.3.0:
+- iPhone-kompaktere Navigation zusätzlich oben im Zugriff.
+- Favoriten je Getränk per Stern.
+- Sortierung: Favoriten und gängige Getränke zuerst, nicht mehr rein alphabetisch.
+- Empfohlen-Ansicht mit Kaffee, Softdrinks, Wasser, Säften und typischen Getränken.
+- Neuer Bereich Verlauf: Einträge ändern oder löschen.
+- Info-Seite mit App-Version und Datenbestand.
+
+Hinweis:
+Die erfassten Daten bleiben lokal in IndexedDB gespeichert. Vor größeren Updates empfiehlt sich ein Backup-Export aus der App.
