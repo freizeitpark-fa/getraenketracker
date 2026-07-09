@@ -37,6 +37,7 @@ let state = {
 };
 
 const actionLocks = Object.create(null);
+let undoAutoHideTimer = null;
 
 async function runActionOnce(key, handler) {
   if (actionLocks[key]) return actionLocks[key];
@@ -456,6 +457,10 @@ function bindInputs() {
       state.query = event.target.value;
       renderTrackList();
     });
+    search.addEventListener('search', event => {
+      state.query = event.target.value;
+      renderTrackList();
+    });
   }
   const dateInputs = $$('.dateDefaultToday');
   dateInputs.forEach(input => { if (!input.value) input.value = new Date().toISOString().slice(0, 10); });
@@ -481,9 +486,9 @@ function viewOnboarding() {
       </div>
       <form id="onboardingTripForm" class="card formCard">
         <h2>Reise anlegen</h2>
-        <label>Reisename<input name="name" required placeholder="z. B. AIDA Sommer 2026" value="${esc(currentTrip()?.name || '')}"></label>
-        <label>Schiff<input name="ship" placeholder="z. B. AIDAcosma" value="${esc(currentTrip()?.ship || '')}"></label>
-        <div class="twoCols"><label>Start<input name="startDate" type="date" value="${esc(currentTrip()?.startDate || '')}"></label><label>Ende<input name="endDate" type="date" value="${esc(currentTrip()?.endDate || '')}"></label></div>
+        <div class="formField"><label for="onboardingTripName">Reisename</label><input id="onboardingTripName" name="name" required placeholder="z. B. AIDA Sommer 2026" value="${esc(currentTrip()?.name || '')}"></div>
+        <div class="formField"><label for="onboardingTripShip">Schiff</label><input id="onboardingTripShip" name="ship" placeholder="z. B. AIDAcosma" value="${esc(currentTrip()?.ship || '')}"></div>
+        <div class="twoCols"><div class="formField"><label for="onboardingTripStart">Start</label><input id="onboardingTripStart" name="startDate" type="date" value="${esc(currentTrip()?.startDate || '')}"></div><div class="formField"><label for="onboardingTripEnd">Ende</label><input id="onboardingTripEnd" name="endDate" type="date" value="${esc(currentTrip()?.endDate || '')}"></div></div>
         <button class="primary" type="submit">Reise speichern</button>
       </form>
       <div class="buttonStack">
@@ -564,7 +569,7 @@ function viewTrack() {
         <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
         ${persons.length ? personChips(persons) : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
         ${selectedPerson ? `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>` : ''}
-        <label class="searchBox searchBoxLarge" for="drinkSearch"><span>⌕</span><input id="drinkSearch" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
+        <input id="drinkSearch" class="searchBox searchBoxLarge searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="⌕ Getränk suchen …" value="${esc(state.query)}">
         <div id="categoryChips">${categoryChipsHtml()}</div>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>
@@ -576,7 +581,7 @@ function renderCategoryChips() { const el = $('#categoryChips'); if (el) el.inne
 function renderTrackList() { const el = $('#drinkList'); if (el) el.innerHTML = drinkListHtml(); }
 function categories() {
   const cats = [...new Set(state.drinks.map(d => d.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
-  return ['Empfohlen', 'Favoriten', 'Zuletzt', 'Alle', ...cats.filter(cat => cat !== 'Alle')];
+  return ['Alle', 'Empfohlen', 'Favoriten', 'Zuletzt', ...cats.filter(cat => cat !== 'Alle')];
 }
 function categoryIcon(category = '', name = '') {
   const n = normalize(`${category} ${name}`);
@@ -748,9 +753,9 @@ function viewTrips() {
       <form id="tripForm" class="card formCard" autocomplete="off">
         <input id="tripIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Reise bearbeiten' : 'Reise anlegen'}</h2>
-        <label>Name<input id="tripNameInput" name="name" placeholder="z. B. AIDA Metropolen 2026" value="${esc(edit?.name || '')}"></label>
-        <label>Schiff<input id="tripShipInput" name="ship" placeholder="z. B. AIDAprima" value="${esc(edit?.ship || '')}"></label>
-        <div class="twoCols"><label>Start<input id="tripStartInput" name="startDate" type="date" value="${esc(edit?.startDate || '')}"></label><label>Ende<input id="tripEndInput" name="endDate" type="date" value="${esc(edit?.endDate || '')}"></label></div>
+        <div class="formField"><label for="tripNameInput">Name</label><input id="tripNameInput" name="name" placeholder="z. B. AIDA Metropolen 2026" value="${esc(edit?.name || '')}"></div>
+        <div class="formField"><label for="tripShipInput">Schiff</label><input id="tripShipInput" name="ship" placeholder="z. B. AIDAprima" value="${esc(edit?.ship || '')}"></div>
+        <div class="twoCols"><div class="formField"><label for="tripStartInput">Start</label><input id="tripStartInput" name="startDate" type="date" value="${esc(edit?.startDate || '')}"></div><div class="formField"><label for="tripEndInput">Ende</label><input id="tripEndInput" name="endDate" type="date" value="${esc(edit?.endDate || '')}"></div></div>
         <button id="tripSaveButton" class="primary" type="submit" data-action="saveTrip">${edit ? 'Änderungen speichern' : 'Speichern'}</button>
         <button class="secondary" type="button" data-action="resetTripForm">Formular leeren</button>
       </form>
@@ -773,16 +778,16 @@ function viewDevices() {
       <div class="sectionHead"><h1>Geräte & Personen</h1><span class="subtle">${currentPersons().length} Personen</span></div>
       <form id="deviceForm" class="card formCard">
         <h2>Gerät</h2>
-        <label>Gerätename<input name="deviceName" value="${esc(state.settings.deviceName || '')}"></label>
+        <div class="formField"><label for="deviceNameInput">Gerätename</label><input id="deviceNameInput" name="deviceName" value="${esc(state.settings.deviceName || '')}"></div>
         <div class="infoBox"><span>Geräte-ID</span><code>${esc(state.settings.deviceId || '')}</code></div>
         <button id="deviceSaveButton" class="primary" type="submit" data-action="saveDevice">Gerätename speichern</button>
       </form>
       <form id="personForm" class="card formCard" autocomplete="off">
         <input id="personIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Person bearbeiten' : 'Person anlegen'}</h2>
-        <label>Name<input id="personNameInput" name="name" placeholder="Name" value="${esc(edit?.name || '')}"></label>
-        <label>Getränkepaket<select id="personPackageInput" name="packageId">${state.packages.map(p => `<option value="${esc(p.id)}" ${p.id === (edit?.packageId || 'none') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
-        <label>Paketpreis gesamt<input id="personPackagePriceInput" name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00" value="${esc(edit?.packagePrice ?? '')}"></label>
+        <div class="formField"><label for="personNameInput">Name</label><input id="personNameInput" name="name" placeholder="Name" value="${esc(edit?.name || '')}"></div>
+        <div class="formField"><label for="personPackageInput">Getränkepaket</label><select id="personPackageInput" name="packageId">${state.packages.map(p => `<option value="${esc(p.id)}" ${p.id === (edit?.packageId || 'none') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="formField"><label for="personPackagePriceInput">Paketpreis gesamt</label><input id="personPackagePriceInput" name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00" value="${esc(edit?.packagePrice ?? '')}"></div>
         <button id="personSaveButton" class="primary" type="submit" data-action="savePerson">${edit ? 'Änderungen speichern' : 'Person speichern'}</button>
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
       </form>
@@ -865,6 +870,7 @@ async function trackDrink(drinkId) {
   await loadState();
   state.selectedPersonId = person.id;
   updateUndoDock();
+  scheduleUndoAutoHide();
   toast(`${drink.name} gespeichert`);
   haptic();
   if (state.route === 'track') renderTrackList();
@@ -872,11 +878,26 @@ async function trackDrink(drinkId) {
 }
 async function undoLast() {
   if (!state.undoLog) return;
+  clearUndoAutoHide();
   await del('logs', state.undoLog.id);
   state.undoLog = null;
   await loadState();
   render();
   toast('Letzter Eintrag wurde entfernt');
+}
+function clearUndoAutoHide() {
+  if (undoAutoHideTimer) {
+    clearTimeout(undoAutoHideTimer);
+    undoAutoHideTimer = null;
+  }
+}
+function scheduleUndoAutoHide() {
+  clearUndoAutoHide();
+  undoAutoHideTimer = setTimeout(() => {
+    state.undoLog = null;
+    updateUndoDock();
+    undoAutoHideTimer = null;
+  }, 3000);
 }
 function updateUndoDock() {
   const dock = $('#undoDock');
@@ -922,7 +943,10 @@ async function deleteLog(id) {
   if (!log) return;
   if (!confirm(`Eintrag wirklich löschen?\n\n${log.drinkName} · ${log.personName}`)) return;
   await del('logs', id);
-  if (state.undoLog?.id === id) state.undoLog = null;
+  if (state.undoLog?.id === id) {
+    clearUndoAutoHide();
+    state.undoLog = null;
+  }
   await loadState();
   render();
 }

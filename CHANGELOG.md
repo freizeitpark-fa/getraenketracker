@@ -6,6 +6,12 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
+- Filterband angepasst: `Alle` steht jetzt ganz links, `Empfohlen` bleibt weiterhin vorausgewählt und sortiert die Empfehlungen anhand Favoriten, zuletzt erfasster Getränke und bisheriger Nutzung.
+- Eingabefelder in Reise-, Geräte- und Personenformularen technisch bereinigt: Labels sind nun von den Eingabeelementen getrennt, Eingabefelder liegen explizit oberhalb anderer Touch-Flächen und bleiben nativ antippbar.
+- Track-Suche vereinfacht: Das Suchfeld ist jetzt selbst die vollständige antippbare Fläche; Klick in den freien Bereich öffnet die Tastatur.
+- Rückgängig-Dock angepasst: Nach dem Erfassen bleibt `Rückgängig` sichtbar, verschwindet aber automatisch nach 3 Sekunden.
+- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709o` erhöht.
+
 - Eingabefelder und Suchfeld wieder auf native iPhone-/Safari-Bedienung zurückgeführt: keine globalen Pointer-/Touch-Hacks mehr. Die Track-Suche ist jetzt ein echtes Label-Feld, sodass auch der freie Bereich der Suchleiste die Tastatur öffnet.
 - Filterband korrigiert: `Empfohlen`, `Favoriten`, `Zuletzt`, `Alle` und weitere Kategorien sind in einem eigenen horizontal scrollbareren Band.
 - Service-Worker-Cache auf `cruisesip-v4-0-0-20260709n` erhöht.

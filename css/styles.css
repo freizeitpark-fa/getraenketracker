@@ -53,8 +53,11 @@ h1,h2,h3,p{margin-top:0}h1{font-size:28px;letter-spacing:-.04em;line-height:1.05
    - drink list scrolls vertically
 */
 html,body,.appShell{max-width:100%;overflow-x:hidden;}
-input,select,textarea{font-size:16px;touch-action:auto;-webkit-user-select:text;user-select:text;}
+input,select,textarea{font-size:16px;-webkit-user-select:text;user-select:text;pointer-events:auto;position:relative;z-index:2;}
 button{touch-action:manipulation;}
+.formField{display:grid;gap:6px;}
+.formField label{font-size:12px;color:var(--muted);font-weight:700;cursor:text;}
+.formField input,.formField select,.formField textarea{display:block;width:100%;min-height:46px;}
 
 html[data-route="track"],
 html[data-route="track"] body{
@@ -156,9 +159,8 @@ html[data-route="track"] .trackInfoCard strong{font-size:16px;}
 html[data-route="track"] .trackInfoCard small{font-size:11px;}
 html[data-route="track"] .trackInfoMeta b{font-size:18px;}
 
-html[data-route="track"] .searchBoxLarge{
-  display:flex;
-  align-items:center;
+html[data-route="track"] .searchInputNative{
+  display:block;
   width:100%;
   height:48px;
   min-height:48px;
@@ -166,31 +168,20 @@ html[data-route="track"] .searchBoxLarge{
   box-shadow:none;
   cursor:text;
   background:var(--cardSolid);
-}
-html[data-route="track"] .searchBoxLarge span{pointer-events:none;font-size:18px;}
-html[data-route="track"] .searchBoxLarge input{
-  display:block;
-  flex:1 1 auto;
-  min-width:0;
-  width:100%;
-  height:44px;
-  border:0;
-  background:transparent;
-  padding:0;
+  border:1px solid var(--line);
+  padding:0 14px;
   font-size:16px;
-  line-height:44px;
+  line-height:48px;
   -webkit-user-select:text;
   user-select:text;
-  touch-action:auto;
+  pointer-events:auto;
+  position:relative;
+  z-index:4;
 }
-html[data-route="track"] .searchBoxLarge input:focus{
-  border:0;
-  box-shadow:none;
-  outline:none;
-}
-html[data-route="track"] .searchBoxLarge:focus-within{
+html[data-route="track"] .searchInputNative:focus{
   border-color:rgba(10,132,255,.65);
   box-shadow:0 0 0 4px rgba(10,132,255,.14);
+  outline:none;
 }
 
 html[data-route="track"] #categoryChips,
