@@ -435,7 +435,7 @@ function render() {
 function updateShell() {
   const trip = currentTrip();
   $('#appVersion').textContent = `v${APP_VERSION}`;
-  $('#tripTitle').textContent = trip ? short(trip.name, 24) : 'Keine Reise';
+  $('#tripTitle').textContent = state.route === 'track' ? `Tracken${trip ? ' · ' + short(trip.name, 18) : ''}` : (trip ? short(trip.name, 24) : 'Keine Reise');
   $('#onlineDot').textContent = state.online ? 'Online' : 'Offline';
   $$('.navButton').forEach(b => b.classList.toggle('active', b.dataset.route === state.route || (state.route === 'onboarding' && b.dataset.route === 'settings')));
   document.documentElement.dataset.theme = state.settings.theme || 'system';
@@ -561,7 +561,7 @@ function viewTrack() {
   return `
     <section class="screen trackScreen">
       <div class="stickyHeader trackStickyHeader">
-        <div class="sectionHead"><h1>Tracken</h1><button class="mini" data-route="devices">Personen</button></div>
+        <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
         ${persons.length ? personChips(persons) : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
         ${selectedPerson ? `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>` : ''}
         <div class="searchBox searchBoxLarge"><span>⌕</span><input id="drinkSearch" inputmode="search" autocomplete="off" placeholder="Getränk suchen …" value="${esc(state.query)}"></div>
@@ -675,7 +675,7 @@ function drinkListHtml() {
   if (!currentPersons().length) return '';
   if (!drinks.length) return '<div class="card emptyText">Keine passenden Getränke gefunden.</div>';
   const listTitle = state.query ? 'Suchergebnisse' : state.category === 'Alle' ? 'Alle Getränke' : state.category;
-  return `<div class="trackContent">${trackQuickSectionsHtml()}<section class="card trackListSection"><div class="sectionHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Große Kacheln für schnelle Erfassung mit einer Hand.</p></div><span class="subtle">${drinks.length} Getränke</span></div><div class="drinkGrid">${drinks.map(d => {
+  return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Antippen speichert sofort für die gewählte Person.</p></div><span class="subtle">${drinks.length} Getränke</span></div><div class="drinkGrid">${drinks.map(d => {
     const status = person ? statusForDrink(d, person.packageId) : 'unclear';
     const count = usage.get(d.id)?.count || 0;
     return `<article class="drinkCard"><button class="favButton ${fav.has(d.id) ? 'active' : ''}" data-action="toggleFavorite" data-id="${esc(d.id)}" aria-label="Favorit">★</button><button class="drinkMain" data-action="trackDrink" data-id="${esc(d.id)}"><span class="drinkIcon">${categoryIcon(d.category, d.name)}</span><span class="drinkBody"><span class="drinkTitle">${esc(d.name)}</span><span class="drinkMeta">${esc(d.category || '')}${d.volume ? ` · ${esc(d.volume)}` : ''}${count ? ` · ${count}× gewählt` : ''}</span><span class="statusBadge ${statusClass(status)}">${esc(statusLabel(status))}</span></span><span class="priceButton pricePill">${eur(d.price)}</span></button></article>`;

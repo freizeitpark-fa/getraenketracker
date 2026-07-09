@@ -6,6 +6,11 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
+- Erfassen-Ansicht erneut vereinfacht: CruiseSip-Kopfzeile dient jetzt als fester Seitenkopf mit Tracken-Hinweis, die Kategorieauswahl bleibt ein eigenes horizontales Band und die Artikel erscheinen darunter als kompakte einspaltige Liste.
+- Horizontales Seiten-Scrolling nochmals unterbunden; vertikales Scrollen findet nur in der Artikelliste statt.
+- Favoritenstern links neben jedem Artikel bestätigt und Artikel-/Symbolgrößen weiter reduziert.
+- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709j` erhöht.
+
 - Erfassen-Ansicht erneut korrigiert: horizontales Seitenscrollen wird unterbunden. Die Kategorieauswahl ist jetzt ein eigenes, bildschirmbreites horizontales Band; nur dieses Band scrollt links/rechts. Der Bereich darunter scrollt vertikal.
 - Getränkekacheln kompakter gemacht; Symbole verkleinert und Favoritenstern klar links neben dem Artikel platziert.
 - Service-Worker-Cache auf `cruisesip-v4-0-0-20260709i` erhöht.
