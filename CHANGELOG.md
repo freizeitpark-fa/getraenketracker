@@ -8,6 +8,9 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Neu / erweitert
 
+- Analyse-Dashboard ergänzt: eine antippbare Kachel pro Person für Restbetrag zum Paketpreis oder rechnerische Ersparnis nach Break-even.
+- Personen-Detailansicht in der Analyse ergänzt: Paketpreis, Paketwert, Restbetrag/Ersparnis, Bordrechnung außerhalb Paket, unklare Getränke und vollständiger Getränkeverlauf der Person.
+- Zurück-Button aus der Personen-Detailansicht zurück zum Analyse-Dashboard ergänzt.
 - Auswertung pro Person erweitert: Es wird jetzt klar angezeigt, welcher rechnerische Paketwert bis zum Paketpreis noch fehlt.
 - Pro Person wird die voraussichtliche Bordrechnung für eindeutig nicht im Paket enthaltene Getränke separat ausgewiesen.
 - Unklare Getränke werden pro Person weiterhin getrennt ausgewiesen und nicht als Ersparnis gerechnet.
@@ -17,7 +20,7 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Technisch
 
-- Service-Worker-Cache auf `cruisesip-v4-1-0-20260710b` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-1-0-20260710c` erhöht.
 - Basis bleibt die stabile Eingabefeld-Version; keine erneuten Formular-/Touch-Experimente.
 
 ### Neu

@@ -6,7 +6,7 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 Aktuelle Entwicklungsfassung: **4.1.0**
 
-Version 4.1.0 erweitert die stabile 4.0.0-Basis um Auswertungen und Artikelverwaltung. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.1.0 erweitert die stabile 4.0.0-Basis um Auswertungen, Personen-Detailanalyse und Artikelverwaltung. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 ## GitHub Pages Veröffentlichung
 
@@ -48,6 +48,7 @@ CruiseSip/
 - Favoriten, Kategorien und zuletzt verwendete Getränke
 - Verlauf als Timeline mit Bearbeiten/Löschen und Filtern
 - Auswertungen nach Person, Getränk, Kategorie, Tag und Reise inklusive Paket-Break-even und Bordrechnung außerhalb Paket
+- Personen-Detailanalyse mit Restbetrag zum Paketpreis, rechnerischer Ersparnis und vollständigem Getränkeverlauf
 - Export/Import je Reise
 - Zusammenführen mehrerer Geräte mit Dublettenerkennung
 - Importprotokoll

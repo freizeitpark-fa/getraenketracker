@@ -2,7 +2,7 @@
 
 ## Version 4.1.0 Auswertungen und Artikelverwaltung
 
-- Praxistest der erweiterten Personen-Auswertung auf iPhone Safari und als Home-Bildschirm-PWA.
+- Praxistest der erweiterten Personen-Auswertung inklusive Detailansicht und Zurück-Button auf iPhone Safari und als Home-Bildschirm-PWA.
 - Test Export/Import zwischen mindestens zwei Geräten.
 - Test mehrfacher Import derselben Exportdatei.
 - Test Barkartenimport mit Preis- und Paketänderungen.

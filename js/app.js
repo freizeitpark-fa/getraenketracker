@@ -30,6 +30,7 @@ let state = {
   category: 'Empfohlen',
   historyFilter: 'today',
   statsFilter: 'trip',
+  statsPersonId: null,
   articleQuery: '',
   editingDrinkId: null,
   undoLog: null,
@@ -345,6 +346,8 @@ async function handleClick(event) {
   if (action === 'setCategory') { state.category = id; renderTrackList(); renderCategoryChips(); return; }
   if (action === 'setHistoryFilter') { state.historyFilter = id; render(); return; }
   if (action === 'setStatsFilter') { state.statsFilter = id; render(); return; }
+  if (action === 'showStatsPerson') { state.statsPersonId = id; render(); return; }
+  if (action === 'backStatsDashboard') { state.statsPersonId = null; render(); return; }
   if (action === 'editArticle') { editArticle(id); return; }
   if (action === 'resetArticleForm') { editArticle(null); return; }
   if (action === 'saveArticle') { await runActionOnce('saveArticle', () => saveDrinkArticleForm($('#articleForm'))); return; }
@@ -757,9 +760,14 @@ function logItemHtml(log) {
 }
 
 function viewStats() {
-  const logs = logsByFilter(state.statsFilter || 'trip', currentLogs());
-  const total = calcDetailed(logs);
+  const filter = state.statsFilter || 'trip';
+  const logs = logsByFilter(filter, currentLogs());
   const persons = currentPersons();
+  const selectedPerson = state.statsPersonId ? persons.find(person => person.id === state.statsPersonId) : null;
+  if (state.statsPersonId && !selectedPerson) state.statsPersonId = null;
+  if (selectedPerson) return viewStatsPersonDetail(selectedPerson, logs);
+
+  const total = calcDetailed(logs);
   const packagePriceTotal = persons.reduce((sum, person) => sum + (Number(person.packagePrice) || 0), 0);
   const packageBalance = packagePriceTotal ? total.included - packagePriceTotal : 0;
   return `
@@ -773,7 +781,7 @@ function viewStats() {
         ${kpi('Unklar', eur(total.unclear), 'an Bord prüfen')}
       </div>
       ${packagePriceTotal ? `<div class="kpiGrid compact">${kpi('Paketpreise', eur(packagePriceTotal), 'Summe erfasster Personen')}${kpi('Paketbilanz', eur(packageBalance), packageBalance >= 0 ? 'Paket aktuell im Plus' : 'noch nicht amortisiert')}</div>` : ''}
-      ${packageBreakEvenHtml(logs)}
+      ${personPackageDashboardHtml(logs)}
       ${statusBreakdownHtml(logs)}
       ${outsidePackageHtml(logs)}
       ${statsSection('Pro Person', groupStats(logs, l => personById(l.personId)?.name || l.personName || 'Unbekannt'))}
@@ -817,38 +825,76 @@ function statsSection(title, rows, limit = 12) {
   return `<div class="card"><div class="sectionHead"><h2>${esc(title)}</h2><span class="subtle">Top ${Math.min(limit, rows.length)} von ${rows.length}</span></div><div class="statList">${rows.slice(0, limit).map(r => `<div class="statRow"><div><b>${esc(r.key)}</b><small>${r.count} Getränke · im Paket ${eur(r.saved)}${r.unclear ? ` · unklar ${eur(r.unclear)}` : ''}</small></div><strong>${eur(r.value)}</strong></div>`).join('')}</div></div>`;
 }
 function packageBreakEvenHtml(logs) {
+  return personPackageDashboardHtml(logs);
+}
+function personPackageStats(person, logs) {
+  const personLogs = logs.filter(log => log.personId === person.id);
+  const stats = calcDetailed(personLogs);
+  const packagePrice = Number(person.packagePrice) || 0;
+  const remaining = packagePrice ? Math.max(0, packagePrice - stats.included) : 0;
+  const savings = packagePrice ? Math.max(0, stats.included - packagePrice) : 0;
+  const balance = packagePrice ? stats.included - packagePrice : 0;
+  const progress = packagePrice ? Math.min(100, Math.round((stats.included / packagePrice) * 100)) : 0;
+  const avgIncluded = stats.includedCount ? stats.included / stats.includedCount : 0;
+  const remainingDrinkHint = !packagePrice
+    ? 'Paketpreis bei der Person hinterlegen.'
+    : remaining <= 0
+      ? `Break-even erreicht: rechnerische Ersparnis ${eur(savings)}.`
+      : avgIncluded
+        ? `ca. ${Math.ceil(remaining / avgIncluded)} weitere enthaltene Getränke bei Ø ${eur(avgIncluded)}`
+        : 'Noch kein enthaltenes Getränk als Durchschnitt vorhanden.';
+  return { personLogs, stats, packagePrice, remaining, savings, balance, progress, avgIncluded, remainingDrinkHint };
+}
+function personPackageDashboardHtml(logs) {
   const persons = currentPersons();
   if (!persons.length) return '';
-  const rows = persons.map(person => {
-    const personLogs = logs.filter(log => log.personId === person.id);
-    const stats = calcDetailed(personLogs);
-    const packagePrice = Number(person.packagePrice) || 0;
-    const balance = packagePrice ? stats.included - packagePrice : 0;
-    const remaining = packagePrice ? Math.max(0, packagePrice - stats.included) : 0;
-    const progress = packagePrice ? Math.min(100, Math.round((stats.included / packagePrice) * 100)) : 0;
-    const avgIncluded = stats.includedCount ? stats.included / stats.includedCount : 0;
-    const remainingHint = !packagePrice
-      ? 'Paketpreis bei der Person hinterlegen.'
-      : remaining <= 0
-        ? 'Rechnerischer Paketpreis ist erreicht.'
-        : avgIncluded
-          ? `ca. ${Math.ceil(remaining / avgIncluded)} weitere enthaltene Getränke bei Ø ${eur(avgIncluded)}`
-          : 'Noch kein enthaltenes Getränk als Durchschnitt vorhanden.';
-    const boardBill = stats.notIncluded;
-    const verdict = !packagePrice ? 'Paketpreis fehlt' : balance >= 0 ? `Vorteil ${eur(balance)}` : `Noch ${eur(remaining)}`;
-    return `<article class="personAnalysisCard" style="--person:${esc(person.color || '#e0f2fe')}">
-      <div class="personAnalysisHead"><div><b>${esc(person.name)}</b><small>${esc(packageName(person.packageId))} · ${personLogs.length} Getränke</small></div><strong>${esc(verdict)}</strong></div>
-      ${packagePrice ? `<span class="meter"><i style="width:${progress}%"></i></span>` : ''}
-      <div class="personAnalysisGrid">
-        ${miniMetric('Paketpreis', packagePrice ? eur(packagePrice) : 'fehlt', 'hinterlegt')}
-        ${miniMetric('Paketwert', eur(stats.included), `${stats.includedCount} enthalten`)}
-        ${miniMetric('Noch zu konsumieren', packagePrice ? eur(remaining) : '-', remainingHint)}
-        ${miniMetric('Bordrechnung', eur(boardBill), `${stats.notIncludedCount} nicht enthalten`)}
-        ${miniMetric('Unklar', eur(stats.unclear), `${stats.unclearCount} an Bord prüfen`)}
-      </div>
-    </article>`;
+  const cards = persons.map(person => {
+    const data = personPackageStats(person, logs);
+    const reached = data.packagePrice && data.remaining <= 0;
+    const headline = !data.packagePrice ? 'Paketpreis fehlt' : reached ? 'Ersparnis erreicht' : 'Restbetrag zum Paketpreis';
+    const mainValue = !data.packagePrice ? 'fehlt' : reached ? eur(data.savings) : eur(data.remaining);
+    const subline = !data.packagePrice
+      ? 'Paketpreis in der Person hinterlegen.'
+      : reached
+        ? `Paketwert ${eur(data.stats.included)} bei ${eur(data.packagePrice)} Paketpreis.`
+        : `${eur(data.stats.included)} von ${eur(data.packagePrice)} erreicht.`;
+    return `<button class="personBreakEvenCard" data-action="showStatsPerson" data-id="${esc(person.id)}" style="--person:${esc(person.color || '#e0f2fe')}">
+      <span class="personBreakEvenTop"><span><b>${esc(person.name)}</b><small>${esc(packageName(person.packageId))} · ${data.personLogs.length} Getränke</small></span><strong>${esc(mainValue)}</strong></span>
+      ${data.packagePrice ? `<span class="meter"><i style="width:${data.progress}%"></i></span>` : ''}
+      <span class="personBreakEvenMeta"><span>${esc(headline)}</span><span>Bordrechnung ${esc(eur(data.stats.notIncluded))}</span></span>
+      <small>${esc(subline)}</small>
+    </button>`;
   }).join('');
-  return `<div class="card"><div class="sectionHead"><h2>Personen-Auswertung Paket & Bordrechnung</h2><span class="subtle">konservativ</span></div><p class="hint">„Noch zu konsumieren“ zählt nur eindeutig im Paket enthaltene Getränke gegen den hinterlegten Paketpreis. Die Bordrechnung enthält nur eindeutig nicht enthaltene Getränke; unklare Getränke werden getrennt ausgewiesen.</p><div class="personAnalysisList">${rows}</div></div>`;
+  return `<div class="card"><div class="sectionHead"><h2>Restbetrag / Paketprüfung pro Person</h2><span class="subtle">antippen für Verlauf</span></div><p class="hint">Die Kachel zeigt je Person den verbleibenden Betrag bis zum rechnerischen Paketpreis. Sobald der Break-even erreicht ist, wird die rechnerische Ersparnis ausgewiesen. Bordrechnung zählt nur eindeutig nicht enthaltene Getränke.</p><div class="personBreakEvenGrid">${cards}</div></div>`;
+}
+function viewStatsPersonDetail(person, logs) {
+  const data = personPackageStats(person, logs);
+  const reached = data.packagePrice && data.remaining <= 0;
+  const mainLabel = !data.packagePrice ? 'Paketpreis fehlt' : reached ? 'Rechnerische Ersparnis' : 'Restbetrag zum Paketpreis';
+  const mainValue = !data.packagePrice ? 'fehlt' : reached ? eur(data.savings) : eur(data.remaining);
+  const drinkRows = data.personLogs
+    .slice()
+    .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
+    .map(log => `<div class="personDrinkRow"><div><b>${statusDot(log.packageStatus)}${esc(log.drinkName || 'Unbekannt')}</b><small>${esc(formatDateTime(log.ts))}${log.category ? ` · ${esc(log.category)}` : ''} · ${esc(statusLabel(log.packageStatus))}</small></div><strong>${esc(eur(log.price))}</strong></div>`)
+    .join('');
+  return `
+    <section class="screen">
+      <div class="sectionHead"><div><h1>${esc(person.name)}</h1><span class="subtle">Paketprüfung & Verlauf</span></div><button class="mini" data-action="backStatsDashboard">Zurück</button></div>
+      ${statsFilterHtml()}
+      <article class="card personDetailCard" style="--person:${esc(person.color || '#e0f2fe')}">
+        <div class="personAnalysisHead"><div><b>${esc(mainLabel)}</b><small>${esc(packageName(person.packageId))} · ${data.personLogs.length} Getränke im Zeitraum</small></div><strong>${esc(mainValue)}</strong></div>
+        ${data.packagePrice ? `<span class="meter"><i style="width:${data.progress}%"></i></span>` : ''}
+        <div class="personAnalysisGrid">
+          ${miniMetric('Paketpreis', data.packagePrice ? eur(data.packagePrice) : 'fehlt', 'bei Person hinterlegt')}
+          ${miniMetric('Im Paket gerechnet', eur(data.stats.included), `${data.stats.includedCount} enthalten`)}
+          ${miniMetric(reached ? 'Ersparnis' : 'Noch offen', data.packagePrice ? (reached ? eur(data.savings) : eur(data.remaining)) : '-', data.remainingDrinkHint)}
+          ${miniMetric('Bordrechnung', eur(data.stats.notIncluded), `${data.stats.notIncludedCount} nicht enthalten`)}
+          ${miniMetric('Unklar', eur(data.stats.unclear), `${data.stats.unclearCount} an Bord prüfen`)}
+          ${miniMetric('Gesamt getrunken', eur(data.stats.value), `${data.stats.count} Getränke`)}
+        </div>
+      </article>
+      <div class="card"><div class="sectionHead"><h2>Getränkeverlauf</h2><span class="subtle">${data.personLogs.length} Einträge</span></div>${drinkRows ? `<div class="personDrinkList">${drinkRows}</div>` : '<p class="emptyText">Keine Getränke im gewählten Zeitraum.</p>'}</div>
+    </section>`;
 }
 function miniMetric(label, value, sub) {
   return `<div class="miniMetric"><span>${esc(label)}</span><b>${esc(value)}</b><small>${esc(sub)}</small></div>`;
