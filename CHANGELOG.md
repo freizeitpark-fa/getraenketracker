@@ -6,23 +6,12 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
-- Eingabefelder-Hardfix: Globale Fokus-/Touch-Hilfslogik entfernt, Formularwerte werden während der Eingabe zwischengespeichert und Formular-Cards verwenden keinen Blur-/Backdrop-Layer mehr. Dadurch sollen Reise-, Geräte-, Personen- und Suchfelder wieder nativ antippbar bleiben.
-- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709q` erhöht.
-
-- Eingabefeld-Fokus grundlegend bereinigt: keine globalen Touch-/Pointer-Workarounds mehr; Formularfelder und Track-Suche bekommen eine native Fokus-Absicherung ohne `preventDefault`.
-- Track-Suche wieder als Suchbox mit Eingabefeld aufgebaut, sodass auch der freie Bereich der Suchleiste das Feld fokussiert.
-- Filterband bleibt horizontal scrollbar; `Alle` steht ganz links, `Empfohlen` bleibt die vorausgewählte Logik.
-- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709p` erhöht.
-
-- Filterband angepasst: `Alle` steht jetzt ganz links, `Empfohlen` bleibt weiterhin vorausgewählt und sortiert die Empfehlungen anhand Favoriten, zuletzt erfasster Getränke und bisheriger Nutzung.
-- Eingabefelder in Reise-, Geräte- und Personenformularen technisch bereinigt: Labels sind nun von den Eingabeelementen getrennt, Eingabefelder liegen explizit oberhalb anderer Touch-Flächen und bleiben nativ antippbar.
-- Track-Suche vereinfacht: Das Suchfeld ist jetzt selbst die vollständige antippbare Fläche; Klick in den freien Bereich öffnet die Tastatur.
-- Rückgängig-Dock angepasst: Nach dem Erfassen bleibt `Rückgängig` sichtbar, verschwindet aber automatisch nach 3 Sekunden.
-- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709o` erhöht.
-
-- Eingabefelder und Suchfeld wieder auf native iPhone-/Safari-Bedienung zurückgeführt: keine globalen Pointer-/Touch-Hacks mehr. Die Track-Suche ist jetzt ein echtes Label-Feld, sodass auch der freie Bereich der Suchleiste die Tastatur öffnet.
-- Filterband korrigiert: `Empfohlen`, `Favoriten`, `Zuletzt`, `Alle` und weitere Kategorien sind in einem eigenen horizontal scrollbareren Band.
-- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709n` erhöht.
+- Getränkeliste im Tracker geprüft: Die Stammdaten enthalten 233 Getränke; die bisherige technische Begrenzung der Track-Liste auf 80 Einträge wurde entfernt. Der Filter `Alle` zeigt nun die vollständige Barkarte.
+- Filterband angepasst: `Alle` steht ganz links, `Empfohlen` bleibt weiterhin die vorausgewählte Startansicht.
+- Eingabefelder auf den letzten stabilen nativen Stand zurückgesetzt: spätere Fokus-/Layer-/Pointer-Hilfslogik wurde nicht übernommen, damit Geräte-, Reise- und Personenfelder wieder normal durch Safari/iOS bedienbar sind.
+- Suchfeld im Tracker minimal nativ angepasst (`type=search`, volle verfügbare Breite), ohne globale Touch-Eingriffe.
+- Rückgängig-Hinweis bleibt nach dem Tracken erhalten, verschwindet aber automatisch nach 3 Sekunden.
+- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709r` erhöht.
 
 - Erfassen-Ansicht erneut vereinfacht: CruiseSip-Kopfzeile dient jetzt als fester Seitenkopf mit Tracken-Hinweis, die Kategorieauswahl bleibt ein eigenes horizontales Band und die Artikel erscheinen darunter als kompakte einspaltige Liste.
 - Horizontales Seiten-Scrolling nochmals unterbunden; vertikales Scrollen findet nur in der Artikelliste statt.
