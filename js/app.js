@@ -280,12 +280,38 @@ function setOnlineState() {
   if (dot) dot.textContent = state.online ? 'Online' : 'Offline';
 }
 
+function scheduleViewportLayout() {
+  requestAnimationFrame(syncViewportLayout);
+}
+
+function syncViewportLayout() {
+  const nav = $('.bottomNav');
+  if (nav) {
+    const navHeight = Math.ceil(nav.getBoundingClientRect().height || nav.offsetHeight || 78);
+    document.documentElement.style.setProperty('--bottomNavHeight', `${navHeight}px`);
+  }
+  if (state.route !== 'track') return;
+  const drinkList = $('#drinkList');
+  const navRect = nav ? nav.getBoundingClientRect() : null;
+  if (!drinkList || !navRect) return;
+  const listTop = drinkList.getBoundingClientRect().top;
+  const available = Math.floor(navRect.top - listTop - 10);
+  const height = Math.max(180, available);
+  document.documentElement.style.setProperty('--trackListHeight', `${height}px`);
+}
+
 function bindShell() {
   document.addEventListener('click', handleClick);
   document.addEventListener('input', preserveFormDraft, true);
   document.addEventListener('change', preserveFormDraft, true);
   document.addEventListener('submit', handleSubmit);
   $('#fileInput').addEventListener('change', handleFileInput);
+  window.addEventListener('resize', scheduleViewportLayout);
+  window.addEventListener('orientationchange', () => setTimeout(scheduleViewportLayout, 250));
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', scheduleViewportLayout);
+    window.visualViewport.addEventListener('scroll', scheduleViewportLayout);
+  }
 }
 
 function draftSectionForForm(formId) {
@@ -469,6 +495,7 @@ function render() {
   bindRenderedControls();
   updateUndoDock();
   setOnlineState();
+  scheduleViewportLayout();
 }
 
 function updateShell() {
