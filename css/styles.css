@@ -432,3 +432,107 @@ html[data-route="track"] .categoryScroller{
   -webkit-overflow-scrolling:touch;
   touch-action:pan-x;
 }
+
+/* v4.0.0-s native input hard reset
+   iOS/PWA fix: no translucent/backdrop layer around form controls; submit uses native form submit. */
+body{
+  touch-action:auto !important;
+}
+.formCard,
+.formCard.card,
+.formCard *{
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+.formCard{
+  background:var(--cardSolid) !important;
+  overflow:visible !important;
+  position:relative !important;
+  z-index:1 !important;
+  isolation:auto !important;
+  transform:none !important;
+  contain:none !important;
+}
+.fieldBlock,
+.formCard label{
+  display:grid !important;
+  gap:6px !important;
+  font-size:12px !important;
+  color:var(--muted) !important;
+  font-weight:800 !important;
+  position:relative !important;
+  z-index:2 !important;
+  overflow:visible !important;
+  pointer-events:auto !important;
+}
+.fieldBlock input,
+.fieldBlock select,
+.fieldBlock textarea,
+.formCard input,
+.formCard select,
+.formCard textarea{
+  display:block !important;
+  width:100% !important;
+  min-height:50px !important;
+  height:50px !important;
+  padding:0 13px !important;
+  border:1px solid var(--line) !important;
+  border-radius:15px !important;
+  background:var(--cardSolid) !important;
+  color:var(--text) !important;
+  font-size:16px !important;
+  line-height:normal !important;
+  opacity:1 !important;
+  pointer-events:auto !important;
+  -webkit-user-select:text !important;
+  user-select:text !important;
+  touch-action:auto !important;
+  position:relative !important;
+  z-index:5 !important;
+  transform:none !important;
+  -webkit-appearance:none;
+  appearance:none;
+}
+.fieldBlock select,
+.formCard select{
+  -webkit-appearance:menulist !important;
+  appearance:auto !important;
+}
+.fieldBlock input:focus,
+.fieldBlock select:focus,
+.formCard input:focus,
+.formCard select:focus{
+  outline:none !important;
+  border-color:rgba(10,132,255,.62) !important;
+  box-shadow:0 0 0 4px rgba(10,132,255,.14) !important;
+}
+.formCard button{
+  position:relative !important;
+  z-index:2 !important;
+}
+.searchBoxLarge,
+.searchBoxLarge *{
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+.searchBoxLarge{
+  background:var(--cardSolid) !important;
+  position:relative !important;
+  z-index:5 !important;
+  pointer-events:auto !important;
+  overflow:visible !important;
+}
+.searchBoxLarge input{
+  height:46px !important;
+  min-height:46px !important;
+  position:relative !important;
+  z-index:6 !important;
+  pointer-events:auto !important;
+  touch-action:auto !important;
+}
+html[data-route="track"] .categoryScroller{
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  -webkit-overflow-scrolling:touch !important;
+  touch-action:pan-x !important;
+}

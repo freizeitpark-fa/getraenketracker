@@ -6,6 +6,12 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
+- Fix: Eingabefelder in Reise-, Geräte- und Personenformularen auf native Formular-Interaktion zurückgesetzt; Submit-Buttons verwenden wieder ausschließlich normalen Formular-Submit.
+- Fix: iOS/PWA-Störquelle entfernt: `backdrop-filter`/Blur und mögliche Touch-Layer in Formular-Cards deaktiviert.
+- Fix: Track-Suchfeld bleibt klickbar, ohne globale Touch-/Pointer-Fallbacks.
+- Daten: Vollständige Getränkeliste bleibt erhalten; Filter `Alle` steht weiterhin ganz links, `Empfohlen` bleibt vorausgewählt.
+- Technik: Service-Worker-Cache auf `cruisesip-v4-0-0-20260709s` erhöht.
+
 - Getränkeliste im Tracker geprüft: Die Stammdaten enthalten 233 Getränke; die bisherige technische Begrenzung der Track-Liste auf 80 Einträge wurde entfernt. Der Filter `Alle` zeigt nun die vollständige Barkarte.
 - Filterband angepasst: `Alle` steht ganz links, `Empfohlen` bleibt weiterhin die vorausgewählte Startansicht.
 - Eingabefelder auf den letzten stabilen nativen Stand zurückgesetzt: spätere Fokus-/Layer-/Pointer-Hilfslogik wurde nicht übernommen, damit Geräte-, Reise- und Personenfelder wieder normal durch Safari/iOS bedienbar sind.

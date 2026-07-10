@@ -444,9 +444,8 @@ function updateShell() {
 }
 
 function bindRenderedControls() {
-  bindDirectAction('#tripSaveButton', 'saveTrip', () => saveTripForm($('#tripForm')));
-  bindDirectAction('#personSaveButton', 'savePerson', () => savePersonForm($('#personForm')));
-  bindDirectAction('#deviceSaveButton', 'saveDevice', () => saveDeviceForm($('#deviceForm')));
+  // Intentionally empty: forms use native submit behavior.
+  // Avoid document-level/touchend fallbacks here because iOS PWA can treat them as an overlay above inputs.
 }
 
 function bindInputs() {
@@ -457,6 +456,12 @@ function bindInputs() {
       state.query = event.target.value;
       renderTrackList();
     });
+    const searchBox = search.closest('.searchBox');
+    if (searchBox) {
+      searchBox.addEventListener('click', event => {
+        if (event.target !== search) search.focus();
+      });
+    }
   }
   const dateInputs = $$('.dateDefaultToday');
   dateInputs.forEach(input => { if (!input.value) input.value = new Date().toISOString().slice(0, 10); });
@@ -482,9 +487,9 @@ function viewOnboarding() {
       </div>
       <form id="onboardingTripForm" class="card formCard">
         <h2>Reise anlegen</h2>
-        <label>Reisename<input name="name" required placeholder="z. B. AIDA Sommer 2026" value="${esc(currentTrip()?.name || '')}"></label>
-        <label>Schiff<input name="ship" placeholder="z. B. AIDAcosma" value="${esc(currentTrip()?.ship || '')}"></label>
-        <div class="twoCols"><label>Start<input name="startDate" type="date" value="${esc(currentTrip()?.startDate || '')}"></label><label>Ende<input name="endDate" type="date" value="${esc(currentTrip()?.endDate || '')}"></label></div>
+        <div class="fieldBlock"><label for="onboardTripName">Reisename</label><input id="onboardTripName" name="name" type="text" required autocomplete="off" placeholder="z. B. AIDA Sommer 2026" value="${esc(currentTrip()?.name || '')}"></div>
+        <div class="fieldBlock"><label for="onboardTripShip">Schiff</label><input id="onboardTripShip" name="ship" type="text" autocomplete="off" placeholder="z. B. AIDAcosma" value="${esc(currentTrip()?.ship || '')}"></div>
+        <div class="twoCols"><div class="fieldBlock"><label for="onboardTripStart">Start</label><input id="onboardTripStart" name="startDate" type="date" value="${esc(currentTrip()?.startDate || '')}"></div><div class="fieldBlock"><label for="onboardTripEnd">Ende</label><input id="onboardTripEnd" name="endDate" type="date" value="${esc(currentTrip()?.endDate || '')}"></div></div>
         <button class="primary" type="submit">Reise speichern</button>
       </form>
       <div class="buttonStack">
@@ -749,10 +754,10 @@ function viewTrips() {
       <form id="tripForm" class="card formCard" autocomplete="off">
         <input id="tripIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Reise bearbeiten' : 'Reise anlegen'}</h2>
-        <label>Name<input id="tripNameInput" name="name" placeholder="z. B. AIDA Metropolen 2026" value="${esc(edit?.name || '')}"></label>
-        <label>Schiff<input id="tripShipInput" name="ship" placeholder="z. B. AIDAprima" value="${esc(edit?.ship || '')}"></label>
-        <div class="twoCols"><label>Start<input id="tripStartInput" name="startDate" type="date" value="${esc(edit?.startDate || '')}"></label><label>Ende<input id="tripEndInput" name="endDate" type="date" value="${esc(edit?.endDate || '')}"></label></div>
-        <button id="tripSaveButton" class="primary" type="submit" data-action="saveTrip">${edit ? 'Änderungen speichern' : 'Speichern'}</button>
+        <div class="fieldBlock"><label for="tripNameInput">Name</label><input id="tripNameInput" name="name" type="text" autocomplete="off" placeholder="z. B. AIDA Metropolen 2026" value="${esc(edit?.name || '')}"></div>
+        <div class="fieldBlock"><label for="tripShipInput">Schiff</label><input id="tripShipInput" name="ship" type="text" autocomplete="off" placeholder="z. B. AIDAprima" value="${esc(edit?.ship || '')}"></div>
+        <div class="twoCols"><div class="fieldBlock"><label for="tripStartInput">Start</label><input id="tripStartInput" name="startDate" type="date" value="${esc(edit?.startDate || '')}"></div><div class="fieldBlock"><label for="tripEndInput">Ende</label><input id="tripEndInput" name="endDate" type="date" value="${esc(edit?.endDate || '')}"></div></div>
+        <button id="tripSaveButton" class="primary" type="submit">${edit ? 'Änderungen speichern' : 'Speichern'}</button>
         <button class="secondary" type="button" data-action="resetTripForm">Formular leeren</button>
       </form>
       <div class="card"><h2>Vorhandene Reisen</h2><div class="itemList">${state.trips.map(tripCardHtml).join('')}</div></div>
@@ -774,17 +779,17 @@ function viewDevices() {
       <div class="sectionHead"><h1>Geräte & Personen</h1><span class="subtle">${currentPersons().length} Personen</span></div>
       <form id="deviceForm" class="card formCard">
         <h2>Gerät</h2>
-        <label>Gerätename<input name="deviceName" value="${esc(state.settings.deviceName || '')}"></label>
+        <div class="fieldBlock"><label for="deviceNameInput">Gerätename</label><input id="deviceNameInput" name="deviceName" type="text" autocomplete="off" value="${esc(state.settings.deviceName || '')}"></div>
         <div class="infoBox"><span>Geräte-ID</span><code>${esc(state.settings.deviceId || '')}</code></div>
-        <button id="deviceSaveButton" class="primary" type="submit" data-action="saveDevice">Gerätename speichern</button>
+        <button id="deviceSaveButton" class="primary" type="submit">Gerätename speichern</button>
       </form>
       <form id="personForm" class="card formCard" autocomplete="off">
         <input id="personIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Person bearbeiten' : 'Person anlegen'}</h2>
-        <label>Name<input id="personNameInput" name="name" placeholder="Name" value="${esc(edit?.name || '')}"></label>
-        <label>Getränkepaket<select id="personPackageInput" name="packageId">${state.packages.map(p => `<option value="${esc(p.id)}" ${p.id === (edit?.packageId || 'none') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
-        <label>Paketpreis gesamt<input id="personPackagePriceInput" name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00" value="${esc(edit?.packagePrice ?? '')}"></label>
-        <button id="personSaveButton" class="primary" type="submit" data-action="savePerson">${edit ? 'Änderungen speichern' : 'Person speichern'}</button>
+        <div class="fieldBlock"><label for="personNameInput">Name</label><input id="personNameInput" name="name" type="text" autocomplete="off" placeholder="Name" value="${esc(edit?.name || '')}"></div>
+        <div class="fieldBlock"><label for="personPackageInput">Getränkepaket</label><select id="personPackageInput" name="packageId">${state.packages.map(p => `<option value="${esc(p.id)}" ${p.id === (edit?.packageId || 'none') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="fieldBlock"><label for="personPackagePriceInput">Paketpreis gesamt</label><input id="personPackagePriceInput" name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00" value="${esc(edit?.packagePrice ?? '')}"></div>
+        <button id="personSaveButton" class="primary" type="submit">${edit ? 'Änderungen speichern' : 'Person speichern'}</button>
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
       </form>
       <div class="card"><h2>Personen dieser Reise</h2><div class="itemList">${currentPersons().map(personCardHtml).join('') || '<p class="emptyText">Noch keine Personen angelegt.</p>'}</div></div>
