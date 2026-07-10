@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.1.0';
+const APP_VERSION = '4.2.0';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -653,9 +653,19 @@ function viewTrack() {
     </section>`;
 }
 function personChips(persons) { return `<div class="chipScroller personScroller">${persons.map((p, i) => `<button class="personChip ${p.id === state.selectedPersonId ? 'active' : ''}" style="--person:${esc(p.color || PERSON_COLORS[i % PERSON_COLORS.length])}" data-action="selectPerson" data-id="${esc(p.id)}"><span>${esc(p.name)}</span><small>${esc(packageName(p.packageId))}</small></button>`).join('')}</div>`; }
-function categoryChipsHtml() { return `<div class="categoryBand"><div class="chipScroller categoryScroller">${categories().map(cat => `<button class="filterChip ${cat === state.category ? 'active' : ''}" data-action="setCategory" data-id="${esc(cat)}">${esc(cat)}</button>`).join('')}</div></div>`; }
+function categoryChipsHtml() {
+  const favoriteCount = favoriteIds().length;
+  const recentCount = recentDrinkIds().length;
+  const recommendedCount = recommendedDrinks(24).length;
+  const counts = { Alle: state.drinks.length, Empfohlen: recommendedCount, Favoriten: favoriteCount, Zuletzt: recentCount };
+  return `<div class="categoryBand"><div class="chipScroller categoryScroller">${categories().map(cat => {
+    const count = counts[cat];
+    const label = Number.isFinite(count) ? `${esc(cat)} <span>${count}</span>` : esc(cat);
+    return `<button class="filterChip ${cat === state.category ? 'active' : ''}" data-action="setCategory" data-id="${esc(cat)}" aria-pressed="${cat === state.category ? 'true' : 'false'}">${label}</button>`;
+  }).join('')}</div></div>`;
+}
 function renderCategoryChips() { const el = $('#categoryChips'); if (el) el.innerHTML = categoryChipsHtml(); }
-function renderTrackList() { const el = $('#drinkList'); if (el) el.innerHTML = drinkListHtml(); }
+function renderTrackList() { const el = $('#drinkList'); if (el) { el.innerHTML = drinkListHtml(); scheduleViewportLayout(); } }
 function categories() {
   const cats = [...new Set(state.drinks.map(d => d.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
   return ['Alle', 'Empfohlen', 'Favoriten', 'Zuletzt', ...cats.filter(cat => cat !== 'Alle')];
@@ -757,10 +767,12 @@ function drinkListHtml() {
   if (!currentPersons().length) return '';
   if (!drinks.length) return '<div class="card emptyText">Keine passenden Getränke gefunden.</div>';
   const listTitle = state.query ? 'Suchergebnisse' : state.category === 'Alle' ? 'Alle Getränke' : state.category;
-  return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Antippen speichert sofort für die gewählte Person.</p></div><span class="subtle">${drinks.length} Getränke</span></div><div class="drinkGrid">${drinks.map(d => {
+  return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Getränk antippen und direkt für ${esc(person?.name || 'die aktive Person')} speichern.</p></div><span class="subtle">${drinks.length}</span></div><div class="drinkGrid">${drinks.map(d => {
     const status = person ? statusForDrink(d, person.packageId) : 'unclear';
     const count = usage.get(d.id)?.count || 0;
-    return `<article class="drinkCard"><button class="favButton ${fav.has(d.id) ? 'active' : ''}" data-action="toggleFavorite" data-id="${esc(d.id)}" aria-label="Favorit">★</button><button class="drinkMain" data-action="trackDrink" data-id="${esc(d.id)}"><span class="drinkIcon">${categoryIcon(d.category, d.name)}</span><span class="drinkBody"><span class="drinkTitle">${esc(d.name)}</span><span class="drinkMeta">${esc(d.category || '')}${d.volume ? ` · ${esc(d.volume)}` : ''}${count ? ` · ${count}× gewählt` : ''}</span><span class="statusBadge ${statusClass(status)}">${esc(statusLabel(status))}</span></span><span class="priceButton pricePill">${eur(d.price)}</span></button></article>`;
+    const isFavorite = fav.has(d.id);
+    const recommendationBadge = state.category === 'Empfohlen' ? '<span class="drinkTileBadge">Empfohlen</span>' : (isFavorite ? '<span class="drinkTileBadge favoriteBadge">Favorit</span>' : '');
+    return `<article class="drinkCard ${isFavorite ? 'isFavorite' : ''}"><button class="favButton ${isFavorite ? 'active' : ''}" data-action="toggleFavorite" data-id="${esc(d.id)}" aria-label="${isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}" aria-pressed="${isFavorite ? 'true' : 'false'}">★</button><button class="drinkMain" data-action="trackDrink" data-id="${esc(d.id)}" aria-label="${esc(d.name)} für ${esc(person?.name || 'aktive Person')} erfassen"><span class="drinkTileTop"><span class="drinkIcon" aria-hidden="true">${categoryIcon(d.category, d.name)}</span>${recommendationBadge}</span><span class="drinkBody"><span class="drinkTitle">${esc(d.name)}</span><span class="drinkMeta">${esc(d.category || 'Getränk')}${d.volume ? ` · ${esc(d.volume)}` : ''}</span></span><span class="drinkTileBottom"><span class="statusBadge ${statusClass(status)}">${esc(statusLabel(status))}</span><span class="priceButton pricePill">${eur(d.price)}</span></span>${count ? `<span class="drinkUsage">Schon ${count}× gewählt</span>` : ''}</button></article>`;
   }).join('')}</div></section></div>`;
 }
 
@@ -1167,7 +1179,7 @@ async function trackDrink(drinkId) {
   scheduleUndoAutoHide();
   toast(`${drink.name} gespeichert`);
   haptic();
-  if (state.route === 'track') renderTrackList();
+  if (state.route === 'track') { renderTrackList(); renderCategoryChips(); }
   else render();
 }
 async function undoLast() {
@@ -1206,6 +1218,8 @@ async function toggleFavorite(drinkId) {
   favs.has(drinkId) ? favs.delete(drinkId) : favs.add(drinkId);
   await putSetting('favorites', [...favs]);
   haptic();
+  if (state.route === 'track') { renderTrackList(); renderCategoryChips(); }
+  else if (state.route === 'dashboard') renderDashboardQuick();
 }
 function recentDrinkIds() {
   const seen = new Set();
@@ -1558,6 +1572,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.2.0</h2>
+  <ul>
+    <li>Tracken-Ansicht mit großen, zweispaltigen Getränkekacheln für die iPhone-Bedienung optimiert.</li>
+    <li>Getränkesymbol, Name, Kategorie, Paketstatus und Preis sind direkt in jeder Kachel sichtbar.</li>
+    <li>Favoritenstern sowie die Filter für Alle, Empfohlen, Favoriten und Zuletzt bleiben dauerhaft erreichbar.</li>
+  </ul>
   <h2>Version 4.1.0</h2>
   <ul>
     <li>Auswertungen erweitert: Zeitraumfilter, Paket-Break-even pro Person, Statusübersicht sowie getrennte Analyse für außerhalb Paket und unklare Getränke.</li>

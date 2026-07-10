@@ -1,5 +1,12 @@
 # Roadmap CruiseSip
 
+## Version 4.2.0 Tracken-Ansicht
+
+- Große iPhone-taugliche Getränkekacheln
+- Sichtbare Symbole, Preise und Paketstatus
+- Favoriten und Empfehlungen weiterhin direkt erreichbar
+- Stabile Suche und unveränderte Eingabelogik
+
 ## Version 4.1.0 Auswertungen und Artikelverwaltung
 
 - Praxistest der erweiterten Personen-Auswertung inklusive Detailansicht und Zurück-Button auf iPhone Safari und als Home-Bildschirm-PWA.
@@ -10,7 +17,7 @@
 - Prüfung der Bedienbarkeit bei vielen Getränken.
 - Prüfung, ob die v3-Migration auf bereits genutzten Geräten sauber funktioniert.
 
-## Potenzielle Folgeversion nach 4.1.0
+## Potenzielle Folgeversion nach 4.2.0
 
 Mögliche spätere Punkte:
 

@@ -3,6 +3,24 @@
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 
+## 4.2.0 - Tracken-Ansicht
+
+### Neu / verbessert
+
+- Tracken-Ansicht für die schnelle iPhone-Bedienung überarbeitet.
+- Getränke werden als große, zweispaltige Kacheln mit deutlich sichtbarem Symbol und Namen dargestellt.
+- Kategorie, Barkartenpreis und Paketstatus sind direkt in jeder Getränkekachel sichtbar.
+- Favoritenstern bleibt separat antippbar; Favoriten werden zusätzlich optisch hervorgehoben.
+- Filter `Alle`, `Empfohlen`, `Favoriten` und `Zuletzt` bleiben im horizontalen Filterband sichtbar und zeigen die jeweilige Trefferzahl.
+- `Alle` bleibt links im Filterband; `Empfohlen` bleibt beim Start der Tracken-Ansicht vorausgewählt.
+- Die bestehende Such-, Personen-, Tracking-, Rückgängig- und Speicherlogik wurde nicht umgebaut.
+
+### Technisch
+
+- App-Version auf `4.2.0` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-2-0-20260710a` erhöht.
+- Keine globalen Touch-/Pointer-Hacks und keine Änderungen an der Formularstruktur.
+
 ## 4.1.0 - Auswertungen
 
 ### Korrekturen 2026-07-10

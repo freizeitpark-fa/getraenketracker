@@ -4,16 +4,16 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.1.0**
+Aktuelle Entwicklungsfassung: **4.2.0**
 
-Version 4.1.0 erweitert die stabile 4.0.0-Basis um Auswertungen, Personen-Detailanalyse und Artikelverwaltung. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.2.0 erweitert die stabile 4.1.0-Basis um eine iPhone-optimierte Tracken-Ansicht mit großen Getränkekacheln. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 ## GitHub Pages Veröffentlichung
 
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.1.0 Auswertungen Artikelverwaltung`.
+4. Commit erstellen, z. B. `CruiseSip v4.2.0 Tracken-Ansicht`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
