@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.0.0';
+const APP_VERSION = '4.1.0';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -30,6 +30,8 @@ let state = {
   category: 'Empfohlen',
   historyFilter: 'today',
   statsFilter: 'trip',
+  articleQuery: '',
+  editingDrinkId: null,
   undoLog: null,
   formDraft: { trip: {}, person: {}, device: {}, onboardingTrip: {} },
   pendingFileMode: null,
@@ -342,6 +344,10 @@ async function handleClick(event) {
   if (action === 'saveDevice') { await runActionOnce('saveDevice', () => saveDeviceForm($('#deviceForm'))); return; }
   if (action === 'setCategory') { state.category = id; renderTrackList(); renderCategoryChips(); return; }
   if (action === 'setHistoryFilter') { state.historyFilter = id; render(); return; }
+  if (action === 'setStatsFilter') { state.statsFilter = id; render(); return; }
+  if (action === 'editArticle') { editArticle(id); return; }
+  if (action === 'resetArticleForm') { editArticle(null); return; }
+  if (action === 'saveArticle') { await runActionOnce('saveArticle', () => saveDrinkArticleForm($('#articleForm'))); return; }
   if (action === 'trackDrink') { await trackDrink(id); return; }
   if (action === 'toggleFavorite') { await toggleFavorite(id); renderTrackList(); renderDashboardQuick(); return; }
   if (action === 'undo') { await undoLast(); return; }
@@ -364,6 +370,7 @@ async function handleSubmit(event) {
   if (formId === 'tripForm') await runActionOnce('saveTrip', () => saveTripForm(form));
   if (formId === 'personForm') await runActionOnce('savePerson', () => savePersonForm(form));
   if (formId === 'deviceForm') await runActionOnce('saveDevice', () => saveDeviceForm(form));
+  if (formId === 'articleForm') await runActionOnce('saveArticle', () => saveDrinkArticleForm(form));
   if (formId === 'onboardingTripForm') await saveOnboardingTrip(form);
 }
 
@@ -488,6 +495,18 @@ function bindInputs() {
     search.addEventListener('search', event => {
       state.query = event.target.value;
       renderTrackList();
+    });
+  }
+  const articleSearch = $('#articleSearch');
+  if (articleSearch) {
+    articleSearch.value = state.articleQuery || '';
+    articleSearch.addEventListener('input', event => {
+      state.articleQuery = event.target.value;
+      renderArticleList();
+    });
+    articleSearch.addEventListener('search', event => {
+      state.articleQuery = event.target.value;
+      renderArticleList();
     });
   }
   const dateInputs = $$('.dateDefaultToday');
@@ -738,39 +757,115 @@ function logItemHtml(log) {
 }
 
 function viewStats() {
-  const logs = currentLogs();
-  const total = calc(logs);
+  const logs = logsByFilter(state.statsFilter || 'trip', currentLogs());
+  const total = calcDetailed(logs);
+  const persons = currentPersons();
+  const packagePriceTotal = persons.reduce((sum, person) => sum + (Number(person.packagePrice) || 0), 0);
+  const packageBalance = packagePriceTotal ? total.included - packagePriceTotal : 0;
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Auswertungen</h1><span class="subtle">${esc(currentTrip()?.name || '')}</span></div>
+      ${statsFilterHtml()}
       <div class="kpiGrid">
         ${kpi('Konsumwert', eur(total.value), `${total.count} Getränke`)}
-        ${kpi('Ersparnis', eur(total.saved), 'nur eindeutig enthalten')}
-        ${kpi('Zu zahlen', eur(total.paid), 'nicht enthalten/unklar')}
+        ${kpi('Im Paket', eur(total.included), 'eindeutig enthalten')}
+        ${kpi('Außerhalb Paket', eur(total.notIncluded), 'eindeutig nicht enthalten')}
         ${kpi('Unklar', eur(total.unclear), 'an Bord prüfen')}
       </div>
+      ${packagePriceTotal ? `<div class="kpiGrid compact">${kpi('Paketpreise', eur(packagePriceTotal), 'Summe erfasster Personen')}${kpi('Paketbilanz', eur(packageBalance), packageBalance >= 0 ? 'Paket aktuell im Plus' : 'noch nicht amortisiert')}</div>` : ''}
+      ${packageBreakEvenHtml(logs)}
+      ${statusBreakdownHtml(logs)}
+      ${outsidePackageHtml(logs)}
       ${statsSection('Pro Person', groupStats(logs, l => personById(l.personId)?.name || l.personName || 'Unbekannt'))}
-      ${statsSection('Pro Getränk', groupStats(logs, l => l.drinkName || 'Unbekannt'))}
+      ${statsSection('Pro Getränk', groupStats(logs, l => l.drinkName || 'Unbekannt'), 20)}
       ${statsSection('Pro Kategorie', groupStats(logs, l => l.category || 'Ohne Kategorie'))}
       ${statsSection('Pro Tag', groupStats(logs, l => formatDateKey(l.ts)))}
-      ${statsSection('Lieblingsgetränke', groupStats(logs, l => l.drinkName || 'Unbekannt').sort((a, b) => b.count - a.count).slice(0, 8))}
+      ${statsSection('Lieblingsgetränke', groupStats(logs, l => l.drinkName || 'Unbekannt').sort((a, b) => b.count - a.count).slice(0, 10), 10)}
     </section>`;
+}
+function statsFilterHtml() {
+  const filter = state.statsFilter || 'trip';
+  return `<div class="segmented"><button class="${filter === 'today' ? 'active' : ''}" data-action="setStatsFilter" data-id="today">Heute</button><button class="${filter === 'yesterday' ? 'active' : ''}" data-action="setStatsFilter" data-id="yesterday">Gestern</button><button class="${filter === 'trip' ? 'active' : ''}" data-action="setStatsFilter" data-id="trip">Reise</button></div>`;
+}
+function calcDetailed(logs = currentLogs()) {
+  return logs.reduce((acc, log) => {
+    const price = Number(log.price) || 0;
+    acc.count += 1;
+    acc.value += price;
+    if (log.packageStatus === 'included') { acc.included += price; acc.includedCount += 1; }
+    else if (log.packageStatus === 'not_included') { acc.notIncluded += price; acc.notIncludedCount += 1; }
+    else { acc.unclear += price; acc.unclearCount += 1; }
+    return acc;
+  }, { count: 0, value: 0, included: 0, notIncluded: 0, unclear: 0, includedCount: 0, notIncludedCount: 0, unclearCount: 0 });
 }
 function groupStats(logs, keyFn) {
   const map = new Map();
   logs.forEach(log => {
     const key = keyFn(log);
-    if (!map.has(key)) map.set(key, { key, count: 0, value: 0, saved: 0, paid: 0 });
+    if (!map.has(key)) map.set(key, { key, count: 0, value: 0, saved: 0, paid: 0, unclear: 0 });
     const row = map.get(key);
     const price = Number(log.price) || 0;
     row.count += 1; row.value += price;
-    if (log.packageStatus === 'included') row.saved += price; else row.paid += price;
+    if (log.packageStatus === 'included') row.saved += price;
+    else if (log.packageStatus === 'unclear') { row.unclear += price; row.paid += price; }
+    else row.paid += price;
   });
   return [...map.values()].sort((a, b) => b.value - a.value || b.count - a.count);
 }
-function statsSection(title, rows) {
+function statsSection(title, rows, limit = 12) {
   if (!rows.length) return `<div class="card"><h2>${esc(title)}</h2><p class="emptyText">Keine Daten vorhanden.</p></div>`;
-  return `<div class="card"><h2>${esc(title)}</h2><div class="statList">${rows.slice(0, 12).map(r => `<div class="statRow"><div><b>${esc(r.key)}</b><small>${r.count} Getränke · gespart ${eur(r.saved)}</small></div><strong>${eur(r.value)}</strong></div>`).join('')}</div></div>`;
+  return `<div class="card"><div class="sectionHead"><h2>${esc(title)}</h2><span class="subtle">Top ${Math.min(limit, rows.length)} von ${rows.length}</span></div><div class="statList">${rows.slice(0, limit).map(r => `<div class="statRow"><div><b>${esc(r.key)}</b><small>${r.count} Getränke · im Paket ${eur(r.saved)}${r.unclear ? ` · unklar ${eur(r.unclear)}` : ''}</small></div><strong>${eur(r.value)}</strong></div>`).join('')}</div></div>`;
+}
+function packageBreakEvenHtml(logs) {
+  const persons = currentPersons();
+  if (!persons.length) return '';
+  const rows = persons.map(person => {
+    const personLogs = logs.filter(log => log.personId === person.id);
+    const stats = calcDetailed(personLogs);
+    const packagePrice = Number(person.packagePrice) || 0;
+    const balance = packagePrice ? stats.included - packagePrice : 0;
+    const remaining = packagePrice ? Math.max(0, packagePrice - stats.included) : 0;
+    const progress = packagePrice ? Math.min(100, Math.round((stats.included / packagePrice) * 100)) : 0;
+    const avgIncluded = stats.includedCount ? stats.included / stats.includedCount : 0;
+    const remainingHint = !packagePrice
+      ? 'Paketpreis bei der Person hinterlegen.'
+      : remaining <= 0
+        ? 'Rechnerischer Paketpreis ist erreicht.'
+        : avgIncluded
+          ? `ca. ${Math.ceil(remaining / avgIncluded)} weitere enthaltene Getränke bei Ø ${eur(avgIncluded)}`
+          : 'Noch kein enthaltenes Getränk als Durchschnitt vorhanden.';
+    const boardBill = stats.notIncluded;
+    const verdict = !packagePrice ? 'Paketpreis fehlt' : balance >= 0 ? `Vorteil ${eur(balance)}` : `Noch ${eur(remaining)}`;
+    return `<article class="personAnalysisCard" style="--person:${esc(person.color || '#e0f2fe')}">
+      <div class="personAnalysisHead"><div><b>${esc(person.name)}</b><small>${esc(packageName(person.packageId))} · ${personLogs.length} Getränke</small></div><strong>${esc(verdict)}</strong></div>
+      ${packagePrice ? `<span class="meter"><i style="width:${progress}%"></i></span>` : ''}
+      <div class="personAnalysisGrid">
+        ${miniMetric('Paketpreis', packagePrice ? eur(packagePrice) : 'fehlt', 'hinterlegt')}
+        ${miniMetric('Paketwert', eur(stats.included), `${stats.includedCount} enthalten`)}
+        ${miniMetric('Noch zu konsumieren', packagePrice ? eur(remaining) : '-', remainingHint)}
+        ${miniMetric('Bordrechnung', eur(boardBill), `${stats.notIncludedCount} nicht enthalten`)}
+        ${miniMetric('Unklar', eur(stats.unclear), `${stats.unclearCount} an Bord prüfen`)}
+      </div>
+    </article>`;
+  }).join('');
+  return `<div class="card"><div class="sectionHead"><h2>Personen-Auswertung Paket & Bordrechnung</h2><span class="subtle">konservativ</span></div><p class="hint">„Noch zu konsumieren“ zählt nur eindeutig im Paket enthaltene Getränke gegen den hinterlegten Paketpreis. Die Bordrechnung enthält nur eindeutig nicht enthaltene Getränke; unklare Getränke werden getrennt ausgewiesen.</p><div class="personAnalysisList">${rows}</div></div>`;
+}
+function miniMetric(label, value, sub) {
+  return `<div class="miniMetric"><span>${esc(label)}</span><b>${esc(value)}</b><small>${esc(sub)}</small></div>`;
+}
+function statusBreakdownHtml(logs) {
+  const rows = [
+    { key: 'Im Paket enthalten', logs: logs.filter(log => log.packageStatus === 'included') },
+    { key: 'Nicht enthalten', logs: logs.filter(log => log.packageStatus === 'not_included') },
+    { key: 'Unklar', logs: logs.filter(log => log.packageStatus === 'unclear') }
+  ].map(row => ({ key: row.key, ...calcDetailed(row.logs) }));
+  return `<div class="card"><h2>Statusübersicht</h2><div class="statList">${rows.map(row => `<div class="statRow"><div><b>${esc(row.key)}</b><small>${row.count} Getränke</small></div><strong>${eur(row.value)}</strong></div>`).join('')}</div></div>`;
+}
+function outsidePackageHtml(logs) {
+  const outside = logs.filter(log => log.packageStatus !== 'included');
+  if (!outside.length) return `<div class="card"><h2>Außerhalb Paket / unklar</h2><p class="emptyText">Keine Getränke außerhalb des Pakets oder mit unklarem Status im gewählten Zeitraum.</p></div>`;
+  const rows = groupStats(outside, log => `${log.drinkName || 'Unbekannt'} · ${statusLabel(log.packageStatus)}`).slice(0, 12);
+  return `<div class="card"><div class="sectionHead"><h2>Außerhalb Paket / unklar</h2><span class="subtle">Top ${rows.length}</span></div><div class="statList">${rows.map(r => `<div class="statRow"><div><b>${esc(r.key)}</b><small>${r.count} Getränke</small></div><strong>${eur(r.value)}</strong></div>`).join('')}</div></div>`;
 }
 
 function viewTrips() {
@@ -847,9 +942,107 @@ function viewBarkarte() {
         <button class="primary" data-action="importBarkarte">Neue Barkarte importieren</button>
         <p class="hint">Unterstützt werden strukturierte CruiseSip-JSON-Dateien und einfache CSV-Dateien. PDF-Erkennung ist bewusst nicht integriert, da die App offline und ohne externe Bibliotheken arbeitet.</p>
       </div>
+      ${articleManagementHtml()}
       ${cmp ? comparisonHtml(cmp) : ''}
       <div class="card"><h2>Kategorien</h2>${categorySummaryHtml()}</div>
     </section>`;
+}
+
+function articleManagementHtml() {
+  const edit = state.editingDrinkId ? drinkById(state.editingDrinkId) : null;
+  return `<div class="card articleManager" id="articleManager">
+    <div class="sectionHead"><div><h2>Artikelverwaltung</h2><p class="hint">Preis und Paketstatus können lokal angepasst werden. Mehrere Pakete können gleichzeitig als enthalten markiert werden.</p></div><span class="subtle">${state.drinks.length} Artikel</span></div>
+    <input id="articleSearch" class="plainSearch" type="search" inputmode="search" autocomplete="off" placeholder="Artikel suchen …" value="${esc(state.articleQuery || '')}">
+    <div id="articleEdit">${articleEditFormHtml(edit)}</div>
+    <div id="articleList">${articleListHtml()}</div>
+  </div>`;
+}
+function renderArticleManagement() { const el = $('#articleManager'); if (el) el.outerHTML = articleManagementHtml(); bindInputs(); bindRenderedControls(); }
+function renderArticleList() { const el = $('#articleList'); if (el) el.innerHTML = articleListHtml(); }
+function renderArticleEdit() { const el = $('#articleEdit'); if (el) el.innerHTML = articleEditFormHtml(state.editingDrinkId ? drinkById(state.editingDrinkId) : null); }
+function articleEditFormHtml(drink) {
+  if (!drink) return `<div class="articleEditEmpty"><b>Kein Artikel ausgewählt.</b><small>Artikel suchen und „Bearbeiten“ antippen.</small></div>`;
+  return `<form id="articleForm" class="articleForm" autocomplete="off">
+    <input id="articleIdInput" type="hidden" name="id" value="${esc(drink.id)}">
+    <div class="articleEditHead"><div><b>${esc(drink.name)}</b><small>${esc(drink.category || 'Ohne Kategorie')}${drink.volume ? ` · ${esc(drink.volume)}` : ''}</small></div><button class="mini" type="button" data-action="resetArticleForm">Schließen</button></div>
+    <div class="twoCols"><div class="formField"><label for="articlePriceInput">Preis</label><input id="articlePriceInput" name="price" type="text" inputmode="decimal" value="${esc(String(Number(drink.price) || 0).replace('.', ','))}"></div><div class="formField"><label for="articleCategoryInput">Kategorie</label><input id="articleCategoryInput" name="category" value="${esc(drink.category || '')}"></div></div>
+    <div class="packageStatusEditor"><b>Enthalten je Getränkepaket</b>${packageStatusFieldsHtml(drink)}</div>
+    <label class="checkLine"><input id="articleApplyLogsInput" name="applyLogs" type="checkbox" checked> Bestehende Einträge dieser Reise für diesen Artikel aktualisieren</label>
+    <button class="primary" type="submit" data-action="saveArticle">Artikel speichern</button>
+  </form>`;
+}
+function packageStatusFieldsHtml(drink) {
+  return managedPackages().map(pkg => {
+    const value = drink.packages?.[pkg.id] || 'unclear';
+    return `<div class="packageStatusRow"><span>${esc(pkg.name)}</span><select name="pkg_${esc(pkg.id)}"><option value="included" ${value === 'included' ? 'selected' : ''}>enthalten</option><option value="not_included" ${value === 'not_included' ? 'selected' : ''}>nicht enthalten</option><option value="unclear" ${value === 'unclear' ? 'selected' : ''}>unklar</option></select></div>`;
+  }).join('');
+}
+function managedPackages() { return state.packages.filter(p => !['none', 'unclear'].includes(p.id)); }
+function filteredArticleDrinks() {
+  const q = normalize(state.articleQuery || '');
+  let list = [...state.drinks].sort((a, b) => String(a.name).localeCompare(String(b.name), 'de'));
+  if (q) list = list.filter(d => normalize(`${d.name} ${d.category || ''} ${d.notes || ''} ${d.volume || ''}`).includes(q));
+  return list;
+}
+function articleListHtml() {
+  const drinks = filteredArticleDrinks();
+  if (!drinks.length) return '<p class="emptyText">Keine passenden Artikel gefunden.</p>';
+  return `<div class="articleListHead"><span>${drinks.length} Treffer</span><small>Antippen zum Bearbeiten</small></div><div class="articleList">${drinks.map(d => articleRowHtml(d)).join('')}</div>`;
+}
+function articleRowHtml(drink) {
+  const included = managedPackages().filter(pkg => drink.packages?.[pkg.id] === 'included').map(pkg => pkg.name);
+  return `<button class="articleRow ${drink.id === state.editingDrinkId ? 'selected' : ''}" data-action="editArticle" data-id="${esc(drink.id)}"><span><b>${esc(drink.name)}</b><small>${esc(drink.category || '')}${drink.volume ? ` · ${esc(drink.volume)}` : ''}</small><small>${included.length ? `Enthalten: ${esc(included.join(', '))}` : 'Nicht eindeutig enthalten'}</small></span><strong>${eur(drink.price)}</strong></button>`;
+}
+function editArticle(id) {
+  state.editingDrinkId = id || null;
+  renderArticleManagement();
+  $('#articleForm')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+async function saveDrinkArticleForm(form) {
+  if (!form) { alert('Artikelformular nicht gefunden.'); return; }
+  const id = formValue(form, 'id');
+  const drink = drinkById(id);
+  if (!drink) { alert('Artikel nicht gefunden.'); return; }
+  const packages = { ...(drink.packages || {}) };
+  for (const pkg of managedPackages()) {
+    const raw = formValue(form, `pkg_${pkg.id}`) || 'unclear';
+    packages[pkg.id] = ['included', 'not_included', 'unclear'].includes(raw) ? raw : 'unclear';
+  }
+  const updated = {
+    ...drink,
+    price: num(formValue(form, 'price')),
+    category: formValue(form, 'category').trim() || drink.category || 'Ohne Kategorie',
+    packages,
+    manualOverride: true,
+    updatedAt: nowIso()
+  };
+  await put('drinks', updated);
+
+  let updatedLogs = 0;
+  const applyLogs = !!form.elements.namedItem('applyLogs')?.checked;
+  if (applyLogs) {
+    const activeId = activeTripId();
+    const relevantLogs = state.logs.filter(log => log.drinkId === id && (!activeId || (log.tripId || activeId) === activeId));
+    for (const log of relevantLogs) {
+      const person = personById(log.personId);
+      const packageId = person?.packageId || log.packageId || 'none';
+      await put('logs', {
+        ...log,
+        drinkName: updated.name,
+        category: updated.category || '',
+        price: Number(updated.price) || 0,
+        packageId,
+        packageStatus: statusForDrink(updated, packageId),
+        updatedAt: nowIso()
+      });
+      updatedLogs += 1;
+    }
+  }
+  await putSetting('barkarteVersion', { ...activeBarkarteVersion(), count: state.drinks.length, updatedAt: nowIso(), manualOverrides: true });
+  await loadState();
+  state.editingDrinkId = id;
+  render();
+  toast(`Artikel gespeichert${updatedLogs ? ` · ${updatedLogs} Einträge aktualisiert` : ''}`);
 }
 
 function categorySummaryHtml() {
@@ -1216,7 +1409,8 @@ function normalizeDrinks(drinks) {
 function cleanPackages(packages) {
   const allowed = new Set(['included', 'not_included', 'unclear']);
   const clean = {};
-  ['all_in', 'fun', 'kids_teens_all_in', 'kids_teens_fun'].forEach(key => {
+  const keys = ['all_in', 'fun', 'kids_teens_all_in', 'kids_teens_fun'];
+  keys.forEach(key => {
     let v = String(packages?.[key] || 'unclear').trim().toLowerCase();
     if (['ja', 'yes', 'enthalten', 'included', 'in'].includes(v)) v = 'included';
     if (['nein', 'no', 'nicht enthalten', 'not included', 'not_included', 'out'].includes(v)) v = 'not_included';
@@ -1271,7 +1465,7 @@ function compareDrinks(oldDrinks, newDrinks) {
     const old = byKey.get(drink.id) || byName.get(normalize(drink.name));
     if (!old) { newCount += 1; details.push({ name: drink.name, text: `neu · ${eur(drink.price)}` }); continue; }
     if (Math.abs((Number(old.price) || 0) - (Number(drink.price) || 0)) >= 0.01) { priceChanges += 1; details.push({ name: drink.name, text: `Preis ${eur(old.price)} → ${eur(drink.price)}` }); }
-    for (const key of ['all_in', 'fun', 'kids_teens_all_in', 'kids_teens_fun']) {
+    for (const key of managedPackages().map(pkg => pkg.id)) {
       if ((old.packages?.[key] || 'unclear') !== (drink.packages?.[key] || 'unclear')) { packageChanges += 1; details.push({ name: drink.name, text: `${packageName(key)}: ${statusLabel(old.packages?.[key] || 'unclear')} → ${statusLabel(drink.packages?.[key] || 'unclear')}` }); }
     }
   }
@@ -1291,6 +1485,11 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.1.0</h2>
+  <ul>
+    <li>Auswertungen erweitert: Zeitraumfilter, Paket-Break-even pro Person, Statusübersicht sowie getrennte Analyse für außerhalb Paket und unklare Getränke.</li>
+    <li>Konservative Berechnung: Nur eindeutig im Paket enthaltene Getränke werden gegen den Paketpreis gerechnet; unklare Getränke bleiben gesondert sichtbar.</li>
+  </ul>
   <h2>Version 4.0.0</h2>
   <ul>
     <li>Fix: Reise- und Personenformulare sind jetzt echte Formular-Submit-Elemente mit zusätzlichem Touch-/Click-Fallback, damit Speichern auf iPhone/Safari zuverlässiger ausgelöst wird.</li>

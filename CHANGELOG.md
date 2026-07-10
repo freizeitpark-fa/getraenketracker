@@ -2,7 +2,39 @@
 
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
-## 4.0.0 - laufende Entwicklungsfassung
+
+## 4.1.0 - Auswertungen
+
+
+### Neu / erweitert
+
+- Auswertung pro Person erweitert: Es wird jetzt klar angezeigt, welcher rechnerische Paketwert bis zum Paketpreis noch fehlt.
+- Pro Person wird die voraussichtliche Bordrechnung für eindeutig nicht im Paket enthaltene Getränke separat ausgewiesen.
+- Unklare Getränke werden pro Person weiterhin getrennt ausgewiesen und nicht als Ersparnis gerechnet.
+- Artikelverwaltung in der Barkarten-Seite ergänzt: Artikel suchen, Preis ändern und Paketstatus je Getränkepaket manuell setzen.
+- Ein Artikel kann in mehreren Paketen gleichzeitig als enthalten markiert werden, z. B. Erwachsenenpaket und Kinderpaket.
+- Optional können bestehende Einträge der aktiven Reise beim Speichern eines Artikels auf den neuen Preis/Paketstatus aktualisiert werden.
+
+### Technisch
+
+- Service-Worker-Cache auf `cruisesip-v4-1-0-20260710b` erhöht.
+- Basis bleibt die stabile Eingabefeld-Version; keine erneuten Formular-/Touch-Experimente.
+
+### Neu
+
+- Auswertungsseite erweitert: Zeitraumfilter Heute / Gestern / Reise.
+- Paket-Break-even pro Person ergänzt: eindeutig im Paket enthaltener Barkartenwert wird konservativ gegen den hinterlegten Paketpreis gerechnet.
+- Statusübersicht ergänzt: im Paket enthalten, nicht enthalten und unklar werden getrennt ausgewiesen.
+- Analyse „Außerhalb Paket / unklar“ ergänzt, damit kostenrelevante oder zu prüfende Getränke schnell sichtbar sind.
+- Detailtabellen erweitert: Pro Getränk nun bis zu 20 Einträge, Lieblingsgetränke bis zu 10 Einträge.
+
+### Technisch
+
+- App-Version auf 4.1.0 erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-1-0-20260710a` erhöht.
+- Keine Änderungen an den zuletzt funktionierenden Eingabefeldern/Formularen.
+
+## 4.0.0 - stabile Basis vor 4.1.0
 
 ### Korrekturen
 
