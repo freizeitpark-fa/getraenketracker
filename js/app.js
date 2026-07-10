@@ -31,6 +31,7 @@ let state = {
   historyFilter: 'today',
   statsFilter: 'trip',
   undoLog: null,
+  formDraft: { trip: {}, person: {}, device: {}, onboardingTrip: {} },
   pendingFileMode: null,
   lastBarkarteComparison: null,
   online: navigator.onLine
@@ -144,7 +145,6 @@ function bindDirectAction(selector, key, handler) {
     runActionOnce(key, handler);
   };
   element.addEventListener('click', run);
-  element.addEventListener('touchend', run, { passive: false });
 }
 
 function setButtonBusy(selector, busy) {
@@ -279,34 +279,39 @@ function setOnlineState() {
 
 function bindShell() {
   document.addEventListener('click', handleClick);
-  document.addEventListener('click', handleFieldFocus, true);
-  document.addEventListener('touchend', handleFieldFocus, { capture: true, passive: true });
+  document.addEventListener('input', preserveFormDraft, true);
+  document.addEventListener('change', preserveFormDraft, true);
   document.addEventListener('submit', handleSubmit);
   $('#fileInput').addEventListener('change', handleFileInput);
 }
 
-function handleFieldFocus(event) {
-  const interactive = event.target.closest('button, [data-action], [data-route], a, input, textarea, select');
-  if (interactive && !interactive.matches('input, textarea, select')) return;
-  const area = event.target.closest('.formField, .searchBoxNative');
-  if (!area) return;
-  const field = area.matches('input, textarea, select') ? area : area.querySelector('input, textarea, select');
-  if (!field || field.disabled || field.readOnly) return;
-  // Keine preventDefault-Logik: Safari/iOS darf die native Tastatur selbst öffnen.
-  window.setTimeout(() => {
-    try {
-      field.focus({ preventScroll: true });
-      if (field.matches('input[type="text"], input[type="search"], input:not([type]), textarea')) {
-        const len = field.value.length;
-        field.setSelectionRange(len, len);
-      }
-    } catch (_) {
-      try { field.focus(); } catch (__) {}
-    }
-  }, 0);
+function draftSectionForForm(formId) {
+  if (formId === 'tripForm') return 'trip';
+  if (formId === 'personForm') return 'person';
+  if (formId === 'deviceForm') return 'device';
+  if (formId === 'onboardingTripForm') return 'onboardingTrip';
+  return null;
+}
+function preserveFormDraft(event) {
+  const field = event.target;
+  if (!field || !field.matches || !field.matches('input, textarea, select')) return;
+  const form = field.closest('form');
+  const section = draftSectionForForm(form?.id || '');
+  if (!section || !field.name) return;
+  state.formDraft[section] = state.formDraft[section] || {};
+  state.formDraft[section][field.name] = field.value;
+}
+function draftValue(section, name, fallback = '') {
+  const draft = state.formDraft?.[section];
+  return draft && Object.prototype.hasOwnProperty.call(draft, name) ? draft[name] : fallback;
+}
+function clearDraft(section) {
+  if (!state.formDraft) state.formDraft = { trip: {}, person: {}, device: {}, onboardingTrip: {} };
+  state.formDraft[section] = {};
 }
 
 async function handleClick(event) {
+  if (event.target.closest('input, textarea, select, option')) return;
   const target = event.target.closest('[data-action], [data-route]');
   if (!target) return;
   event.preventDefault();
@@ -509,9 +514,9 @@ function viewOnboarding() {
       </div>
       <form id="onboardingTripForm" class="card formCard">
         <h2>Reise anlegen</h2>
-        <div class="formField"><label for="onboardingTripName">Reisename</label><input id="onboardingTripName" name="name" required placeholder="z. B. AIDA Sommer 2026" value="${esc(currentTrip()?.name || '')}"></div>
-        <div class="formField"><label for="onboardingTripShip">Schiff</label><input id="onboardingTripShip" name="ship" placeholder="z. B. AIDAcosma" value="${esc(currentTrip()?.ship || '')}"></div>
-        <div class="twoCols"><div class="formField"><label for="onboardingTripStart">Start</label><input id="onboardingTripStart" name="startDate" type="date" value="${esc(currentTrip()?.startDate || '')}"></div><div class="formField"><label for="onboardingTripEnd">Ende</label><input id="onboardingTripEnd" name="endDate" type="date" value="${esc(currentTrip()?.endDate || '')}"></div></div>
+        <div class="formField"><label for="onboardingTripName">Reisename</label><input id="onboardingTripName" name="name" required placeholder="z. B. AIDA Sommer 2026" value="${esc(draftValue('onboardingTrip', 'name', currentTrip()?.name || ''))}"></div>
+        <div class="formField"><label for="onboardingTripShip">Schiff</label><input id="onboardingTripShip" name="ship" placeholder="z. B. AIDAcosma" value="${esc(draftValue('onboardingTrip', 'ship', currentTrip()?.ship || ''))}"></div>
+        <div class="twoCols"><div class="formField"><label for="onboardingTripStart">Start</label><input id="onboardingTripStart" name="startDate" type="date" value="${esc(draftValue('onboardingTrip', 'startDate', currentTrip()?.startDate || ''))}"></div><div class="formField"><label for="onboardingTripEnd">Ende</label><input id="onboardingTripEnd" name="endDate" type="date" value="${esc(draftValue('onboardingTrip', 'endDate', currentTrip()?.endDate || ''))}"></div></div>
         <button class="primary" type="submit">Reise speichern</button>
       </form>
       <div class="buttonStack">
@@ -592,7 +597,7 @@ function viewTrack() {
         <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
         ${persons.length ? personChips(persons) : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
         ${selectedPerson ? `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>` : ''}
-        <div class="searchBox searchBoxLarge searchBoxNative"><span aria-hidden="true">⌕</span><input id="drinkSearch" class="searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></div>
+        <label class="searchBox searchBoxLarge searchBoxNative" for="drinkSearch"><span aria-hidden="true">⌕</span><input id="drinkSearch" class="searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
         <div id="categoryChips">${categoryChipsHtml()}</div>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>
@@ -776,9 +781,9 @@ function viewTrips() {
       <form id="tripForm" class="card formCard" autocomplete="off">
         <input id="tripIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Reise bearbeiten' : 'Reise anlegen'}</h2>
-        <div class="formField"><label for="tripNameInput">Name</label><input id="tripNameInput" name="name" placeholder="z. B. AIDA Metropolen 2026" value="${esc(edit?.name || '')}"></div>
-        <div class="formField"><label for="tripShipInput">Schiff</label><input id="tripShipInput" name="ship" placeholder="z. B. AIDAprima" value="${esc(edit?.ship || '')}"></div>
-        <div class="twoCols"><div class="formField"><label for="tripStartInput">Start</label><input id="tripStartInput" name="startDate" type="date" value="${esc(edit?.startDate || '')}"></div><div class="formField"><label for="tripEndInput">Ende</label><input id="tripEndInput" name="endDate" type="date" value="${esc(edit?.endDate || '')}"></div></div>
+        <div class="formField"><label for="tripNameInput">Name</label><input id="tripNameInput" name="name" placeholder="z. B. AIDA Metropolen 2026" value="${esc(draftValue('trip', 'name', edit?.name || ''))}"></div>
+        <div class="formField"><label for="tripShipInput">Schiff</label><input id="tripShipInput" name="ship" placeholder="z. B. AIDAprima" value="${esc(draftValue('trip', 'ship', edit?.ship || ''))}"></div>
+        <div class="twoCols"><div class="formField"><label for="tripStartInput">Start</label><input id="tripStartInput" name="startDate" type="date" value="${esc(draftValue('trip', 'startDate', edit?.startDate || ''))}"></div><div class="formField"><label for="tripEndInput">Ende</label><input id="tripEndInput" name="endDate" type="date" value="${esc(draftValue('trip', 'endDate', edit?.endDate || ''))}"></div></div>
         <button id="tripSaveButton" class="primary" type="submit" data-action="saveTrip">${edit ? 'Änderungen speichern' : 'Speichern'}</button>
         <button class="secondary" type="button" data-action="resetTripForm">Formular leeren</button>
       </form>
@@ -801,16 +806,16 @@ function viewDevices() {
       <div class="sectionHead"><h1>Geräte & Personen</h1><span class="subtle">${currentPersons().length} Personen</span></div>
       <form id="deviceForm" class="card formCard">
         <h2>Gerät</h2>
-        <div class="formField"><label for="deviceNameInput">Gerätename</label><input id="deviceNameInput" name="deviceName" value="${esc(state.settings.deviceName || '')}"></div>
+        <div class="formField"><label for="deviceNameInput">Gerätename</label><input id="deviceNameInput" name="deviceName" value="${esc(draftValue('device', 'deviceName', state.settings.deviceName || ''))}"></div>
         <div class="infoBox"><span>Geräte-ID</span><code>${esc(state.settings.deviceId || '')}</code></div>
         <button id="deviceSaveButton" class="primary" type="submit" data-action="saveDevice">Gerätename speichern</button>
       </form>
       <form id="personForm" class="card formCard" autocomplete="off">
         <input id="personIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Person bearbeiten' : 'Person anlegen'}</h2>
-        <div class="formField"><label for="personNameInput">Name</label><input id="personNameInput" name="name" placeholder="Name" value="${esc(edit?.name || '')}"></div>
-        <div class="formField"><label for="personPackageInput">Getränkepaket</label><select id="personPackageInput" name="packageId">${state.packages.map(p => `<option value="${esc(p.id)}" ${p.id === (edit?.packageId || 'none') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
-        <div class="formField"><label for="personPackagePriceInput">Paketpreis gesamt</label><input id="personPackagePriceInput" name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00" value="${esc(edit?.packagePrice ?? '')}"></div>
+        <div class="formField"><label for="personNameInput">Name</label><input id="personNameInput" name="name" placeholder="Name" value="${esc(draftValue('person', 'name', edit?.name || ''))}"></div>
+        <div class="formField"><label for="personPackageInput">Getränkepaket</label><select id="personPackageInput" name="packageId">${state.packages.map(p => `<option value="${esc(p.id)}" ${p.id === draftValue('person', 'packageId', edit?.packageId || 'none') ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="formField"><label for="personPackagePriceInput">Paketpreis gesamt</label><input id="personPackagePriceInput" name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00" value="${esc(draftValue('person', 'packagePrice', edit?.packagePrice ?? ''))}"></div>
         <button id="personSaveButton" class="primary" type="submit" data-action="savePerson">${edit ? 'Änderungen speichern' : 'Person speichern'}</button>
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
       </form>
@@ -977,6 +982,7 @@ async function deleteLog(id) {
 function fillTripForm(id) {
   const trip = id ? state.trips.find(t => t.id === id) : null;
   state.editingTripId = trip?.id || null;
+  state.formDraft.trip = trip ? { id: trip.id || '', name: trip.name || '', ship: trip.ship || '', startDate: trip.startDate || '', endDate: trip.endDate || '' } : {};
   setFieldValue('#tripIdInput', trip?.id || '');
   setFieldValue('#tripNameInput', trip?.name || '');
   setFieldValue('#tripShipInput', trip?.ship || '');
@@ -1015,6 +1021,7 @@ async function saveTripForm(form = null) {
     const savedTrip = await get('trips', id);
     if (!savedTrip || savedTrip.id !== id) throw new Error('IndexedDB hat den Reisedatensatz nicht bestätigt.');
     await putSetting('currentTripId', id);
+    clearDraft('trip');
     state.currentTripId = id;
     state.editingTripId = null;
     await loadState();
@@ -1033,6 +1040,7 @@ async function saveOnboardingTrip(form) {
   const trip = { ...(current || {}), id, name: formValue(form, 'name').trim() || 'Aktuelle Reise', ship: formValue(form, 'ship').trim(), startDate: formValue(form, 'startDate'), endDate: formValue(form, 'endDate'), archived: false, createdAt: current?.createdAt || nowIso(), updatedAt: nowIso() };
   await put('trips', trip);
   await putSetting('currentTripId', id);
+  clearDraft('onboardingTrip');
   await loadState();
   toast('Reise gespeichert');
   render();
@@ -1057,6 +1065,7 @@ async function deleteTrip(id) {
 function fillPersonForm(id) {
   const person = id ? state.persons.find(p => p.id === id) : null;
   state.editingPersonId = person?.id || null;
+  state.formDraft.person = person ? { id: person.id || '', name: person.name || '', packageId: person.packageId || 'none', packagePrice: person.packagePrice ?? '' } : {};
   setFieldValue('#personIdInput', person?.id || '');
   setFieldValue('#personNameInput', person?.name || '');
   setFieldValue('#personPackageInput', person?.packageId || 'none');
@@ -1104,6 +1113,7 @@ async function savePersonForm(form = null) {
     if (!savedPerson || savedPerson.id !== id) throw new Error('IndexedDB hat den Personendatensatz nicht bestätigt.');
     if (savedPerson.tripId !== tripId) throw new Error('Die gespeicherte Person ist nicht der aktiven Reise zugeordnet.');
     await putSetting('currentTripId', tripId);
+    clearDraft('person');
     state.currentTripId = tripId;
     state.selectedPersonId = id;
     state.editingPersonId = null;
@@ -1121,6 +1131,7 @@ async function savePersonForm(form = null) {
 async function saveDeviceForm(form) {
   if (!form) { alert('Geräteformular nicht gefunden. Bitte Seite neu laden.'); return; }
   await putSetting('deviceName', formValue(form, 'deviceName').trim() || 'Mein iPhone');
+  clearDraft('device');
   await loadState(); render(); toast('Gerätename gespeichert');
 }
 async function deletePerson(id) {

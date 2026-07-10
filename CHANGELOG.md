@@ -6,6 +6,9 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ### Korrekturen
 
+- Eingabefelder-Hardfix: Globale Fokus-/Touch-Hilfslogik entfernt, Formularwerte werden während der Eingabe zwischengespeichert und Formular-Cards verwenden keinen Blur-/Backdrop-Layer mehr. Dadurch sollen Reise-, Geräte-, Personen- und Suchfelder wieder nativ antippbar bleiben.
+- Service-Worker-Cache auf `cruisesip-v4-0-0-20260709q` erhöht.
+
 - Eingabefeld-Fokus grundlegend bereinigt: keine globalen Touch-/Pointer-Workarounds mehr; Formularfelder und Track-Suche bekommen eine native Fokus-Absicherung ohne `preventDefault`.
 - Track-Suche wieder als Suchbox mit Eingabefeld aufgebaut, sodass auch der freie Bereich der Suchleiste das Feld fokussiert.
 - Filterband bleibt horizontal scrollbar; `Alle` steht ganz links, `Empfohlen` bleibt die vorausgewählte Logik.

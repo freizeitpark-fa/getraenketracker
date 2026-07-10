@@ -360,3 +360,29 @@ html[data-route="track"] .searchBoxNative{height:48px;min-height:48px;padding:0 
 html[data-route="track"] .searchBoxNative:focus-within{border-color:rgba(10,132,255,.65);box-shadow:0 0 0 4px rgba(10,132,255,.14);}
 html[data-route="track"] .searchBoxNative input.searchInputNative{height:46px;line-height:normal;}
 html[data-route="track"] .categoryScroller{touch-action:pan-x;overflow-x:auto;overflow-y:hidden;}
+
+/* Input layer hard repair v4.0.0-q
+   iOS/PWA fix: native input interaction, no blur overlays on form cards. */
+.card,.heroCard{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
+.card.formCard,.formCard,.formField{overflow:visible!important;isolation:isolate;}
+.formField,.searchBoxNative{position:relative!important;z-index:100!important;pointer-events:auto!important;touch-action:auto!important;}
+.formField label{position:relative!important;z-index:1!important;pointer-events:auto!important;}
+.formField input,.formField select,.formField textarea,
+.searchBoxNative input.searchInputNative{
+  position:relative!important;
+  z-index:200!important;
+  pointer-events:auto!important;
+  touch-action:auto!important;
+  -webkit-user-select:text!important;
+  user-select:text!important;
+  -webkit-touch-callout:default!important;
+  transform:none!important;
+  opacity:1!important;
+}
+.formField input,.formField textarea,.searchBoxNative input.searchInputNative{cursor:text!important;}
+.formField select{cursor:pointer!important;}
+.searchBoxNative{display:flex!important;align-items:center!important;}
+.searchBoxNative input.searchInputNative{flex:1 1 auto!important;min-width:0!important;}
+html:not([data-route="track"]) body,
+html:not([data-route="track"]) .appShell,
+html:not([data-route="track"]) #view{overflow-x:hidden!important;overflow-y:auto!important;}
