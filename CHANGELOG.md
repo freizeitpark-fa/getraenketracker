@@ -6,8 +6,15 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 ## 4.1.0 - Auswertungen
 
 ### Korrekturen
+- Untere Navigation erneut stabilisiert: `Home | Tracken | Verlauf | Analyse | Setup` ist jetzt auf allen Seiten viewport-fixiert und wird nicht mehr an die Tracken-Scrollhoehe gebunden.
+- Tracken-Getraenkeliste behaelt ihren eigenen Scrollbereich; die Navigation bleibt dennoch exakt an derselben Bildschirmposition wie auf Home/Analyse.
+- Rueckgaengig-Hinweis und Toast bleiben oberhalb der fixen Navigation.
+- Service-Worker-Cache auf `cruisesip-v4-1-0-20260710e` erhoeht.
+
+
+### Korrekturen
 - Untere Hauptnavigation in der Tracken-Ansicht fixiert: Die Leiste bleibt an exakt derselben Position am unteren Rand der App-Shell, auch wenn die Getränkeliste scrollt oder nach dem Tracken neu gerendert wird.
-- Tracken-Ansicht nutzt für die Navigation eine stabile `100svh`-App-Höhe und einen separaten inneren Scrollbereich für die Getränkeliste.
+- Vorheriger Tracken-Navigationsfix mit `100svh` wurde durch eine viewport-fixierte Navigation ersetzt.
 - Navigationslabel von „Heute“ auf „Home“ angepasst.
 - Service-Worker-Cache auf `cruisesip-v4-1-0-20260710d` erhöht.
 
