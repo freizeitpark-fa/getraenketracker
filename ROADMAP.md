@@ -1,5 +1,11 @@
 # Roadmap CruiseSip
 
+## Version 4.3.3 Personen-Schnellwechsel
+
+- Kompakter Wechsel direkt oberhalb der Getränkekacheln
+- Sofortige Synchronisierung von Zielperson, Paketstatus und nutzungsabhängiger Sortierung
+- Lokale Speicherung der zuletzt aktiven Person je Reise
+
 ## Version 4.3.2 Getränkesortierung
 
 - Sortierung nach Nutzungshäufigkeit und letzter Nutzung je aktiver Person

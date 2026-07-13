@@ -4,16 +4,16 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.3.2**
+Aktuelle Entwicklungsfassung: **4.3.3**
 
-Version 4.3.2 ergänzt die Tracken-Ansicht um eine lokal gespeicherte Sortierung der Getränkekacheln. Die bestätigte Hell-/Dunkel-Ansicht und die einheitlichen Home-Abstände aus Version 4.3.1 bleiben erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.3.3 ergänzt einen direkten Personen-Schnellwechsel oberhalb der Getränkekacheln. Die aktive Person wird je Reise lokal gespeichert; Paketstatus, Empfehlungen und nutzungsabhängige Sortierung werden beim Wechsel sofort synchronisiert. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 ## GitHub Pages Veröffentlichung
 
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.3.2 Getränkesortierung`.
+4. Commit erstellen, z. B. `CruiseSip v4.3.3 Personen-Schnellwechsel`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
@@ -43,6 +43,7 @@ CruiseSip/
 - Personenverwaltung mit Getränkepaket und optionalem Paketpreis
 - Geräte-ID und Gerätename
 - extrem schnelles Tracking: Person wählen, Getränk antippen, speichern
+- Personen-Schnellwechsel direkt oberhalb der Getränkekacheln
 - dauerhaft sichtbarer Rückgängig-Dock
 - stabile Suche ohne Fokusverlust
 - Favoriten, Kategorien und zuletzt verwendete Getränke

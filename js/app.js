@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.3.2';
+const APP_VERSION = '4.3.3';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -273,7 +273,14 @@ async function loadState() {
     await put('settings', { id: 'currentTripId', value: state.currentTripId, updatedAt: nowIso() });
     state.settings.currentTripId = state.currentTripId;
   }
-  if (!state.selectedPersonId || !currentPersons().some(p => p.id === state.selectedPersonId)) state.selectedPersonId = currentPersons()[0]?.id || null;
+  const personsForTrip = currentPersons();
+  const storedPersonId = state.settings[selectedPersonSettingKey()] || null;
+  const currentIsValid = personsForTrip.some(person => person.id === state.selectedPersonId);
+  const storedIsValid = personsForTrip.some(person => person.id === storedPersonId);
+  if (!currentIsValid) state.selectedPersonId = storedIsValid ? storedPersonId : (personsForTrip[0]?.id || null);
+  if (state.selectedPersonId && storedPersonId !== state.selectedPersonId) {
+    await putSetting(selectedPersonSettingKey(), state.selectedPersonId);
+  }
 }
 
 function registerServiceWorker() {
@@ -370,13 +377,22 @@ async function handleClick(event) {
   if (action === 'finishOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; await loadState(); render(); return; }
   if (action === 'setTheme') { await setTheme(id); return; }
   if (action === 'skipOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; render(); return; }
-  if (action === 'setTrip') { await putSetting('currentTripId', id); state.currentTripId = id; state.selectedPersonId = currentPersons()[0]?.id || null; render(); return; }
+  if (action === 'setTrip') { await putSetting('currentTripId', id); state.currentTripId = id; state.selectedPersonId = preferredPersonIdForTrip(id); render(); return; }
   if (action === 'editTrip') { fillTripForm(id); return; }
   if (action === 'archiveTrip') { await toggleArchiveTrip(id); return; }
   if (action === 'deleteTrip') { await deleteTrip(id); return; }
   if (action === 'resetTripForm') { fillTripForm(null); return; }
   if (action === 'saveTrip') { await runActionOnce('saveTrip', () => saveTripForm($('#tripForm'))); return; }
-  if (action === 'selectPerson') { state.selectedPersonId = id; render(); return; }
+  if (action === 'selectPerson') {
+    const person = currentPersons().find(row => row.id === id);
+    if (!person || person.id === state.selectedPersonId) return;
+    state.selectedPersonId = person.id;
+    await putSetting(selectedPersonSettingKey(), person.id);
+    renderTrackPersonContext();
+    toast(`Aktive Person: ${person.name}`);
+    haptic();
+    return;
+  }
   if (action === 'editPerson') { fillPersonForm(id); return; }
   if (action === 'deletePerson') { await deletePerson(id); return; }
   if (action === 'resetPersonForm') { fillPersonForm(null); return; }
@@ -453,6 +469,13 @@ function currentPersons() {
   if (!id) return [];
   return state.persons.filter(p => (p.tripId || id) === id);
 }
+function selectedPersonSettingKey(tripId = activeTripId()) { return tripId ? `selectedPersonId:${tripId}` : 'selectedPersonId'; }
+function preferredPersonIdForTrip(tripId = activeTripId()) {
+  if (!tripId) return null;
+  const persons = state.persons.filter(person => (person.tripId || tripId) === tripId);
+  const storedId = state.settings[selectedPersonSettingKey(tripId)] || null;
+  return persons.some(person => person.id === storedId) ? storedId : (persons[0]?.id || null);
+}
 function currentLogs() {
   const id = activeTripId();
   if (!id) return [];
@@ -510,6 +533,7 @@ function render() {
   updateUndoDock();
   setOnlineState();
   scheduleViewportLayout();
+  if (state.route === 'track') requestAnimationFrame(() => centerActivePersonQuickSwitch(view));
 }
 
 function effectiveTheme() {
@@ -706,23 +730,41 @@ function renderDashboardQuick() { const holder = $('#dashboardQuick'); if (holde
 function quickDrinkList(drinks) { return `<div class="compactList">${drinks.map(d => `<button class="compactDrink" data-action="trackDrink" data-id="${esc(d.id)}"><span>${esc(d.name)}</span><b>${eur(d.price)}</b></button>`).join('')}</div>`; }
 function kpi(label, value, sub) { return `<article class="kpi"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(sub)}</small></article>`; }
 
+function trackInfoCardHtml(selectedPerson = personById(state.selectedPersonId)) {
+  if (!selectedPerson) return '';
+  const logsCount = currentLogs().filter(log => log.personId === selectedPerson.id).length;
+  return `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>`;
+}
 function viewTrack() {
   const persons = currentPersons();
   const selectedPerson = personById(state.selectedPersonId) || persons[0] || null;
-  const logsCount = selectedPerson ? currentLogs().filter(log => log.personId === selectedPerson.id).length : 0;
   return `
     <section class="screen trackScreen">
       <div class="stickyHeader trackStickyHeader">
         <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
-        ${persons.length ? personChips(persons) : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
-        ${selectedPerson ? `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>` : ''}
+        ${persons.length ? `<div id="trackPersonSummary">${trackInfoCardHtml(selectedPerson)}</div>` : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
         <label class="searchBox searchBoxLarge searchBoxNative" for="drinkSearch"><span aria-hidden="true">⌕</span><input id="drinkSearch" class="searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
         <div id="categoryChips">${categoryChipsHtml()}</div>
+        <div id="personQuickSwitch">${persons.length ? personQuickSwitchHtml(persons) : ''}</div>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>
     </section>`;
 }
-function personChips(persons) { return `<div class="chipScroller personScroller">${persons.map((p, i) => `<button class="personChip ${p.id === state.selectedPersonId ? 'active' : ''}" style="--person:${esc(p.color || PERSON_COLORS[i % PERSON_COLORS.length])}" data-action="selectPerson" data-id="${esc(p.id)}"><span>${esc(p.name)}</span><small>${esc(packageName(p.packageId))}</small></button>`).join('')}</div>`; }
+function personInitials(name = '') {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  return (parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : (parts[0] || '?').slice(0, 2)).toUpperCase();
+}
+function personQuickSwitchHtml(persons = currentPersons()) {
+  if (!persons.length) return '';
+  const logCounts = new Map();
+  currentLogs().forEach(log => logCounts.set(log.personId, (logCounts.get(log.personId) || 0) + 1));
+  return `<div class="personQuickDock"><div class="personQuickHeading"><span>Person schnell wechseln</span><small>Getränk wird direkt für die aktive Person gespeichert</small></div><div class="personQuickScroller" role="group" aria-label="Person für die Erfassung auswählen">${persons.map((person, index) => {
+    const active = person.id === state.selectedPersonId;
+    const color = person.color || PERSON_COLORS[index % PERSON_COLORS.length];
+    const count = logCounts.get(person.id) || 0;
+    return `<button class="personQuickButton ${active ? 'active' : ''}" style="--person:${esc(color)}" data-action="selectPerson" data-id="${esc(person.id)}" aria-pressed="${active ? 'true' : 'false'}" aria-label="${esc(person.name)} auswählen, ${count} erfasste Getränke"><span class="personQuickAvatar" aria-hidden="true">${esc(personInitials(person.name))}</span><span class="personQuickName">${esc(person.name)}</span><small>${count}×</small></button>`;
+  }).join('')}</div></div>`;
+}
 function categoryChipsHtml() {
   const favoriteCount = favoriteIds().length;
   const recentCount = recentDrinkIds().length;
@@ -756,7 +798,35 @@ function bindTrackSortControl() {
     toast(`Sortierung: ${drinkSortLabel()}`);
   });
 }
-function renderTrackList() { const el = $('#drinkList'); if (el) { el.innerHTML = drinkListHtml(); bindTrackSortControl(); scheduleViewportLayout(); } }
+function centerActivePersonQuickSwitch(root = document) {
+  const scroller = $('.personQuickScroller', root);
+  const active = $('.personQuickButton.active', root);
+  if (!scroller || !active) return;
+  const targetLeft = active.offsetLeft - Math.max(0, (scroller.clientWidth - active.offsetWidth) / 2);
+  const left = Math.max(0, targetLeft);
+  if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ left, behavior: 'smooth' });
+  else scroller.scrollLeft = left;
+}
+function renderTrackList({ preserveScroll = false } = {}) {
+  const el = $('#drinkList');
+  if (!el) return;
+  const previousScrollTop = preserveScroll ? el.scrollTop : 0;
+  el.innerHTML = drinkListHtml();
+  bindTrackSortControl();
+  requestAnimationFrame(() => {
+    if (preserveScroll) el.scrollTop = Math.min(previousScrollTop, Math.max(0, el.scrollHeight - el.clientHeight));
+  });
+  scheduleViewportLayout();
+}
+function renderTrackPersonContext() {
+  const summary = $('#trackPersonSummary');
+  if (summary) summary.innerHTML = trackInfoCardHtml();
+  const quickSwitch = $('#personQuickSwitch');
+  if (quickSwitch) quickSwitch.innerHTML = personQuickSwitchHtml();
+  renderTrackList({ preserveScroll: true });
+  renderCategoryChips();
+  requestAnimationFrame(() => centerActivePersonQuickSwitch(quickSwitch || document));
+}
 function categories() {
   const cats = [...new Set(state.drinks.map(d => d.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
   return ['Alle', 'Empfohlen', 'Favoriten', 'Zuletzt', ...cats.filter(cat => cat !== 'Alle')];
@@ -851,11 +921,12 @@ function trackQuickSectionsHtml() {
   return `<div class="trackQuickStack">${quickTrackSection('Empfehlungen', 'Aus Favoriten und bisher erfassten Getränken.', recommended, 'Schnellwahl')}${quickTrackSection('Favoriten', 'Deine gemerkten Getränke für schnelles Erfassen.', favorites, 'Favorit')}${quickTrackSection('Zuletzt erfasst', 'Ideal für die nächste Runde an Bord.', recent, 'Zuletzt')}</div>`;
 }
 function drinkListHtml() {
+  const persons = currentPersons();
   const person = personById(state.selectedPersonId);
   const fav = new Set(favoriteIds());
   const usage = drinkUsageMap(state.selectedPersonId || null);
   const drinks = filteredDrinks();
-  if (!currentPersons().length) return '';
+  if (!persons.length) return '';
   if (!drinks.length) return '<div class="card emptyText">Keine passenden Getränke gefunden.</div>';
   const listTitle = state.query ? 'Suchergebnisse' : state.category === 'Alle' ? 'Alle Getränke' : state.category;
   return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Getränk antippen und direkt für ${esc(person?.name || 'die aktive Person')} speichern.</p></div><span class="subtle">${drinks.length}</span></div><label class="drinkSortControl" for="drinkSort"><span>Sortieren</span><select id="drinkSort" aria-label="Getränkekacheln sortieren">${drinkSortOptionsHtml()}</select></label><div class="drinkGrid">${drinks.map(d => {
@@ -1277,7 +1348,7 @@ async function trackDrink(drinkId) {
   scheduleUndoAutoHide();
   toast(`${drink.name} gespeichert`);
   haptic();
-  if (state.route === 'track') { renderTrackList(); renderCategoryChips(); }
+  if (state.route === 'track') { renderTrackPersonContext(); }
   else render();
 }
 async function undoLast() {
@@ -1491,6 +1562,7 @@ async function savePersonForm(form = null) {
     if (!savedPerson || savedPerson.id !== id) throw new Error('IndexedDB hat den Personendatensatz nicht bestätigt.');
     if (savedPerson.tripId !== tripId) throw new Error('Die gespeicherte Person ist nicht der aktiven Reise zugeordnet.');
     await putSetting('currentTripId', tripId);
+    await putSetting(selectedPersonSettingKey(tripId), id);
     clearDraft('person');
     state.currentTripId = tripId;
     state.selectedPersonId = id;
@@ -1670,6 +1742,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.3</h2>
+  <ul>
+    <li>Personen-Schnellwechsel direkt oberhalb der Getränkekacheln ergänzt.</li>
+    <li>Aktive Person, individuelle Paketkennzeichnung und nutzungsabhängige Sortierung werden sofort synchron aktualisiert.</li>
+    <li>Die zuletzt gewählte Person wird je Reise lokal gespeichert.</li>
+  </ul>
   <h2>Version 4.3.2</h2>
   <ul>
     <li>Individuelle Sortierung der Getränkekacheln ergänzt.</li>

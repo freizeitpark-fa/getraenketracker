@@ -3,6 +3,24 @@
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 
+## 4.3.3 - Personen-Schnellwechsel
+
+### Neu / verbessert
+
+- Kompakter Personen-Schnellwechsel direkt oberhalb der Getränkekacheln ergänzt.
+- Aktive Person wird deutlich hervorgehoben; Name, Initialen und bisherige Anzahl der Erfassungen sind sofort sichtbar.
+- Beim Wechsel werden Paketstatus, Nutzungshäufigkeit, Empfehlungen, Sortierung und Zielperson der Getränkekacheln unmittelbar synchron aktualisiert.
+- Die zuletzt gewählte Person wird je Reise dauerhaft und ausschließlich lokal gespeichert.
+- Wechsel erfolgt ohne vollständigen Neuaufbau der App und erhält die aktuelle Scrollposition der Getränkeliste.
+
+### Technisch
+
+- App-Version auf `4.3.3` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-3-3-20260713a` erhöht.
+- Bestehende Personen-, Tracking-, Such-, Favoriten-, Formular- und Navigationslogik wurde nicht strukturell umgebaut.
+
+
+
 ## 4.3.2 - Individuelle Sortierung der Getränkekacheln
 
 ### Neu / verbessert
