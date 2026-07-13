@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="assets/favicon.ico" sizes="any">
   <link rel="icon" href="icons/favicon-32x32.png" type="image/png">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=4.3.4">
   <title>CruiseSip</title>
 </head>
 <body>
@@ -26,11 +26,12 @@
           <span id="tripTitle">Lädt …</span>
         </div>
       </div>
-      <div class="statusPill"><span id="onlineDot">Online</span> · <span id="appVersion">v4.3.3</span></div>
+      <div class="statusPill"><span id="onlineDot">Online</span> · <span id="appVersion">v4.3.4</span></div>
     </header>
 
     <main id="view" aria-live="polite"></main>
     <div id="undoDock" class="undoDock" hidden></div>
+    <div id="updateDock" class="updateDock" hidden></div>
     <div id="toast" class="toast" hidden></div>
 
     <nav class="bottomNav" aria-label="Hauptnavigation">
@@ -52,6 +53,6 @@
     </nav>
     <input id="fileInput" type="file" hidden>
   </div>
-  <script src="js/app.js" defer></script>
+  <script src="js/app.js?v=4.3.4" defer></script>
 </body>
 </html>

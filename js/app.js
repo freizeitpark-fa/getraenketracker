@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.3.3';
+const APP_VERSION = '4.3.4';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -49,6 +49,11 @@ let state = {
 
 const actionLocks = Object.create(null);
 let undoAutoHideTimer = null;
+let swRegistration = null;
+let swUpdateCheckRunning = false;
+let swControllerChangeHandled = false;
+let swReloadFallbackTimer = null;
+let swUpdateState = 'unknown';
 
 async function runActionOnce(key, handler) {
   if (actionLocks[key]) return actionLocks[key];
@@ -283,9 +288,128 @@ async function loadState() {
   }
 }
 
-function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) {
+    swUpdateState = 'unsupported';
+    updateSettingsUpdateStatus();
+    return;
+  }
+  try {
+    swRegistration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+    swUpdateState = swRegistration.waiting ? 'ready' : 'current';
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (swControllerChangeHandled) return;
+      swControllerChangeHandled = true;
+      clearTimeout(swReloadFallbackTimer);
+      window.location.reload();
+    });
+
+    const watchInstallingWorker = worker => {
+      if (!worker) return;
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+          swUpdateState = 'ready';
+          showUpdateDock();
+          updateSettingsUpdateStatus();
+        }
+      });
+    };
+
+    watchInstallingWorker(swRegistration.installing);
+    swRegistration.addEventListener('updatefound', () => {
+      swUpdateState = 'checking';
+      updateSettingsUpdateStatus();
+      watchInstallingWorker(swRegistration.installing);
+    });
+
+    if (swRegistration.waiting && navigator.serviceWorker.controller) showUpdateDock();
+    await checkForAppUpdate({ silent: true });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && navigator.onLine) checkForAppUpdate({ silent: true });
+    });
+    window.addEventListener('online', () => checkForAppUpdate({ silent: true }));
+  } catch (error) {
+    console.warn('Service Worker konnte nicht registriert werden.', error);
+    swUpdateState = 'error';
+    updateSettingsUpdateStatus();
+  }
+}
+
+function updateStateLabel() {
+  if (swUpdateState === 'ready') return 'Neue Version bereit';
+  if (swUpdateState === 'checking') return 'Prüfung läuft';
+  if (swUpdateState === 'current') return `Version ${APP_VERSION} aktiv`;
+  if (swUpdateState === 'offline') return 'Offline - Prüfung nicht möglich';
+  if (swUpdateState === 'unsupported') return 'Nicht unterstützt';
+  if (swUpdateState === 'error') return 'Prüfung fehlgeschlagen';
+  return 'Noch nicht geprüft';
+}
+
+function updateSettingsUpdateStatus() {
+  const element = $('#updateStatusValue');
+  if (element) element.textContent = updateStateLabel();
+}
+
+function showUpdateDock() {
+  const dock = $('#updateDock');
+  if (!dock) return;
+  dock.innerHTML = `<div><b>Neue CruiseSip-Version bereit</b><span>Lokale Reisen, Personen und Getränke bleiben erhalten.</span></div><button class="primary mini" data-action="applyAppUpdate">Jetzt aktualisieren</button>`;
+  dock.hidden = false;
+}
+
+function hideUpdateDock() {
+  const dock = $('#updateDock');
+  if (dock) dock.hidden = true;
+}
+
+async function checkForAppUpdate({ silent = false } = {}) {
+  if (!swRegistration || swUpdateCheckRunning) return;
+  if (!navigator.onLine) {
+    swUpdateState = 'offline';
+    updateSettingsUpdateStatus();
+    if (!silent) toast('Update-Prüfung benötigt eine Internetverbindung.');
+    return;
+  }
+  swUpdateCheckRunning = true;
+  swUpdateState = 'checking';
+  updateSettingsUpdateStatus();
+  if (!silent) toast('CruiseSip prüft auf Updates …');
+  try {
+    await swRegistration.update();
+    if (swRegistration.waiting) {
+      swUpdateState = 'ready';
+      showUpdateDock();
+      if (!silent) toast('Neue Version ist bereit.');
+    } else if (swRegistration.installing) {
+      swUpdateState = 'checking';
+      if (!silent) toast('Neue Version wird vorbereitet …');
+    } else {
+      swUpdateState = 'current';
+      if (!silent) toast(`Version ${APP_VERSION} ist aktuell.`);
+    }
+  } catch (error) {
+    console.warn('Update-Prüfung fehlgeschlagen.', error);
+    swUpdateState = 'error';
+    if (!silent) toast('Update-Prüfung konnte nicht abgeschlossen werden.');
+  } finally {
+    swUpdateCheckRunning = false;
+    updateSettingsUpdateStatus();
+  }
+}
+
+async function applyAppUpdate() {
+  const waiting = swRegistration?.waiting;
+  if (!waiting) {
+    await checkForAppUpdate({ silent: false });
+    return;
+  }
+  hideUpdateDock();
+  toast('Update wird übernommen …');
+  waiting.postMessage({ type: 'SKIP_WAITING' });
+  clearTimeout(swReloadFallbackTimer);
+  swReloadFallbackTimer = setTimeout(() => window.location.reload(), 3500);
 }
 
 function setOnlineState() {
@@ -376,6 +500,8 @@ async function handleClick(event) {
 
   if (action === 'finishOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; await loadState(); render(); return; }
   if (action === 'setTheme') { await setTheme(id); return; }
+  if (action === 'checkAppUpdate') { await checkForAppUpdate({ silent: false }); return; }
+  if (action === 'applyAppUpdate') { await applyAppUpdate(); return; }
   if (action === 'skipOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; render(); return; }
   if (action === 'setTrip') { await putSetting('currentTripId', id); state.currentTripId = id; state.selectedPersonId = preferredPersonIdForTrip(id); render(); return; }
   if (action === 'editTrip') { fillTripForm(id); return; }
@@ -1312,6 +1438,7 @@ function viewSettings() {
         ${infoRow('Barkarten-Version', b.version || 'unbekannt')}
         ${infoRow('Geräte-ID', state.settings.deviceId || '')}
         ${infoRow('Offline-Status', state.online ? 'Online - Cache wird aktualisiert' : 'Offline - lokale Nutzung')}
+        <div class="infoRow"><span>Update-Status</span><code id="updateStatusValue">${esc(updateStateLabel())}</code></div>
         ${infoRow('Speicher', 'IndexedDB lokal auf diesem Gerät')}
       </div>
       <div class="card themeCard"><div class="sectionHead"><h2>Darstellung</h2><span class="subtle">${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}</span></div>
@@ -1322,7 +1449,7 @@ function viewSettings() {
         <p class="hint">Die Auswahl wird ausschließlich lokal auf diesem Gerät gespeichert.</p>
       </div>
       <div class="card"><h2>Verwaltung</h2><div class="buttonStack"><button class="secondary" data-route="trips">Reisen verwalten</button><button class="secondary" data-route="devices">Geräte & Personen</button><button class="secondary" data-route="barkarte">Barkarte verwalten</button></div></div>
-      <div class="card"><h2>Aktionen</h2><div class="buttonStack"><button class="secondary" data-route="changelog">Changelog öffnen</button><button class="secondary" data-action="reRunOnboarding">Onboarding erneut anzeigen</button><button class="secondary" data-action="backupTest">Backup-Test starten</button></div></div>
+      <div class="card"><h2>Aktionen</h2><div class="buttonStack"><button class="secondary" data-action="checkAppUpdate">Jetzt auf Update prüfen</button><button class="secondary" data-route="changelog">Changelog öffnen</button><button class="secondary" data-action="reRunOnboarding">Onboarding erneut anzeigen</button><button class="secondary" data-action="backupTest">Backup-Test starten</button></div></div>
       <div class="card"><h2>Offline-Hinweis</h2><p>Für die Kreuzfahrt: App vor Abfahrt einmal online öffnen, über Safari zum Home-Bildschirm hinzufügen, danach kurz im Flugmodus starten und einen Backup-Test durchführen.</p></div>
     </section>`;
 }
@@ -1742,6 +1869,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.4</h2>
+  <ul>
+    <li>Update-Prüfung für installierte iPhone-PWAs stabilisiert und HTTP-Zwischenspeicherung des Service Workers umgangen.</li>
+    <li>Neue Versionen werden sichtbar angekündigt und nach Bestätigung kontrolliert aktiviert.</li>
+    <li>Die lokalen IndexedDB-Daten bleiben beim App-Update vollständig erhalten.</li>
+  </ul>
   <h2>Version 4.3.3</h2>
   <ul>
     <li>Personen-Schnellwechsel direkt oberhalb der Getränkekacheln ergänzt.</li>

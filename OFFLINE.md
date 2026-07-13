@@ -25,3 +25,19 @@
 - Wird Safari-Websitedaten gelöscht, können lokale Daten verloren gehen.
 - Vor Reiseende regelmäßig exportieren.
 - Beim Zusammenführen mehrerer Geräte immer je Gerät eine Exportdatei erzeugen und auf dem Hauptgerät importieren.
+
+
+## Aktualisierung ab Version 4.3.4
+
+Bei bestehender Internetverbindung prüft die installierte PWA beim Start und bei Rückkehr in die App auf neue Dateien. Ein bereitstehendes Update wird angezeigt und nach Bestätigung aktiviert. Die lokalen Reisedaten in IndexedDB bleiben erhalten.
+
+
+## Einmalige Wiederherstellung bei einer festhängenden älteren Version
+
+1. Vor einer Neuinstallation jede wichtige Reise über den Reiseexport sichern.
+2. Zunächst das iPhone vollständig neu starten und CruiseSip bei bestehender Internetverbindung erneut öffnen.
+3. Bleibt die angezeigte App-Version unverändert, die aktuelle GitHub-Pages-Adresse in Safari mit dem Zusatz `?v=4.3.4` öffnen.
+4. Erst nach vorhandener Sicherung die alte Home-Bildschirm-App entfernen und die aktuelle Seite erneut zum Home-Bildschirm hinzufügen.
+5. Falls lokale Daten nicht übernommen wurden, die zuvor erzeugten Reiseexporte wieder importieren.
+
+Das Löschen von Safari-Websitedaten ist keine bevorzugte Update-Methode, da dadurch lokale IndexedDB-Daten verloren gehen können.

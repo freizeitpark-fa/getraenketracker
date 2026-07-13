@@ -4,16 +4,16 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.3.3**
+Aktuelle Entwicklungsfassung: **4.3.4**
 
-Version 4.3.3 ergänzt einen direkten Personen-Schnellwechsel oberhalb der Getränkekacheln. Die aktive Person wird je Reise lokal gespeichert; Paketstatus, Empfehlungen und nutzungsabhängige Sortierung werden beim Wechsel sofort synchronisiert. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.3.4 stabilisiert die Aktualisierung der installierten iPhone-PWA. Neue Dateien werden aktiv geprüft, ein bereitstehendes Update wird sichtbar angekündigt und kontrolliert übernommen. Die Funktionen aus Version 4.3.3 einschließlich Personen-Schnellwechsel bleiben vollständig enthalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 ## GitHub Pages Veröffentlichung
 
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.3.3 Personen-Schnellwechsel`.
+4. Commit erstellen, z. B. `CruiseSip v4.3.4 PWA-Update-Fix`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
@@ -63,9 +63,14 @@ CruiseSip/
 - Hosting: GitHub Pages
 - Installation: Safari → Zum Home-Bildschirm
 - Speicher: IndexedDB auf dem Gerät
-- Offline: Service Worker mit Cache-first-Fallback
+- Offline: Service Worker mit Network-first-Aktualisierung und lokalem Offline-Fallback
 - Keine externen Skripte oder Bibliotheken
 
 ## Datenbasis
 
 Die mitgelieferte Barkarte basiert auf den bereits strukturierten Stammdaten aus der Vorgängerversion. Paketstatus wird konservativ verwendet: Nur eindeutig als `included` gekennzeichnete Getränke werden als Ersparnis berücksichtigt. `unclear` wird nicht als Ersparnis gezählt.
+
+
+## App-Updates
+
+Ab Version 4.3.4 prüft CruiseSip beim Online-Start aktiv auf eine neue Version. Ein bereitstehendes Update wird sichtbar angezeigt und erst nach Bestätigung aktiviert. Lokale IndexedDB-Daten bleiben erhalten.

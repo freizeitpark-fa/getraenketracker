@@ -2,6 +2,15 @@
 
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
+## 4.3.4 – PWA-Update-Stabilisierung
+
+- Service-Worker-Registrierung verwendet nun `updateViaCache: none`.
+- Aktive Update-Prüfung beim Start, bei Rückkehr in die App und nach Wiederherstellung der Internetverbindung ergänzt.
+- Sichtbarer Update-Hinweis mit kontrollierter Aktivierung und anschließendem Neustart ergänzt.
+- Manuelle Aktion „Jetzt auf Update prüfen“ im Setup ergänzt.
+- Service Worker wird nicht mehr als eigene Offline-Datei gecacht.
+- Versionsparameter für CSS und JavaScript verhindern veraltete HTTP-Zwischenspeicherungen.
+- Lokale IndexedDB-Daten werden bei Updates nicht gelöscht oder verändert.
 
 ## 4.3.3 - Personen-Schnellwechsel
 

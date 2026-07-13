@@ -1,5 +1,12 @@
 # Roadmap CruiseSip
 
+## Version 4.3.4 PWA-Update-Stabilisierung
+
+- Aktive Update-Prüfung ohne veralteten Browser-Zwischenspeicher
+- Sichtbarer Hinweis, sobald eine neue Version bereitsteht
+- Kontrollierte Aktivierung mit anschließendem Neustart
+- Lokale IndexedDB-Daten bleiben unverändert
+
 ## Version 4.3.3 Personen-Schnellwechsel
 
 - Kompakter Wechsel direkt oberhalb der Getränkekacheln
@@ -50,3 +57,4 @@ Mögliche spätere Punkte:
 - optionale Tagesbudgets oder Paket-Amortisation pro Person
 - geführter Importassistent für Barkarten-CSV
 - besserer Druck-/PDF-Report aus den Auswertungen
+
