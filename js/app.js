@@ -1,7 +1,7 @@
 'use strict';
 
 const APP_VERSION = '4.4.0';
-const APP_CACHE_NAME = 'cruisesip-v4-4-0-20260713a';
+const APP_CACHE_NAME = 'cruisesip-v4-4-0-20260713c';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -618,8 +618,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.4.0',
-    './js/app.js?v=4.4.0',
+    './css/styles.css?v=4.4.0c',
+    './js/app.js?v=4.4.0c',
     './data/barkarte.json',
     './data/pakete.json'
   ];

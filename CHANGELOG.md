@@ -21,12 +21,13 @@ Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 ### Behoben
 
 - Beim Speichern lokal bearbeiteter Getränkepreise wurde eine nicht definierte Variable verwendet. Der Preis wird jetzt korrekt aus dem Formular gelesen und validiert.
+- Offline-Sicherheitsstatus korrigiert: App-Diagnose und Service Worker verwenden wieder dieselbe Cache-Bezeichnung; die fälschliche Anzeige `0/5 Kerndateien` trotz vorhandenem Offline-Cache entfällt.
 
 ### Technisch
 
 - IndexedDB-Name `cruisesip_v4` und Datenbankversion `1` bleiben unverändert; bestehende lokale Daten benötigen keine Migration.
 - App-Version auf `4.4.0` erhöht.
-- Service-Worker-Cache auf `cruisesip-v4-4-0-20260713b` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-4-0-20260713c` erhöht.
 - Keine Änderung an Barkartenstammdaten, Paketdefinitionen, Navigation oder Trackingablauf.
 
 ## 4.3.8 – Offline-Sicherheitsstatus im Setup
