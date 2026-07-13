@@ -2,6 +2,23 @@
 
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
+## 4.3.5 – Vereinfachte Personenauswahl
+
+### Neu / verbessert
+
+- Separate Karte `Aktive Person` oberhalb der Tracken-Ansicht entfernt.
+- Personen-Schnellwechsel ist jetzt die einzige sichtbare Steuerung für die Zielperson einer Buchung.
+- Kompakte Kopfzeile `Getränk erfassen für …` zeigt die aktuell ausgewählte Person eindeutig an.
+- Zugeordnetes Getränkepaket bleibt direkt in der Kopfzeile sichtbar.
+- Anzahl bisheriger Erfassungen bleibt an den jeweiligen Personenbuttons erhalten.
+- Interne Personen-ID, reisenspezifische Speicherung, Paketstatus und Tracking-Zuordnung bleiben unverändert.
+
+### Technisch
+
+- App-Version auf `4.3.5` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-3-5-20260713a` erhöht.
+- Keine Änderungen an IndexedDB-Struktur, Formularen, Getränkestammdaten oder Navigation.
+
 ## 4.3.4 – PWA-Update-Stabilisierung
 
 - Service-Worker-Registrierung verwendet nun `updateViaCache: none`.

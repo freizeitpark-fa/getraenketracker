@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.3.4';
+const APP_VERSION = '4.3.5';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -515,7 +515,7 @@ async function handleClick(event) {
     state.selectedPersonId = person.id;
     await putSetting(selectedPersonSettingKey(), person.id);
     renderTrackPersonContext();
-    toast(`Aktive Person: ${person.name}`);
+    toast(`Getränke für ${person.name}`);
     haptic();
     return;
   }
@@ -856,19 +856,13 @@ function renderDashboardQuick() { const holder = $('#dashboardQuick'); if (holde
 function quickDrinkList(drinks) { return `<div class="compactList">${drinks.map(d => `<button class="compactDrink" data-action="trackDrink" data-id="${esc(d.id)}"><span>${esc(d.name)}</span><b>${eur(d.price)}</b></button>`).join('')}</div>`; }
 function kpi(label, value, sub) { return `<article class="kpi"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(sub)}</small></article>`; }
 
-function trackInfoCardHtml(selectedPerson = personById(state.selectedPersonId)) {
-  if (!selectedPerson) return '';
-  const logsCount = currentLogs().filter(log => log.personId === selectedPerson.id).length;
-  return `<div class="trackInfoCard" style="--person:${esc(selectedPerson.color || '#e0f2fe')}"><div><span class="trackInfoLabel">Aktive Person</span><strong>${esc(selectedPerson.name)}</strong><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="trackInfoMeta"><b>${logsCount}</b><span>erfasste Getränke</span></div></div>`;
-}
 function viewTrack() {
   const persons = currentPersons();
-  const selectedPerson = personById(state.selectedPersonId) || persons[0] || null;
   return `
     <section class="screen trackScreen">
       <div class="stickyHeader trackStickyHeader">
         <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
-        ${persons.length ? `<div id="trackPersonSummary">${trackInfoCardHtml(selectedPerson)}</div>` : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
+        ${persons.length ? '' : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
         <label class="searchBox searchBoxLarge searchBoxNative" for="drinkSearch"><span aria-hidden="true">⌕</span><input id="drinkSearch" class="searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
         <div id="categoryChips">${categoryChipsHtml()}</div>
         <div id="personQuickSwitch">${persons.length ? personQuickSwitchHtml(persons) : ''}</div>
@@ -882,10 +876,11 @@ function personInitials(name = '') {
 }
 function personQuickSwitchHtml(persons = currentPersons()) {
   if (!persons.length) return '';
+  const selectedPerson = personById(state.selectedPersonId) || persons[0];
   const logCounts = new Map();
   currentLogs().forEach(log => logCounts.set(log.personId, (logCounts.get(log.personId) || 0) + 1));
-  return `<div class="personQuickDock"><div class="personQuickHeading"><span>Person schnell wechseln</span><small>Getränk wird direkt für die aktive Person gespeichert</small></div><div class="personQuickScroller" role="group" aria-label="Person für die Erfassung auswählen">${persons.map((person, index) => {
-    const active = person.id === state.selectedPersonId;
+  return `<div class="personQuickDock"><div class="personQuickHeading"><span>Getränk erfassen für <b>${esc(selectedPerson.name)}</b></span><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="personQuickScroller" role="group" aria-label="Person für die Erfassung auswählen">${persons.map((person, index) => {
+    const active = person.id === selectedPerson.id;
     const color = person.color || PERSON_COLORS[index % PERSON_COLORS.length];
     const count = logCounts.get(person.id) || 0;
     return `<button class="personQuickButton ${active ? 'active' : ''}" style="--person:${esc(color)}" data-action="selectPerson" data-id="${esc(person.id)}" aria-pressed="${active ? 'true' : 'false'}" aria-label="${esc(person.name)} auswählen, ${count} erfasste Getränke"><span class="personQuickAvatar" aria-hidden="true">${esc(personInitials(person.name))}</span><span class="personQuickName">${esc(person.name)}</span><small>${count}×</small></button>`;
@@ -945,8 +940,6 @@ function renderTrackList({ preserveScroll = false } = {}) {
   scheduleViewportLayout();
 }
 function renderTrackPersonContext() {
-  const summary = $('#trackPersonSummary');
-  if (summary) summary.innerHTML = trackInfoCardHtml();
   const quickSwitch = $('#personQuickSwitch');
   if (quickSwitch) quickSwitch.innerHTML = personQuickSwitchHtml();
   renderTrackList({ preserveScroll: true });
@@ -1869,6 +1862,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.5</h2>
+  <ul>
+    <li>Separate Karte „Aktive Person“ aus der Tracken-Ansicht entfernt.</li>
+    <li>Der Personen-Schnellwechsel ist jetzt die einzige sichtbare Personensteuerung.</li>
+    <li>Kompakte Kopfzeile „Getränk erfassen für …“ zeigt zusätzlich das zugeordnete Getränkepaket.</li>
+  </ul>
   <h2>Version 4.3.4</h2>
   <ul>
     <li>Update-Prüfung für installierte iPhone-PWAs stabilisiert und HTTP-Zwischenspeicherung des Service Workers umgangen.</li>

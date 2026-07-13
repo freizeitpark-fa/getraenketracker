@@ -1,5 +1,12 @@
 # Roadmap CruiseSip
 
+## Version 4.3.5 Vereinfachte Personenauswahl
+
+- Personen-Schnellwechsel als einzige sichtbare Personensteuerung
+- Kompakte Kopfzeile `Getränk erfassen für …`
+- Paketinformation bleibt sichtbar
+- Keine Änderung an Tracking- oder Speicherlogik
+
 ## Version 4.3.4 PWA-Update-Stabilisierung
 
 - Aktive Update-Prüfung ohne veralteten Browser-Zwischenspeicher
