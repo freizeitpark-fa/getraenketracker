@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.3.1';
+const APP_VERSION = '4.3.2';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -10,6 +10,13 @@ const CACHE_HINT = 'GitHub Pages / PWA / Offline';
 const STORE_NAMES = ['settings', 'trips', 'persons', 'drinks', 'logs', 'imports', 'barkarten'];
 const PERSON_COLORS = ['#e0f2fe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#ccfbf1', '#f1f5f9'];
 const QUICK_TERMS = ['kaffee', 'cappuccino', 'latte', 'espresso', 'kakao', 'tee', 'cola', 'fanta', 'sprite', 'wasser', 'apfelsaft', 'orangensaft', 'aida iced tea', 'aida lemonade', 'dodo', 'milchshake', 'radeberger', 'aperol', 'hugo', 'sprizz'];
+const DRINK_SORT_OPTIONS = [
+  { id: 'frequent', label: 'Häufig genutzt' },
+  { id: 'recent', label: 'Zuletzt genutzt' },
+  { id: 'priceAsc', label: 'Preis aufsteigend' },
+  { id: 'priceDesc', label: 'Preis absteigend' },
+  { id: 'alphabetical', label: 'Alphabetisch' }
+];
 
 let db;
 let state = {
@@ -218,6 +225,7 @@ async function ensureDefaults() {
   if (!(await getSetting('deviceName'))) await putSetting('deviceName', 'Mein iPhone');
   if (!(await getSetting('favorites'))) await putSetting('favorites', []);
   if (!(await getSetting('theme'))) await putSetting('theme', 'system');
+  if (!(await getSetting('drinkSort'))) await putSetting('drinkSort', 'frequent');
   const trips = await all('trips');
   if (!trips.length) {
     const trip = { id: `trip_${uid()}`, name: 'Aktuelle Reise', ship: '', startDate: '', endDate: '', archived: false, createdAt: nowIso(), updatedAt: nowIso() };
@@ -498,6 +506,7 @@ function render() {
   else view.innerHTML = viewDashboard();
   bindInputs();
   bindRenderedControls();
+  bindTrackSortControl();
   updateUndoDock();
   setOnlineState();
   scheduleViewportLayout();
@@ -726,7 +735,28 @@ function categoryChipsHtml() {
   }).join('')}</div></div>`;
 }
 function renderCategoryChips() { const el = $('#categoryChips'); if (el) el.innerHTML = categoryChipsHtml(); }
-function renderTrackList() { const el = $('#drinkList'); if (el) { el.innerHTML = drinkListHtml(); scheduleViewportLayout(); } }
+function drinkSortMode() {
+  const selected = state.settings.drinkSort;
+  return DRINK_SORT_OPTIONS.some(option => option.id === selected) ? selected : 'frequent';
+}
+function drinkSortLabel() { return DRINK_SORT_OPTIONS.find(option => option.id === drinkSortMode())?.label || 'Häufig genutzt'; }
+function drinkSortOptionsHtml() {
+  const selected = drinkSortMode();
+  return DRINK_SORT_OPTIONS.map(option => `<option value="${esc(option.id)}" ${option.id === selected ? 'selected' : ''}>${esc(option.label)}</option>`).join('');
+}
+function bindTrackSortControl() {
+  const select = $('#drinkSort');
+  if (!select || select.dataset.bound === '1') return;
+  select.dataset.bound = '1';
+  select.addEventListener('change', async event => {
+    const mode = event.target.value;
+    if (!DRINK_SORT_OPTIONS.some(option => option.id === mode)) return;
+    await putSetting('drinkSort', mode);
+    renderTrackList();
+    toast(`Sortierung: ${drinkSortLabel()}`);
+  });
+}
+function renderTrackList() { const el = $('#drinkList'); if (el) { el.innerHTML = drinkListHtml(); bindTrackSortControl(); scheduleViewportLayout(); } }
 function categories() {
   const cats = [...new Set(state.drinks.map(d => d.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
   return ['Alle', 'Empfohlen', 'Favoriten', 'Zuletzt', ...cats.filter(cat => cat !== 'Alle')];
@@ -790,23 +820,23 @@ function filteredDrinks() {
   const recent = new Set(recentDrinkIds());
   const recommendedIds = new Set(recommendedDrinks(24).map(d => d.id));
   const usage = drinkUsageMap(state.selectedPersonId || null);
-  let list = state.drinks;
+  let list = [...state.drinks];
   if (state.category === 'Favoriten') list = list.filter(d => fav.has(d.id));
   else if (state.category === 'Zuletzt') list = list.filter(d => recent.has(d.id));
   else if (state.category === 'Empfohlen') list = list.filter(d => recommendedIds.has(d.id));
   else if (state.category !== 'Alle') list = list.filter(d => d.category === state.category);
   if (q) list = list.filter(d => normalize(`${d.name} ${d.category} ${d.notes || ''} ${d.volume || ''}`).includes(q));
+
+  const byName = (a, b) => String(a.name).localeCompare(String(b.name), 'de');
+  const mode = drinkSortMode();
   return list.sort((a, b) => {
-    const aStat = usage.get(a.id)?.count || 0;
-    const bStat = usage.get(b.id)?.count || 0;
-    const favDiff = Number(fav.has(b.id)) - Number(fav.has(a.id));
-    if (favDiff) return favDiff;
-    const recDiff = Number(recommendedIds.has(b.id)) - Number(recommendedIds.has(a.id));
-    if (recDiff) return recDiff;
-    if (bStat !== aStat) return bStat - aStat;
-    const recentDiff = Number(recent.has(b.id)) - Number(recent.has(a.id));
-    if (recentDiff) return recentDiff;
-    return String(a.name).localeCompare(String(b.name), 'de');
+    const aStat = usage.get(a.id) || { count: 0, lastTs: 0 };
+    const bStat = usage.get(b.id) || { count: 0, lastTs: 0 };
+    if (mode === 'recent') return bStat.lastTs - aStat.lastTs || bStat.count - aStat.count || byName(a, b);
+    if (mode === 'priceAsc') return (Number(a.price) || 0) - (Number(b.price) || 0) || byName(a, b);
+    if (mode === 'priceDesc') return (Number(b.price) || 0) - (Number(a.price) || 0) || byName(a, b);
+    if (mode === 'alphabetical') return byName(a, b);
+    return bStat.count - aStat.count || bStat.lastTs - aStat.lastTs || byName(a, b);
   });
 }
 function quickTrackSection(title, subtitle, drinks, badge = '') {
@@ -828,7 +858,7 @@ function drinkListHtml() {
   if (!currentPersons().length) return '';
   if (!drinks.length) return '<div class="card emptyText">Keine passenden Getränke gefunden.</div>';
   const listTitle = state.query ? 'Suchergebnisse' : state.category === 'Alle' ? 'Alle Getränke' : state.category;
-  return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Getränk antippen und direkt für ${esc(person?.name || 'die aktive Person')} speichern.</p></div><span class="subtle">${drinks.length}</span></div><div class="drinkGrid">${drinks.map(d => {
+  return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Getränk antippen und direkt für ${esc(person?.name || 'die aktive Person')} speichern.</p></div><span class="subtle">${drinks.length}</span></div><label class="drinkSortControl" for="drinkSort"><span>Sortieren</span><select id="drinkSort" aria-label="Getränkekacheln sortieren">${drinkSortOptionsHtml()}</select></label><div class="drinkGrid">${drinks.map(d => {
     const status = person ? statusForDrink(d, person.packageId) : 'unclear';
     const count = usage.get(d.id)?.count || 0;
     const isFavorite = fav.has(d.id);
@@ -1640,6 +1670,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.2</h2>
+  <ul>
+    <li>Individuelle Sortierung der Getränkekacheln ergänzt.</li>
+    <li>Verfügbar sind häufig genutzt, zuletzt genutzt, Preis aufsteigend, Preis absteigend und alphabetisch.</li>
+    <li>Die Auswahl wird lokal gespeichert; nutzungsabhängige Sortierungen beziehen sich auf die aktive Person.</li>
+  </ul>
   <h2>Version 4.3.1</h2>
   <ul>
     <li>Persistenter Wechsler zwischen heller und dunkler Ansicht im Setup ergänzt.</li>

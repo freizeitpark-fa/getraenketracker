@@ -1,5 +1,12 @@
 # Roadmap CruiseSip
 
+## Version 4.3.2 Getränkesortierung
+
+- Sortierung nach Nutzungshäufigkeit und letzter Nutzung je aktiver Person
+- Preis aufsteigend oder absteigend
+- Alphabetische Sortierung
+- Persistente lokale Auswahl
+
 ## Version 4.3.1 Darstellung
 
 - Wechsler zwischen heller und dunkler Ansicht im Setup

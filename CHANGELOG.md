@@ -3,6 +3,23 @@
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 
+## 4.3.2 - Individuelle Sortierung der Getränkekacheln
+
+### Neu / verbessert
+
+- Kompakte Sortierauswahl direkt oberhalb der Getränkekacheln ergänzt.
+- Sortieroptionen: `Häufig genutzt`, `Zuletzt genutzt`, `Preis aufsteigend`, `Preis absteigend` und `Alphabetisch`.
+- Nutzungsabhängige Sortierungen beziehen sich auf die aktuell ausgewählte Person.
+- Gewählte Sortierung wird dauerhaft und ausschließlich lokal im bestehenden Einstellungs-Speicher abgelegt.
+- Filter, Suche, Favoriten, Personenwahl und Tracking bleiben unverändert nutzbar.
+
+### Technisch
+
+- App-Version auf `4.3.2` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-3-2-20260713a` erhöht.
+- Sortierung arbeitet ausschließlich auf einer Kopie der gefilterten Getränkeliste und verändert die Stammdatenreihenfolge nicht.
+
+
 ## 4.3.1 - Helle und dunkle Ansicht
 
 ### Neu / verbessert
