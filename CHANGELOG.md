@@ -2,6 +2,22 @@
 
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
+## 4.3.6 – Fehlbuchungen direkt im Verlauf korrigieren
+
+### Neu / verbessert
+
+- Bearbeiten öffnet den gewählten Eintrag direkt innerhalb der Verlaufskarte; keine Prompt-Fenster und kein Overlay.
+- Person, Getränk, Datum, Uhrzeit, Preis und Paketstatus können korrigiert werden.
+- Beim Wechsel von Person oder Getränk werden Barkartenpreis und Paketstatus passend zur aktuellen Barkarte vorgeschlagen und bleiben vor dem Speichern prüfbar.
+- Löschen bleibt mit Sicherheitsabfrage sowohl in der normalen Ansicht als auch im Bearbeitungsformular möglich.
+- Nach einer Korrektur greifen Tagesübersicht, Analyse, personenbezogene Häufigkeit und Zuletzt-Sortierung unmittelbar auf den aktualisierten Datensatz zu.
+
+### Technisch
+
+- App-Version auf `4.3.6` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-3-6-20260713a` erhöht.
+- Keine Änderung an IndexedDB-Struktur, Barkarte, Paketdaten, Tracking-Erfassung oder Navigation.
+
 ## 4.3.5 – Vereinfachte Personenauswahl
 
 ### Neu / verbessert

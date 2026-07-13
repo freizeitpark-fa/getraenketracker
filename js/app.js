@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.3.5';
+const APP_VERSION = '4.3.6';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -33,6 +33,7 @@ let state = {
   selectedPersonId: null,
   editingTripId: null,
   editingPersonId: null,
+  editingLogId: null,
   query: '',
   category: 'Empfohlen',
   historyFilter: 'today',
@@ -41,7 +42,7 @@ let state = {
   articleQuery: '',
   editingDrinkId: null,
   undoLog: null,
-  formDraft: { trip: {}, person: {}, device: {}, onboardingTrip: {} },
+  formDraft: { trip: {}, person: {}, device: {}, onboardingTrip: {}, log: {} },
   pendingFileMode: null,
   lastBarkarteComparison: null,
   online: navigator.onLine
@@ -462,6 +463,7 @@ function draftSectionForForm(formId) {
   if (formId === 'personForm') return 'person';
   if (formId === 'deviceForm') return 'device';
   if (formId === 'onboardingTripForm') return 'onboardingTrip';
+  if (formId === 'logEditForm') return 'log';
   return null;
 }
 function preserveFormDraft(event) {
@@ -472,13 +474,16 @@ function preserveFormDraft(event) {
   if (!section || !field.name) return;
   state.formDraft[section] = state.formDraft[section] || {};
   state.formDraft[section][field.name] = field.value;
+  if (form?.id === 'logEditForm' && (field.name === 'personId' || field.name === 'drinkId')) {
+    syncLogEditDerivedFields(form, field.name);
+  }
 }
 function draftValue(section, name, fallback = '') {
   const draft = state.formDraft?.[section];
   return draft && Object.prototype.hasOwnProperty.call(draft, name) ? draft[name] : fallback;
 }
 function clearDraft(section) {
-  if (!state.formDraft) state.formDraft = { trip: {}, person: {}, device: {}, onboardingTrip: {} };
+  if (!state.formDraft) state.formDraft = { trip: {}, person: {}, device: {}, onboardingTrip: {}, log: {} };
   state.formDraft[section] = {};
 }
 
@@ -490,6 +495,7 @@ async function handleClick(event) {
   if (target.dataset.route) {
     state.route = target.dataset.route;
     state.query = '';
+    if (state.route !== 'history') { state.editingLogId = null; clearDraft('log'); }
     render();
     haptic();
     return;
@@ -525,7 +531,7 @@ async function handleClick(event) {
   if (action === 'savePerson') { await runActionOnce('savePerson', () => savePersonForm($('#personForm'))); return; }
   if (action === 'saveDevice') { await runActionOnce('saveDevice', () => saveDeviceForm($('#deviceForm'))); return; }
   if (action === 'setCategory') { state.category = id; renderTrackList(); renderCategoryChips(); return; }
-  if (action === 'setHistoryFilter') { state.historyFilter = id; render(); return; }
+  if (action === 'setHistoryFilter') { state.historyFilter = id; state.editingLogId = null; clearDraft('log'); render(); return; }
   if (action === 'setStatsFilter') { state.statsFilter = id; render(); return; }
   if (action === 'showStatsPerson') { state.statsPersonId = id; render(); return; }
   if (action === 'backStatsDashboard') { state.statsPersonId = null; render(); return; }
@@ -535,7 +541,9 @@ async function handleClick(event) {
   if (action === 'trackDrink') { await trackDrink(id); return; }
   if (action === 'toggleFavorite') { await toggleFavorite(id); renderTrackList(); renderDashboardQuick(); return; }
   if (action === 'undo') { await undoLast(); return; }
-  if (action === 'editLog') { await editLog(id); return; }
+  if (action === 'editLog') { editLog(id); return; }
+  if (action === 'cancelEditLog') { cancelEditLog(); return; }
+  if (action === 'saveLog') { await runActionOnce('saveLog', () => saveLogForm($('#logEditForm'))); return; }
   if (action === 'deleteLog') { await deleteLog(id); return; }
   if (action === 'exportTrip') { exportTrip(); return; }
   if (action === 'backupTest') { backupTest(); return; }
@@ -555,6 +563,7 @@ async function handleSubmit(event) {
   if (formId === 'personForm') await runActionOnce('savePerson', () => savePersonForm(form));
   if (formId === 'deviceForm') await runActionOnce('saveDevice', () => saveDeviceForm(form));
   if (formId === 'articleForm') await runActionOnce('saveArticle', () => saveDrinkArticleForm(form));
+  if (formId === 'logEditForm') await runActionOnce('saveLog', () => saveLogForm(form));
   if (formId === 'onboardingTripForm') await saveOnboardingTrip(form);
 }
 
@@ -705,6 +714,7 @@ function bindRenderedControls() {
   bindDirectAction('#tripSaveButton', 'saveTrip', () => saveTripForm($('#tripForm')));
   bindDirectAction('#personSaveButton', 'savePerson', () => savePersonForm($('#personForm')));
   bindDirectAction('#deviceSaveButton', 'saveDevice', () => saveDeviceForm($('#deviceForm')));
+  bindDirectAction('#logSaveButton', 'saveLog', () => saveLogForm($('#logEditForm')));
 }
 
 function bindInputs() {
@@ -1069,12 +1079,49 @@ function viewHistory() {
 function historyFilterHtml() { return `<div class="segmented"><button class="${state.historyFilter === 'today' ? 'active' : ''}" data-action="setHistoryFilter" data-id="today">Heute</button><button class="${state.historyFilter === 'yesterday' ? 'active' : ''}" data-action="setHistoryFilter" data-id="yesterday">Gestern</button><button class="${state.historyFilter === 'trip' ? 'active' : ''}" data-action="setHistoryFilter" data-id="trip">Reise</button></div>`; }
 function logItemHtml(log) {
   const person = personById(log.personId) || { name: log.personName || 'Unbekannt', color: '#f1f5f9' };
+  if (state.editingLogId === log.id) return logEditItemHtml(log, person);
   return `<article class="timelineItem" style="--person:${esc(person.color || '#f1f5f9')}">
     <div class="timelineMarker"></div>
     <div class="timelineCard">
       <div class="logTop"><b>${statusDot(log.packageStatus)}${esc(log.drinkName)}</b><span>${eur(log.price)}</span></div>
       <div class="logMeta"><span class="personPill">${esc(person.name)}</span><span>${esc(formatDateTime(log.ts))}</span><span>${esc(statusLabel(log.packageStatus))}</span></div>
       <div class="logActions"><button class="mini" data-action="editLog" data-id="${esc(log.id)}">Bearbeiten</button><button class="mini dangerText" data-action="deleteLog" data-id="${esc(log.id)}">Löschen</button></div>
+    </div>
+  </article>`;
+}
+function logEditItemHtml(log, person) {
+  const draft = state.formDraft.log || {};
+  const personId = draft.personId || log.personId || currentPersons()[0]?.id || '';
+  const drinkId = draft.drinkId || log.drinkId || state.drinks[0]?.id || '';
+  const date = draft.date || localDateInputValue(log.ts);
+  const time = draft.time || localTimeInputValue(log.ts);
+  const price = Object.prototype.hasOwnProperty.call(draft, 'price') ? draft.price : String(Number(log.price) || 0).replace('.', ',');
+  const packageStatus = draft.packageStatus || log.packageStatus || 'unclear';
+  const persons = currentPersons();
+  const drinks = [...state.drinks].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'de', { sensitivity: 'base' }));
+  const personOptions = persons.map(row => `<option value="${esc(row.id)}" ${row.id === personId ? 'selected' : ''}>${esc(row.name)}</option>`).join('');
+  const missingPerson = personId && !persons.some(row => row.id === personId) ? `<option value="${esc(personId)}" selected>${esc(log.personName || 'Nicht mehr vorhandene Person')}</option>` : '';
+  const drinkOptions = drinks.map(row => `<option value="${esc(row.id)}" ${row.id === drinkId ? 'selected' : ''}>${esc(row.name)} · ${eur(row.price)}</option>`).join('');
+  const missingDrink = drinkId && !drinks.some(row => row.id === drinkId) ? `<option value="${esc(drinkId)}" selected>${esc(log.drinkName || 'Nicht mehr vorhandenes Getränk')}</option>` : '';
+  return `<article class="timelineItem editing" style="--person:${esc(person.color || '#f1f5f9')}">
+    <div class="timelineMarker"></div>
+    <div class="timelineCard logEditCard">
+      <form id="logEditForm" class="logEditForm">
+        <input type="hidden" name="id" value="${esc(log.id)}">
+        <div class="logEditHead"><div><b>Fehlbuchung korrigieren</b><small>Änderungen wirken sofort auf Verlauf, Tagesübersicht und Analyse.</small></div><button type="button" class="mini" data-action="cancelEditLog">Abbrechen</button></div>
+        <div class="formField"><label for="logPersonInput">Person</label><select id="logPersonInput" name="personId">${missingPerson}${personOptions}</select></div>
+        <div class="formField"><label for="logDrinkInput">Getränk</label><select id="logDrinkInput" name="drinkId">${missingDrink}${drinkOptions}</select></div>
+        <div class="logEditGrid">
+          <div class="formField"><label for="logDateInput">Datum</label><input id="logDateInput" name="date" type="date" value="${esc(date)}"></div>
+          <div class="formField"><label for="logTimeInput">Uhrzeit</label><input id="logTimeInput" name="time" type="time" step="60" value="${esc(time)}"></div>
+        </div>
+        <div class="logEditGrid">
+          <div class="formField"><label for="logPriceInput">Preis</label><input id="logPriceInput" name="price" type="text" inputmode="decimal" autocomplete="off" value="${esc(price)}"></div>
+          <div class="formField"><label for="logStatusInput">Paketstatus</label><select id="logStatusInput" name="packageStatus"><option value="included" ${packageStatus === 'included' ? 'selected' : ''}>enthalten</option><option value="not_included" ${packageStatus === 'not_included' ? 'selected' : ''}>nicht enthalten</option><option value="unclear" ${packageStatus === 'unclear' ? 'selected' : ''}>unklar</option></select></div>
+        </div>
+        <p class="logEditHint">Beim Wechsel von Person oder Getränk werden Preis und Paketstatus passend zur aktuellen Barkarte vorgeschlagen. Beide Werte bleiben vor dem Speichern prüfbar.</p>
+        <div class="logEditActions"><button id="logSaveButton" class="primary" type="submit">Änderungen speichern</button><button type="button" class="secondary dangerText" data-action="deleteLog" data-id="${esc(log.id)}">Eintrag löschen</button></div>
+      </form>
     </div>
   </article>`;
 }
@@ -1376,7 +1423,7 @@ async function saveDrinkArticleForm(form) {
   }
   const updated = {
     ...drink,
-    price: num(formValue(form, 'price')),
+    price,
     category: formValue(form, 'category').trim() || drink.category || 'Ohne Kategorie',
     packages,
     manualOverride: true,
@@ -1520,26 +1567,86 @@ function recentDrinkIds() {
   return ids;
 }
 
-async function editLog(id) {
-  const log = state.logs.find(l => l.id === id);
+function editLog(id) {
+  const log = state.logs.find(row => row.id === id);
   if (!log) return;
-  const price = prompt('Preis anpassen:', String(log.price).replace('.', ','));
-  if (price === null) return;
-  const status = prompt('Paketstatus: included / not_included / unclear', log.packageStatus || 'unclear');
-  if (status === null) return;
-  const cleanStatus = ['included', 'not_included', 'unclear'].includes(status) ? status : 'unclear';
-  log.price = num(price);
-  log.packageStatus = cleanStatus;
-  log.updatedAt = nowIso();
-  await put('logs', log);
+  state.editingLogId = id;
+  state.formDraft.log = {
+    id: log.id,
+    personId: log.personId || '',
+    drinkId: log.drinkId || '',
+    date: localDateInputValue(log.ts),
+    time: localTimeInputValue(log.ts),
+    price: String(Number(log.price) || 0).replace('.', ','),
+    packageStatus: log.packageStatus || 'unclear'
+  };
+  render();
+  requestAnimationFrame(() => $('#logEditForm')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+}
+function cancelEditLog() {
+  state.editingLogId = null;
+  clearDraft('log');
+  render();
+}
+function syncLogEditDerivedFields(form, changedName) {
+  const person = personById(formValue(form, 'personId'));
+  const drink = drinkById(formValue(form, 'drinkId'));
+  if (!person || !drink) return;
+  if (changedName === 'drinkId') {
+    setFormValue(form, 'price', String(Number(drink.price) || 0).replace('.', ','));
+    state.formDraft.log.price = String(Number(drink.price) || 0).replace('.', ',');
+  }
+  const status = statusForDrink(drink, person.packageId);
+  setFormValue(form, 'packageStatus', status);
+  state.formDraft.log.packageStatus = status;
+}
+async function saveLogForm(form) {
+  if (!form) return;
+  const id = formValue(form, 'id') || state.editingLogId;
+  const original = state.logs.find(row => row.id === id);
+  if (!original) throw new Error('Der Verlaufseintrag wurde nicht gefunden.');
+  const person = personById(formValue(form, 'personId'));
+  const drink = drinkById(formValue(form, 'drinkId'));
+  if (!person) throw new Error('Bitte eine gültige Person auswählen.');
+  if (!drink) throw new Error('Bitte ein gültiges Getränk auswählen.');
+  const date = formValue(form, 'date');
+  const time = formValue(form, 'time');
+  if (!date || !time) throw new Error('Bitte Datum und Uhrzeit vollständig angeben.');
+  const ts = localDateTimeToTimestamp(date, time);
+  if (!Number.isFinite(ts)) throw new Error('Datum oder Uhrzeit ist ungültig.');
+  const priceText = String(formValue(form, 'price') ?? '').trim().replace(',', '.');
+  const price = Number(priceText);
+  if (!priceText || !Number.isFinite(price) || price < 0) throw new Error('Bitte einen gültigen, nicht negativen Preis angeben.');
+  const selectedStatus = formValue(form, 'packageStatus');
+  const packageStatus = ['included', 'not_included', 'unclear'].includes(selectedStatus) ? selectedStatus : statusForDrink(drink, person.packageId);
+  const updated = {
+    ...original,
+    personId: person.id,
+    personName: person.name,
+    drinkId: drink.id,
+    drinkName: drink.name,
+    category: drink.category || '',
+    price,
+    packageId: person.packageId || 'none',
+    packageStatus,
+    ts,
+    updatedAt: nowIso()
+  };
+  await put('logs', updated);
+  if (state.undoLog?.id === id) state.undoLog = updated;
+  state.editingLogId = null;
+  clearDraft('log');
   await loadState();
   render();
+  toast('Verlaufseintrag aktualisiert');
+  haptic();
 }
 async function deleteLog(id) {
   const log = state.logs.find(l => l.id === id);
   if (!log) return;
   if (!confirm(`Eintrag wirklich löschen?\n\n${log.drinkName} · ${log.personName}`)) return;
   await del('logs', id);
+  if (state.editingLogId === id) { state.editingLogId = null; clearDraft('log'); }
   if (state.undoLog?.id === id) {
     clearUndoAutoHide();
     state.undoLog = null;
@@ -1849,6 +1956,10 @@ function compareDrinks(oldDrinks, newDrinks) {
   return { newDrinks: newCount, priceChanges, packageChanges, details: details.slice(0, 50), checkedAt: nowIso() };
 }
 
+function pad2(value) { return String(value).padStart(2, '0'); }
+function localDateInputValue(ts) { const d = new Date(Number(ts)); return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function localTimeInputValue(ts) { const d = new Date(Number(ts)); return Number.isNaN(d.getTime()) ? '' : `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+function localDateTimeToTimestamp(date, time) { const match = String(time || '').match(/^(\d{2}):(\d{2})$/); if (!date || !match) return NaN; const [year, month, day] = String(date).split('-').map(Number); const hour = Number(match[1]), minute = Number(match[2]); if (![year, month, day, hour, minute].every(Number.isFinite) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return NaN; const d = new Date(year, month - 1, day, hour, minute, 0, 0); return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day && d.getHours() === hour && d.getMinutes() === minute ? d.getTime() : NaN; }
 function formatDate(value) { if (!value) return 'offen'; const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }); }
 function formatDateTime(ts) { const d = new Date(Number(ts)); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
 function formatDateKey(ts) { const d = new Date(Number(ts)); return Number.isNaN(d.getTime()) ? 'Unbekannt' : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }); }
@@ -1862,6 +1973,13 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.6</h2>
+  <ul>
+    <li>Fehlbuchungen können direkt im Verlauf über ein natives, iPhone-taugliches Formular korrigiert werden.</li>
+    <li>Person, Getränk, Datum, Uhrzeit, Preis und Paketstatus sind bearbeitbar.</li>
+    <li>Nach dem Speichern werden Verlauf, Tagesübersicht, Analyse, Häufigkeiten und Zuletzt-Sortierung sofort aus den korrigierten Daten berechnet.</li>
+    <li>Löschen bleibt mit Sicherheitsabfrage direkt am Eintrag möglich.</li>
+  </ul>
   <h2>Version 4.3.5</h2>
   <ul>
     <li>Separate Karte „Aktive Person“ aus der Tracken-Ansicht entfernt.</li>

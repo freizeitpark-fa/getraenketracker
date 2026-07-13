@@ -1,5 +1,13 @@
 # Roadmap CruiseSip
 
+
+## Version 4.3.6 Verlaufskorrektur
+
+- Fehlbuchungen direkt im Verlauf bearbeiten.
+- Person, Getränk, Datum, Uhrzeit, Preis und Paketstatus korrigieren.
+- Auswertungen und personenbezogene Sortierungen nach dem Speichern automatisch aktualisieren.
+- Löschfunktion mit Sicherheitsabfrage beibehalten.
+
 ## Version 4.3.5 Vereinfachte Personenauswahl
 
 - Personen-Schnellwechsel als einzige sichtbare Personensteuerung
