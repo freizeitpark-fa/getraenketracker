@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.2.0';
+const APP_VERSION = '4.3.0';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -598,9 +598,36 @@ function viewDashboard() {
         ${kpi('Ersparnis', eur(total.saved), total.unclear ? `${eur(total.unclear)} unklar` : 'konservativ')}
         ${kpi('Zu zahlen', eur(total.paid), 'nicht enthalten/unklar')}
       </div>
+      ${dailyOverviewHtml()}
       <div id="dashboardQuick">${dashboardQuickHtml(favorites, recent)}</div>
       ${setupWarningsHtml()}
     </section>`;
+}
+
+function dailyOverviewHtml() {
+  const logs = logsByFilter('today').slice().sort((a, b) => Number(b.ts) - Number(a.ts));
+  const summary = calc(logs);
+  const includedValue = logs.reduce((sum, log) => sum + (log.packageStatus === 'included' ? Number(log.price) || 0 : 0), 0);
+  const outsideValue = logs.reduce((sum, log) => sum + (log.packageStatus === 'not_included' ? Number(log.price) || 0 : 0), 0);
+  const unclearValue = logs.reduce((sum, log) => sum + (log.packageStatus === 'unclear' ? Number(log.price) || 0 : 0), 0);
+  const persons = currentPersons().map(person => {
+    const personLogs = logs.filter(log => log.personId === person.id);
+    return { person, result: calc(personLogs) };
+  }).filter(row => row.result.count > 0);
+  const latest = logs[0];
+
+  return `<section class="card dailyOverview">
+    <div class="sectionHead"><div><h2>Tagesübersicht</h2><p class="dailyDate">${esc(new Date().toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' }))}</p></div><span class="subtle">${summary.count} Getränke</span></div>
+    ${logs.length ? `
+      <div class="dailyStatusGrid">
+        <div class="dailyStatus included"><span>Im Paket</span><strong>${eur(includedValue)}</strong></div>
+        <div class="dailyStatus outside"><span>Außerhalb</span><strong>${eur(outsideValue)}</strong></div>
+        <div class="dailyStatus unclear"><span>Unklar</span><strong>${eur(unclearValue)}</strong></div>
+      </div>
+      <div class="dailyPersonList">${persons.map(({ person, result }) => `<div class="dailyPersonRow" style="--person:${esc(person.color || '#e0f2fe')}"><div><b>${esc(person.name)}</b><small>${result.count} ${result.count === 1 ? 'Getränk' : 'Getränke'}</small></div><strong>${eur(result.value)}</strong></div>`).join('')}</div>
+      <div class="dailyLatest"><span>Letzte Erfassung</span><b>${esc(latest.drinkName || drinkById(latest.drinkId)?.name || 'Getränk')} · ${esc(latest.personName || personById(latest.personId)?.name || 'Person')}</b><small>${esc(formatDateTime(latest.ts))}</small></div>
+    ` : '<p class="emptyText dailyEmpty">Heute wurde noch kein Getränk erfasst.</p>'}
+  </section>`;
 }
 
 function setupWarningsHtml() {
@@ -1572,6 +1599,11 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.0</h2>
+  <ul>
+    <li>Tagesübersicht auf der Home-Seite mit Paketstatus, Personenaufteilung und letzter Erfassung ergänzt.</li>
+    <li>Unklare Paketfälle bleiben getrennt sichtbar und werden nicht als sichere Ersparnis behandelt.</li>
+  </ul>
   <h2>Version 4.2.0</h2>
   <ul>
     <li>Tracken-Ansicht mit großen, zweispaltigen Getränkekacheln für die iPhone-Bedienung optimiert.</li>

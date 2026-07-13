@@ -3,6 +3,24 @@
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 
+## 4.3.0 - Tagesübersicht auf der Home-Seite
+
+### Neu / verbessert
+
+- Kompakte Tagesübersicht für den aktuellen Kalendertag auf der Home-Seite ergänzt.
+- Barkartenwert wird konservativ nach `im Paket`, `außerhalb des Pakets` und `unklar` getrennt dargestellt.
+- Tagesverbrauch wird pro Person mit Anzahl und Barkartenwert aufgeschlüsselt.
+- Letzte Erfassung des Tages zeigt Getränk, Person und Zeitpunkt.
+- Ohne heutige Buchungen erscheint ein klarer Leerzustand.
+- Bestehende Tracking-, Such-, Favoriten-, Rückgängig-, Formular- und Navigationslogik wurde nicht verändert.
+
+### Technisch
+
+- App-Version auf `4.3.0` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-3-0-20260712a` erhöht.
+- Tagesübersicht greift ausschließlich lesend auf die vorhandenen lokalen Verlaufsdaten zu.
+
+
 ## 4.2.0 - Tracken-Ansicht
 
 ### Neu / verbessert
