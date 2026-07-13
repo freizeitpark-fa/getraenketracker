@@ -2,6 +2,23 @@
 
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
+## 4.3.8 – Offline-Sicherheitsstatus im Setup
+
+### Neu
+
+- Rein diagnostische Offline-Prüfung im Setup ergänzt.
+- Prüft Home-Bildschirm-/Standalone-Modus, Service-Worker-Unterstützung und aktive Steuerung, aktuellen App-Cache einschließlich Kerndateien sowie die tatsächliche Lese- und Schreibfähigkeit von IndexedDB.
+- Zeigt die aktuelle Speicherbelegung an, soweit iOS diese Information bereitstellt.
+- Ein Start ohne gemeldete Internetverbindung wird separat als praktischer Offline-Test ausgewiesen.
+- Gesamtergebnis unterscheidet konservativ zwischen `Offline bereit`, `Technisch bereit – Installation empfohlen` und `Offline-Vorbereitung prüfen`.
+
+### Technisch
+
+- Diagnose verwendet nur einen temporären IndexedDB-Prüfeintrag, der unmittelbar wieder gelöscht wird.
+- Keine Änderung an IndexedDB-Struktur, Reisen, Personen, Buchungen, Barkarte, Paketdaten oder Tracking-Logik.
+- App-Version auf `4.3.8` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-3-8-20260713a` erhöht.
+
 ## 4.3.7 – Preis beim Getränkewechsel automatisch aktualisieren
 
 ### Verbessert

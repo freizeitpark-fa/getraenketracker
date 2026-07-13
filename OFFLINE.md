@@ -27,6 +27,19 @@
 - Beim Zusammenführen mehrerer Geräte immer je Gerät eine Exportdatei erzeugen und auf dem Hauptgerät importieren.
 
 
+
+## Offline-Sicherheitsstatus ab Version 4.3.8
+
+Unter `Setup` kann die Aktion `Offline-Status prüfen` ausgeführt werden. Die Prüfung kontrolliert:
+
+- ob CruiseSip als Home-Bildschirm-PWA läuft,
+- ob der Service Worker aktiv ist und die App steuert,
+- ob der Cache der aktuellen Version einschließlich der Kerndateien vorhanden ist,
+- ob IndexedDB lokal lesen und schreiben kann,
+- und ob die App aktuell ohne gemeldete Internetverbindung läuft.
+
+Die Diagnose löscht keine Reisen oder Buchungen. Für den endgültigen Praxistest CruiseSip vor der Abfahrt einmal im Flugmodus vollständig schließen und neu öffnen. Auch bei erfolgreichem Status bleiben regelmäßige Reiseexporte die notwendige Datensicherung.
+
 ## Aktualisierung ab Version 4.3.4
 
 Bei bestehender Internetverbindung prüft die installierte PWA beim Start und bei Rückkehr in die App auf neue Dateien. Ein bereitstehendes Update wird angezeigt und nach Bestätigung aktiviert. Die lokalen Reisedaten in IndexedDB bleiben erhalten.

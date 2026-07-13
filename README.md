@@ -4,16 +4,16 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.3.7**
+Aktuelle Entwicklungsfassung: **4.3.8**
 
-Version 4.3.7 aktualisiert beim Wechsel des Getränks in einer Verlaufskorrektur den Preis automatisch aus der lokalen Barkarte. Der Paketstatus wird gleichzeitig passend zur Person neu bestimmt. Manuelle Preisabweichungen bleiben nur für bewusste Sonderfälle möglich. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.3.8 ergänzt im Setup einen rein diagnostischen Offline-Sicherheitsstatus. Geprüft werden Home-Bildschirm-Modus, Service Worker, aktueller App-Cache, lokaler IndexedDB-Speicher und – soweit von iOS bereitgestellt – die Speicherverwaltung. Reisen und Buchungen werden dabei nicht verändert. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 ## GitHub Pages Veröffentlichung
 
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.3.7 Preisautomatik`.
+4. Commit erstellen, z. B. `CruiseSip v4.3.8 Offline-Sicherheitsstatus`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
@@ -56,6 +56,7 @@ CruiseSip/
 - Barkartenimport mit Preis- und Paketvergleich
 - Artikelverwaltung für manuelle Preis- und Paketstatus-Anpassungen je Getränkepaket
 - Offline-Onboarding und Backup-Test
+- Offline-Sicherheitsstatus mit Prüfung von Installation, Service Worker, App-Cache und IndexedDB
 - lokal gespeicherter Wechsler zwischen heller und dunkler Ansicht
 
 ## Technische Hinweise

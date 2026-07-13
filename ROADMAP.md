@@ -1,5 +1,13 @@
 # Roadmap CruiseSip
 
+## Version 4.3.8 Offline-Sicherheitsstatus
+
+- Home-Bildschirm-/Standalone-Modus erkennen.
+- Service Worker und aktive Steuerung prüfen.
+- Aktuellen App-Cache und Kerndateien kontrollieren.
+- IndexedDB mit einem sofort gelöschten temporären Eintrag testen.
+- Offline-Praxistest und iOS-Speicherverwaltung transparent ausweisen.
+
 
 ## Version 4.3.7 Preisautomatik bei Verlaufskorrektur
 

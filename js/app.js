@@ -1,6 +1,7 @@
 'use strict';
 
-const APP_VERSION = '4.3.7';
+const APP_VERSION = '4.3.8';
+const APP_CACHE_NAME = 'cruisesip-v4-3-8-20260713a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -45,7 +46,8 @@ let state = {
   formDraft: { trip: {}, person: {}, device: {}, onboardingTrip: {}, log: {} },
   pendingFileMode: null,
   lastBarkarteComparison: null,
-  online: navigator.onLine
+  online: navigator.onLine,
+  offlineDiagnostics: null
 };
 
 const actionLocks = Object.create(null);
@@ -55,6 +57,7 @@ let swUpdateCheckRunning = false;
 let swControllerChangeHandled = false;
 let swReloadFallbackTimer = null;
 let swUpdateState = 'unknown';
+let offlineDiagnosticsRunning = false;
 
 async function runActionOnce(key, handler) {
   if (actionLocks[key]) return actionLocks[key];
@@ -413,6 +416,206 @@ async function applyAppUpdate() {
   swReloadFallbackTimer = setTimeout(() => window.location.reload(), 3500);
 }
 
+function isStandaloneMode() {
+  return Boolean(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
+}
+
+function formatStorageBytes(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value < 0) return 'nicht verfügbar';
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+  return `${(value / (1024 * 1024)).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`;
+}
+
+function diagnosticLevelLabel(level) {
+  if (level === 'ok') return 'OK';
+  if (level === 'bad') return 'Fehler';
+  if (level === 'warn') return 'Prüfen';
+  return 'Info';
+}
+
+function offlineDiagnosticsContentHtml() {
+  const diagnostics = state.offlineDiagnostics;
+  if (!diagnostics) {
+    return '<p class="diagnosticEmpty">Status wird beim Öffnen des Setups automatisch geprüft.</p>';
+  }
+  if (diagnostics.running) {
+    return '<div class="diagnosticRunning"><span class="diagnosticSpinner" aria-hidden="true"></span><span>Offline-Bereitschaft wird geprüft …</span></div>';
+  }
+  const rows = (diagnostics.items || []).map(item => `
+    <div class="diagnosticRow ${esc(item.level || 'info')}">
+      <span class="diagnosticMark" aria-hidden="true">${item.level === 'ok' ? '✓' : item.level === 'bad' ? '!' : item.level === 'warn' ? '!' : 'i'}</span>
+      <span class="diagnosticText"><b>${esc(item.label)}</b><small>${esc(item.detail || '')}</small></span>
+      <span class="diagnosticValue"><strong>${esc(item.value)}</strong><small>${esc(diagnosticLevelLabel(item.level))}</small></span>
+    </div>`).join('');
+  const checked = diagnostics.checkedAt ? new Date(diagnostics.checkedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  return `${rows}<div class="diagnosticChecked">Zuletzt geprüft: ${esc(checked || 'unbekannt')}</div>`;
+}
+
+function offlineDiagnosticsSummary() {
+  const diagnostics = state.offlineDiagnostics;
+  if (!diagnostics) return { label: 'Noch nicht geprüft', level: 'info' };
+  if (diagnostics.running) return { label: 'Prüfung läuft', level: 'info' };
+  return { label: diagnostics.summary || 'Prüfung abgeschlossen', level: diagnostics.overall || 'info' };
+}
+
+function updateOfflineDiagnosticsView() {
+  const container = $('#offlineDiagnosticsResults');
+  if (container) container.innerHTML = offlineDiagnosticsContentHtml();
+  const summary = offlineDiagnosticsSummary();
+  const summaryElement = $('#offlineDiagnosticsSummary');
+  if (summaryElement) {
+    summaryElement.textContent = summary.label;
+    summaryElement.className = `diagnosticSummary ${summary.level}`;
+  }
+  const button = $('#offlineDiagnosticsButton');
+  if (button) {
+    button.disabled = offlineDiagnosticsRunning;
+    button.textContent = offlineDiagnosticsRunning ? 'Prüfung läuft …' : 'Offline-Status prüfen';
+  }
+}
+
+async function runOfflineDiagnostics({ silent = false } = {}) {
+  if (offlineDiagnosticsRunning) return;
+  offlineDiagnosticsRunning = true;
+  state.offlineDiagnostics = { running: true };
+  updateOfflineDiagnosticsView();
+  if (!silent) toast('Offline-Bereitschaft wird geprüft …');
+
+  const items = [];
+  const standalone = isStandaloneMode();
+  items.push({
+    label: 'Home-Bildschirm-App',
+    value: standalone ? 'Installiert' : 'Safari-Browser',
+    level: standalone ? 'ok' : 'warn',
+    detail: standalone ? 'CruiseSip läuft im eigenständigen PWA-Modus.' : 'Für den schnellen Offline-Start über Safari zum Home-Bildschirm hinzufügen.'
+  });
+
+  let serviceWorkerActive = false;
+  let serviceWorkerControlled = false;
+  if (!('serviceWorker' in navigator)) {
+    items.push({ label: 'Service Worker', value: 'Nicht unterstützt', level: 'bad', detail: 'Dieser Browser kann die App-Dateien nicht zuverlässig offline verwalten.' });
+  } else {
+    try {
+      const registration = swRegistration || await navigator.serviceWorker.getRegistration('./');
+      serviceWorkerActive = Boolean(registration?.active);
+      serviceWorkerControlled = Boolean(navigator.serviceWorker.controller);
+      const level = serviceWorkerActive && serviceWorkerControlled ? 'ok' : serviceWorkerActive ? 'warn' : 'bad';
+      const value = serviceWorkerActive && serviceWorkerControlled ? 'Aktiv' : serviceWorkerActive ? 'Aktiv, noch nicht steuernd' : 'Nicht aktiv';
+      const detail = serviceWorkerActive && serviceWorkerControlled
+        ? 'Die aktuell geöffnete App wird vom Offline-Service-Worker gesteuert.'
+        : serviceWorkerActive
+          ? 'App einmal vollständig schließen und neu öffnen, damit der Service Worker übernimmt.'
+          : 'App bei bestehender Internetverbindung einmal vollständig laden.';
+      items.push({ label: 'Service Worker', value, level, detail });
+    } catch (error) {
+      items.push({ label: 'Service Worker', value: 'Prüfung fehlgeschlagen', level: 'bad', detail: error?.message || 'Registrierung konnte nicht gelesen werden.' });
+    }
+  }
+
+  const coreAssets = [
+    './index.html',
+    './css/styles.css?v=4.3.8',
+    './js/app.js?v=4.3.8',
+    './data/barkarte.json',
+    './data/pakete.json'
+  ];
+  let currentCachePresent = false;
+  let cachedCoreCount = 0;
+  let cachedAssetCount = 0;
+  if (!('caches' in window)) {
+    items.push({ label: 'Offline-App-Cache', value: 'Nicht unterstützt', level: 'bad', detail: 'Die Cache-API ist in diesem Browser nicht verfügbar.' });
+  } else {
+    try {
+      const names = await caches.keys();
+      currentCachePresent = names.includes(APP_CACHE_NAME);
+      if (currentCachePresent) {
+        const cache = await caches.open(APP_CACHE_NAME);
+        cachedAssetCount = (await cache.keys()).length;
+        for (const asset of coreAssets) {
+          const response = await cache.match(new URL(asset, window.location.href).href);
+          if (response) cachedCoreCount += 1;
+        }
+      }
+      const allCoreCached = currentCachePresent && cachedCoreCount === coreAssets.length;
+      items.push({
+        label: 'Offline-App-Cache',
+        value: allCoreCached ? `${cachedAssetCount} Dateien` : `${cachedCoreCount}/${coreAssets.length} Kerndateien`,
+        level: allCoreCached ? 'ok' : currentCachePresent ? 'warn' : 'bad',
+        detail: allCoreCached
+          ? `Aktueller Cache ${APP_CACHE_NAME} ist vollständig einsatzbereit.`
+          : currentCachePresent
+            ? 'Der aktuelle Cache ist vorhanden, aber noch nicht vollständig. App online neu öffnen und erneut prüfen.'
+            : 'Der Cache der aktuellen Version fehlt. App bei Internetverbindung vollständig laden.'
+      });
+    } catch (error) {
+      items.push({ label: 'Offline-App-Cache', value: 'Prüfung fehlgeschlagen', level: 'bad', detail: error?.message || 'Cache konnte nicht gelesen werden.' });
+    }
+  }
+
+  let indexedDbWritable = false;
+  try {
+    const testId = `offlineDiagnostic:${uid()}`;
+    const testValue = { id: testId, value: 'ok', updatedAt: nowIso() };
+    await put('settings', testValue);
+    const readBack = await get('settings', testId);
+    indexedDbWritable = readBack?.value === 'ok';
+    await del('settings', testId);
+    items.push({
+      label: 'Lokaler Datenspeicher',
+      value: indexedDbWritable ? 'Lesen & Schreiben möglich' : 'Schreibtest fehlgeschlagen',
+      level: indexedDbWritable ? 'ok' : 'bad',
+      detail: indexedDbWritable ? 'IndexedDB speichert Reisen, Personen und Buchungen ausschließlich auf diesem Gerät.' : 'Lokale Daten konnten nicht zuverlässig geschrieben und gelesen werden.'
+    });
+  } catch (error) {
+    items.push({ label: 'Lokaler Datenspeicher', value: 'Prüfung fehlgeschlagen', level: 'bad', detail: error?.message || 'IndexedDB konnte nicht getestet werden.' });
+  }
+
+  if (navigator.storage?.estimate) {
+    try {
+      const estimate = await navigator.storage.estimate();
+      const usage = formatStorageBytes(estimate.usage || 0);
+      const quota = formatStorageBytes(estimate.quota || 0);
+      let persisted = null;
+      if (navigator.storage.persisted) persisted = await navigator.storage.persisted().catch(() => null);
+      items.push({
+        label: 'Speicherverwaltung',
+        value: `${usage} belegt`,
+        level: persisted === true ? 'ok' : 'info',
+        detail: persisted === true ? `Dauerhafter Browserspeicher bestätigt · verfügbar: ${quota}.` : `Speicher wird von iOS verwaltet · verfügbar: ${quota}. Regelmäßig Reiseexporte erstellen.`
+      });
+    } catch (_) {
+      items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Regelmäßige Reiseexporte bleiben die wichtigste Datensicherung.' });
+    }
+  } else {
+    items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Eine Speicherquote wird nicht bereitgestellt. Regelmäßig Reiseexporte erstellen.' });
+  }
+
+  items.push({
+    label: 'Aktueller Verbindungstest',
+    value: navigator.onLine ? 'Online' : 'Offline aktiv',
+    level: navigator.onLine ? 'info' : 'ok',
+    detail: navigator.onLine ? 'Für den vollständigen Praxistest kurz den Flugmodus aktivieren und CruiseSip neu öffnen.' : 'CruiseSip läuft während dieser Prüfung ohne gemeldete Internetverbindung.'
+  });
+
+  const criticalReady = serviceWorkerActive && serviceWorkerControlled && currentCachePresent && cachedCoreCount === coreAssets.length && indexedDbWritable;
+  const overall = criticalReady ? (standalone ? 'ok' : 'warn') : 'bad';
+  const summary = criticalReady
+    ? (standalone ? 'Offline bereit' : 'Technisch bereit – Installation empfohlen')
+    : 'Offline-Vorbereitung prüfen';
+
+  state.offlineDiagnostics = {
+    running: false,
+    checkedAt: Date.now(),
+    overall,
+    summary,
+    items
+  };
+  offlineDiagnosticsRunning = false;
+  updateOfflineDiagnosticsView();
+  if (!silent) toast(summary);
+}
+
 function setOnlineState() {
   state.online = navigator.onLine;
   document.documentElement.dataset.online = state.online ? 'online' : 'offline';
@@ -517,6 +720,7 @@ async function handleClick(event) {
   if (action === 'finishOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; await loadState(); render(); return; }
   if (action === 'setTheme') { await setTheme(id); return; }
   if (action === 'checkAppUpdate') { await checkForAppUpdate({ silent: false }); return; }
+  if (action === 'runOfflineDiagnostics') { await runOfflineDiagnostics({ silent: false }); return; }
   if (action === 'applyAppUpdate') { await applyAppUpdate(); return; }
   if (action === 'skipOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; render(); return; }
   if (action === 'setTrip') { await putSetting('currentTripId', id); state.currentTripId = id; state.selectedPersonId = preferredPersonIdForTrip(id); render(); return; }
@@ -679,6 +883,9 @@ function render() {
   setOnlineState();
   scheduleViewportLayout();
   if (state.route === 'track') requestAnimationFrame(() => centerActivePersonQuickSwitch(view));
+  if (state.route === 'settings' && !state.offlineDiagnostics && !offlineDiagnosticsRunning) {
+    setTimeout(() => runOfflineDiagnostics({ silent: true }), 0);
+  }
 }
 
 function effectiveTheme() {
@@ -1487,9 +1694,15 @@ function viewSettings() {
         ${infoRow('App-Version', APP_VERSION)}
         ${infoRow('Barkarten-Version', b.version || 'unbekannt')}
         ${infoRow('Geräte-ID', state.settings.deviceId || '')}
-        ${infoRow('Offline-Status', state.online ? 'Online - Cache wird aktualisiert' : 'Offline - lokale Nutzung')}
+        ${infoRow('Verbindung', state.online ? 'Online' : 'Offline')}
         <div class="infoRow"><span>Update-Status</span><code id="updateStatusValue">${esc(updateStateLabel())}</code></div>
         ${infoRow('Speicher', 'IndexedDB lokal auf diesem Gerät')}
+      </div>
+      <div class="card offlineSafetyCard">
+        <div class="sectionHead"><div><h2>Offline-Sicherheitsstatus</h2><p class="hint">Prüft Installation, Service Worker, App-Cache und lokalen Datenspeicher.</p></div><span id="offlineDiagnosticsSummary" class="diagnosticSummary ${esc(offlineDiagnosticsSummary().level)}">${esc(offlineDiagnosticsSummary().label)}</span></div>
+        <div id="offlineDiagnosticsResults" class="diagnosticList">${offlineDiagnosticsContentHtml()}</div>
+        <button id="offlineDiagnosticsButton" class="secondary" data-action="runOfflineDiagnostics" ${offlineDiagnosticsRunning ? 'disabled' : ''}>${offlineDiagnosticsRunning ? 'Prüfung läuft …' : 'Offline-Status prüfen'}</button>
+        <p class="hint">Die Diagnose löscht oder verändert keine Reisen und Buchungen. Für den endgültigen Praxistest CruiseSip einmal im Flugmodus vollständig neu öffnen.</p>
       </div>
       <div class="card themeCard"><div class="sectionHead"><h2>Darstellung</h2><span class="subtle">${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}</span></div>
         <div class="themeSwitch" role="group" aria-label="Farbdarstellung wählen">
@@ -1989,6 +2202,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.8</h2>
+  <ul>
+    <li>Offline-Sicherheitsstatus im Setup ergänzt.</li>
+    <li>Prüft Home-Bildschirm-Modus, Service Worker, aktuellen App-Cache, IndexedDB-Schreibfähigkeit und Speicherverwaltung.</li>
+    <li>Ein echter Offline-Start wird separat ausgewiesen; die Diagnose verändert keine Reisen oder Buchungen.</li>
+  </ul>
   <h2>Version 4.3.7</h2>
   <ul>
     <li>Beim Wechsel des Getränks in einer Verlaufskorrektur wird der aktuelle Barkartenpreis sofort automatisch eingetragen.</li>
