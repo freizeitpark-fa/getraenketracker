@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.3.0';
+const APP_VERSION = '4.3.1';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -308,6 +308,10 @@ function bindShell() {
   $('#fileInput').addEventListener('change', handleFileInput);
   window.addEventListener('resize', scheduleViewportLayout);
   window.addEventListener('orientationchange', () => setTimeout(scheduleViewportLayout, 250));
+  const themeMedia = window.matchMedia?.('(prefers-color-scheme: dark)');
+  if (themeMedia?.addEventListener) themeMedia.addEventListener('change', () => {
+    if (!['light', 'dark'].includes(state.settings.theme)) applyTheme();
+  });
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', scheduleViewportLayout);
     window.visualViewport.addEventListener('scroll', scheduleViewportLayout);
@@ -356,6 +360,7 @@ async function handleClick(event) {
   if (!action) return;
 
   if (action === 'finishOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; await loadState(); render(); return; }
+  if (action === 'setTheme') { await setTheme(id); return; }
   if (action === 'skipOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; render(); return; }
   if (action === 'setTrip') { await putSetting('currentTripId', id); state.currentTripId = id; state.selectedPersonId = currentPersons()[0]?.id || null; render(); return; }
   if (action === 'editTrip') { fillTripForm(id); return; }
@@ -498,13 +503,42 @@ function render() {
   scheduleViewportLayout();
 }
 
+function effectiveTheme() {
+  if (state.settings.theme === 'light' || state.settings.theme === 'dark') return state.settings.theme;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme() {
+  const theme = effectiveTheme();
+  document.documentElement.dataset.theme = theme;
+  const lightMeta = document.querySelector('meta[name="theme-color"][media*="light"]');
+  const darkMeta = document.querySelector('meta[name="theme-color"][media*="dark"]');
+  const selectedColor = theme === 'dark' ? '#05070b' : '#f5f5f7';
+  if (state.settings.theme === 'light' || state.settings.theme === 'dark') {
+    if (lightMeta) lightMeta.content = selectedColor;
+    if (darkMeta) darkMeta.content = selectedColor;
+  } else {
+    if (lightMeta) lightMeta.content = '#f5f5f7';
+    if (darkMeta) darkMeta.content = '#05070b';
+  }
+}
+
+async function setTheme(theme) {
+  if (!['light', 'dark'].includes(theme)) return;
+  await putSetting('theme', theme);
+  applyTheme();
+  render();
+  toast(theme === 'dark' ? 'Dunkle Ansicht aktiviert' : 'Helle Ansicht aktiviert');
+  haptic();
+}
+
 function updateShell() {
   const trip = currentTrip();
   $('#appVersion').textContent = `v${APP_VERSION}`;
   $('#tripTitle').textContent = state.route === 'track' ? `Tracken${trip ? ' · ' + short(trip.name, 18) : ''}` : (trip ? short(trip.name, 24) : 'Keine Reise');
   $('#onlineDot').textContent = state.online ? 'Online' : 'Offline';
   $$('.navButton').forEach(b => b.classList.toggle('active', b.dataset.route === state.route || (state.route === 'onboarding' && b.dataset.route === 'settings')));
-  document.documentElement.dataset.theme = state.settings.theme || 'system';
+  applyTheme();
   document.documentElement.dataset.route = state.route || 'dashboard';
 }
 
@@ -1179,6 +1213,13 @@ function viewSettings() {
         ${infoRow('Offline-Status', state.online ? 'Online - Cache wird aktualisiert' : 'Offline - lokale Nutzung')}
         ${infoRow('Speicher', 'IndexedDB lokal auf diesem Gerät')}
       </div>
+      <div class="card themeCard"><div class="sectionHead"><h2>Darstellung</h2><span class="subtle">${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}</span></div>
+        <div class="themeSwitch" role="group" aria-label="Farbdarstellung wählen">
+          <button class="themeOption ${effectiveTheme() === 'light' ? 'active' : ''}" data-action="setTheme" data-id="light" aria-pressed="${effectiveTheme() === 'light'}"><span aria-hidden="true">☀</span><b>Hell</b></button>
+          <button class="themeOption ${effectiveTheme() === 'dark' ? 'active' : ''}" data-action="setTheme" data-id="dark" aria-pressed="${effectiveTheme() === 'dark'}"><span aria-hidden="true">☾</span><b>Dunkel</b></button>
+        </div>
+        <p class="hint">Die Auswahl wird ausschließlich lokal auf diesem Gerät gespeichert.</p>
+      </div>
       <div class="card"><h2>Verwaltung</h2><div class="buttonStack"><button class="secondary" data-route="trips">Reisen verwalten</button><button class="secondary" data-route="devices">Geräte & Personen</button><button class="secondary" data-route="barkarte">Barkarte verwalten</button></div></div>
       <div class="card"><h2>Aktionen</h2><div class="buttonStack"><button class="secondary" data-route="changelog">Changelog öffnen</button><button class="secondary" data-action="reRunOnboarding">Onboarding erneut anzeigen</button><button class="secondary" data-action="backupTest">Backup-Test starten</button></div></div>
       <div class="card"><h2>Offline-Hinweis</h2><p>Für die Kreuzfahrt: App vor Abfahrt einmal online öffnen, über Safari zum Home-Bildschirm hinzufügen, danach kurz im Flugmodus starten und einen Backup-Test durchführen.</p></div>
@@ -1599,6 +1640,11 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.1</h2>
+  <ul>
+    <li>Persistenter Wechsler zwischen heller und dunkler Ansicht im Setup ergänzt.</li>
+    <li>Abstände zwischen Schnellzugriff, Favoriten und zuletzt getrunkenen Getränken auf der Home-Seite vereinheitlicht.</li>
+  </ul>
   <h2>Version 4.3.0</h2>
   <ul>
     <li>Tagesübersicht auf der Home-Seite mit Paketstatus, Personenaufteilung und letzter Erfassung ergänzt.</li>

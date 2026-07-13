@@ -1,5 +1,16 @@
 # Roadmap CruiseSip
 
+## Version 4.3.1 Darstellung
+
+- Wechsler zwischen heller und dunkler Ansicht im Setup
+- Persistente lokale Auswahl ohne Backend
+- Einheitliche Abstände der Home-Kacheln
+
+## Version 4.3.0 Tagesübersicht
+
+- Paketstatus und Barkartenwert des aktuellen Tages
+- Personenaufteilung und letzte Erfassung
+
 ## Version 4.2.0 Tracken-Ansicht
 
 - Große iPhone-taugliche Getränkekacheln

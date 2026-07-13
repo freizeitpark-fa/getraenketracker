@@ -3,6 +3,23 @@
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 
+## 4.3.1 - Helle und dunkle Ansicht
+
+### Neu / verbessert
+
+- Im Setup einen direkt antippbaren Wechsler zwischen heller und dunkler Ansicht ergänzt.
+- Gewählte Darstellung wird dauerhaft und ausschließlich lokal im bestehenden Einstellungs-Speicher abgelegt.
+- Statusleisten- und PWA-Theme-Farbe werden an die gewählte Ansicht angepasst.
+- Abstände zwischen den Home-Kacheln `Schnellzugriff`, `Favoriten` und `Zuletzt getrunken` auf einheitlich 12 Pixel gesetzt.
+- Bestehende Tracking-, Such-, Favoriten-, Rückgängig-, Formular- und Navigationslogik wurde nicht verändert.
+
+### Technisch
+
+- App-Version auf `4.3.1` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-3-1-20260713a` erhöht.
+- Bereits vorhandene Theme-Einstellung gezielt um eine sichtbare Bedienoberfläche und konsistente explizite Hell-/Dunkel-Styles erweitert.
+
+
 ## 4.3.0 - Tagesübersicht auf der Home-Seite
 
 ### Neu / verbessert

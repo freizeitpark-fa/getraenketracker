@@ -4,16 +4,16 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.2.0**
+Aktuelle Entwicklungsfassung: **4.3.1**
 
-Version 4.2.0 erweitert die stabile 4.1.0-Basis um eine iPhone-optimierte Tracken-Ansicht mit großen Getränkekacheln. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.3.1 ergänzt die Tagesübersicht um eine lokal gespeicherte helle beziehungsweise dunkle Ansicht und vereinheitlicht die Abstände der Home-Kacheln. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 ## GitHub Pages Veröffentlichung
 
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.2.0 Tracken-Ansicht`.
+4. Commit erstellen, z. B. `CruiseSip v4.3.1 Hell-Dunkel-Ansicht`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
@@ -55,6 +55,7 @@ CruiseSip/
 - Barkartenimport mit Preis- und Paketvergleich
 - Artikelverwaltung für manuelle Preis- und Paketstatus-Anpassungen je Getränkepaket
 - Offline-Onboarding und Backup-Test
+- lokal gespeicherter Wechsler zwischen heller und dunkler Ansicht
 
 ## Technische Hinweise
 

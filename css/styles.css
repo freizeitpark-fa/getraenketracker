@@ -852,3 +852,16 @@ html[data-route="track"] .drinkUsage{
 
 /* Tagesuebersicht Home v4.3.0 */
 .dailyOverview{display:grid;gap:12px}.dailyOverview .sectionHead{align-items:flex-start}.dailyDate{font-size:12px;text-transform:capitalize}.dailyStatusGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.dailyStatus{min-width:0;border:1px solid var(--line);border-radius:15px;background:var(--cardSolid);padding:9px}.dailyStatus span,.dailyStatus strong{display:block}.dailyStatus span{font-size:10px;color:var(--muted);font-weight:800;white-space:nowrap}.dailyStatus strong{margin-top:4px;font-size:14px;letter-spacing:-.02em;white-space:nowrap}.dailyStatus.included{border-color:color-mix(in srgb,var(--ok) 26%,var(--line))}.dailyStatus.outside{border-color:color-mix(in srgb,var(--bad) 24%,var(--line))}.dailyStatus.unclear{border-color:color-mix(in srgb,var(--warn) 28%,var(--line))}.dailyPersonList{display:grid;gap:7px}.dailyPersonRow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;border-left:5px solid var(--person);border-radius:13px;background:var(--cardSolid);padding:9px 10px}.dailyPersonRow b,.dailyPersonRow small{display:block}.dailyPersonRow b{font-size:14px}.dailyPersonRow small{margin-top:2px;color:var(--muted);font-size:11px}.dailyPersonRow strong{font-size:14px;color:var(--brand2);white-space:nowrap}.dailyLatest{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;border-top:1px solid var(--line);padding-top:11px}.dailyLatest span{grid-column:1/-1;color:var(--muted);font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}.dailyLatest b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.dailyLatest small{color:var(--muted);font-size:11px;white-space:nowrap}.dailyEmpty{padding:8px 4px 4px}@media(max-width:350px){.dailyStatusGrid{grid-template-columns:1fr}.dailyStatus{display:grid;grid-template-columns:1fr auto;align-items:center}.dailyStatus strong{margin-top:0}}
+
+
+/* Darstellung und Home-Abstaende v4.3.1 */
+#dashboardQuick{display:grid;gap:12px}
+.themeCard{display:grid;gap:12px}.themeCard .sectionHead h2{margin:0}.themeSwitch{display:grid;grid-template-columns:1fr 1fr;gap:9px}.themeOption{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border:1px solid var(--line);border-radius:17px;background:var(--cardSolid);color:var(--muted);font-weight:850}.themeOption span{font-size:21px;line-height:1}.themeOption b{font-size:14px}.themeOption.active{border-color:var(--brand);background:rgba(10,132,255,.12);color:var(--brand2);box-shadow:inset 0 0 0 1px rgba(10,132,255,.1)}
+html[data-theme="light"] .topBar{background:linear-gradient(to bottom,var(--bg) 72%,rgba(245,245,247,0))}
+html[data-theme="dark"] .topBar{background:linear-gradient(to bottom,var(--bg) 72%,rgba(5,7,11,0))}
+html[data-theme="light"] .stickyHeader{background:linear-gradient(to bottom,var(--bg) 88%,rgba(245,245,247,0))}
+html[data-theme="dark"] .stickyHeader{background:linear-gradient(to bottom,var(--bg) 88%,rgba(5,7,11,0))}
+html[data-theme="light"] .bottomNav{background:rgba(255,255,255,.82)}
+html[data-theme="dark"] .bottomNav{background:rgba(28,28,30,.82)}
+html[data-theme="light"] .undoDock{background:rgba(238,248,255,.94)}
+html[data-theme="dark"] .undoDock{background:rgba(10,32,56,.94)}
