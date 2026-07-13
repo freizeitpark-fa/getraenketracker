@@ -1,7 +1,7 @@
 'use strict';
 
-const APP_VERSION = '4.4.1';
-const APP_CACHE_NAME = 'cruisesip-v4-4-1-20260713a';
+const APP_VERSION = '4.4.2';
+const APP_CACHE_NAME = 'cruisesip-v4-4-2-20260713a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -10,6 +10,11 @@ const CACHE_HINT = 'GitHub Pages / PWA / Offline';
 const FULL_BACKUP_TYPE = 'CruiseSipFullBackup';
 const FULL_BACKUP_FORMAT_VERSION = 1;
 const FULL_BACKUP_MAX_BYTES = 25 * 1024 * 1024;
+const TRIP_EXPORT_TYPE = 'CruiseSipTripExport';
+const LEGACY_TRIP_EXPORT_TYPE = 'CruiseSipExport';
+const TRIP_EXPORT_FORMAT_VERSION = 2;
+const TRIP_EXPORT_MAX_BYTES = 25 * 1024 * 1024;
+const TRIP_EXPORT_MAX_FILES = 20;
 
 const STORE_NAMES = ['settings', 'trips', 'persons', 'drinks', 'logs', 'imports', 'barkarten'];
 const PERSON_COLORS = ['#e0f2fe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#ccfbf1', '#f1f5f9'];
@@ -618,8 +623,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.4.1a',
-    './js/app.js?v=4.4.1a',
+    './css/styles.css?v=4.4.2a',
+    './js/app.js?v=4.4.2a',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -893,25 +898,34 @@ function openFile(mode) {
   state.pendingFileMode = mode;
   const input = $('#fileInput');
   input.value = '';
+  input.multiple = mode === 'trip';
   input.accept = mode === 'barkarte' ? '.json,.csv,application/json,text/csv' : '.json,application/json';
   input.click();
 }
 
 async function handleFileInput(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
+  const files = Array.from(event.target.files || []);
+  if (!files.length) return;
   try {
+    if (state.pendingFileMode === 'trip') {
+      if (files.length > TRIP_EXPORT_MAX_FILES) throw new Error(`Bitte höchstens ${TRIP_EXPORT_MAX_FILES} Geräteexporte gleichzeitig auswählen.`);
+      const oversized = files.find(file => file.size > TRIP_EXPORT_MAX_BYTES);
+      if (oversized) throw new Error(`Die Datei „${oversized.name}“ ist größer als 25 MB.`);
+      await importTripFiles(files);
+      return;
+    }
+    const file = files[0];
     if (state.pendingFileMode === 'fullBackup' && file.size > FULL_BACKUP_MAX_BYTES) {
       throw new Error('Die Backupdatei ist größer als 25 MB und wird aus Sicherheitsgründen nicht eingelesen.');
     }
     const text = await file.text();
-    if (state.pendingFileMode === 'trip') await importTrip(text, file.name);
     if (state.pendingFileMode === 'barkarte') await importBarkarte(text, file.name);
     if (state.pendingFileMode === 'fullBackup') await prepareFullBackupImport(text, file.name);
   } catch (error) {
     alert(`Import nicht möglich: ${error.message || error}`);
   } finally {
     state.pendingFileMode = null;
+    event.target.multiple = false;
     event.target.value = '';
   }
 }
@@ -1657,7 +1671,7 @@ function viewDevices() {
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
       </form>
       <div class="card"><h2>Personen dieser Reise</h2><div class="itemList">${currentPersons().map(personCardHtml).join('') || '<p class="emptyText">Noch keine Personen angelegt.</p>'}</div></div>
-      <div class="card"><h2>Export / Zusammenführen</h2><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Export importieren und zusammenführen</button><button class="secondary" data-action="exportFullBackup">Vollständiges Backup</button></div><p class="hint">Dublettenerkennung erfolgt über Geräte-ID und ursprüngliche Eintrags-ID. Mehrfachimporte desselben Geräteexports werden übersprungen.</p></div>
+      <div class="card"><h2>Export / Geräteabgleich</h2><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und zusammenführen</button><button class="secondary" data-action="exportFullBackup">Vollständiges Backup</button></div><p class="hint">Du kannst bis zu 20 Reiseexporte gleichzeitig auswählen. Reisen und Personen werden über ihre stabilen IDs erkannt; Buchungsdubletten werden über den Merge-Key übersprungen.</p></div>
       <div class="card"><div class="sectionHead"><h2>Importprotokoll</h2><button class="mini" data-action="clearImportLog">Leeren</button></div>${importLogHtml()}</div>
     </section>`;
 }
@@ -1667,7 +1681,7 @@ function personCardHtml(person) {
 }
 function importLogHtml() {
   if (!state.imports.length) return '<p class="emptyText">Noch keine Importe.</p>';
-  return `<div class="statList">${state.imports.slice(0, 10).map(i => `<div class="statRow"><div><b>${esc(i.fileName || 'Import')}</b><small>${esc(formatDateTime(Date.parse(i.importedAt)))} · neu ${i.added || 0} · doppelt ${i.duplicates || 0}</small></div><strong>${esc(i.kind || '')}</strong></div>`).join('')}</div>`;
+  return `<div class="statList">${state.imports.slice(0, 10).map(i => `<div class="statRow"><div><b>${esc(i.fileName || 'Import')}</b><small>${esc(formatDateTime(Date.parse(i.importedAt)))} · neu ${i.added || 0} · doppelt ${i.duplicates || 0}${i.conflicts ? ` · Konflikte ${i.conflicts}` : ''}</small></div><strong>${esc(i.kind || '')}</strong></div>`).join('')}</div>`;
 }
 
 function viewBarkarte() {
@@ -2220,8 +2234,7 @@ async function exportFullBackup() {
   };
   payload.integrity = { algorithm: 'SHA-256', digest: await sha256Hex(stableStringify(payload)) };
   const result = await saveJsonFile(`CruiseSip_Vollbackup_${safeFile(deviceName)}_${localBackupFileStamp()}.json`, payload, {
-    title: 'CruiseSip Vollbackup',
-    text: 'Vollständige lokale CruiseSip-Datensicherung. Zum Ablegen einen Zielordner über „In Dateien sichern“ auswählen.'
+    title: 'CruiseSip Vollbackup'
   });
   if (result.cancelled) { toast('Speichern des Vollbackups abgebrochen'); return; }
   await putSetting('lastFullBackupAt', exportedAt);
@@ -2558,20 +2571,29 @@ function fullBackupPreviewHtml() {
 async function exportTrip() {
   const trip = currentTrip();
   if (!trip) return;
+  const persons = currentPersons().map(cloneRow);
+  const logs = currentLogs().map(log => {
+    const copy = cloneRow(log);
+    copy.mergeKey = logMergeKey(copy, state.settings.deviceId || '');
+    return copy;
+  });
   const payload = {
-    type: 'CruiseSipExport',
-    version: APP_VERSION,
+    type: TRIP_EXPORT_TYPE,
+    exportFormatVersion: TRIP_EXPORT_FORMAT_VERSION,
+    app: { name: APP_NAME, version: APP_VERSION },
+    exportId: `trip_export_${uid()}`,
     exportedAt: nowIso(),
     device: { id: state.settings.deviceId, name: state.settings.deviceName },
     barkarteVersion: activeBarkarteVersion(),
-    trip,
-    persons: currentPersons(),
-    logs: currentLogs(),
-    favorites: favoriteIds()
+    trip: cloneRow(trip),
+    persons,
+    logs,
+    favorites: favoriteIds(),
+    summary: { persons: persons.length, logs: logs.length }
   };
-  const result = await saveJsonFile(`CruiseSip_${safeFile(trip.name)}_${new Date().toISOString().slice(0, 10)}.json`, payload, {
-    title: `CruiseSip Reiseexport – ${trip.name}`,
-    text: 'CruiseSip-Reiseexport für den manuellen Geräteabgleich.'
+  payload.integrity = { algorithm: 'SHA-256', digest: await sha256Hex(stableStringify(tripExportPayloadWithoutIntegrity(payload))) };
+  const result = await saveJsonFile(`CruiseSip_${safeFile(trip.name)}_${safeFile(state.settings.deviceName || 'Geraet')}_${localBackupFileStamp()}.json`, payload, {
+    title: `CruiseSip Reiseexport – ${trip.name}`
   });
   if (result.cancelled) toast('Speichern des Reiseexports abgebrochen');
   else toast(result.method === 'share' ? 'Reiseexport zum Speichern bereitgestellt' : 'Reiseexport wurde heruntergeladen');
@@ -2580,8 +2602,7 @@ async function backupTest() {
   const createdAt = nowIso();
   const payload = { type: 'CruiseSipBackupTest', version: APP_VERSION, createdAt, deviceId: state.settings.deviceId, tripId: state.currentTripId, message: 'Backup-Test erfolgreich erstellt.' };
   const result = await saveJsonFile(`CruiseSip_Backup_Test_${new Date().toISOString().slice(0, 10)}.json`, payload, {
-    title: 'CruiseSip Backup-Test',
-    text: 'Testdatei zur Prüfung des lokalen Speicherns über die iPhone-Dateien-App.'
+    title: 'CruiseSip Backup-Test'
   });
   if (result.cancelled) { toast('Backup-Test abgebrochen'); return; }
   await putSetting('lastBackupTestAt', createdAt);
@@ -2624,11 +2645,9 @@ async function saveJsonFile(filename, payload, options = {}) {
     }
     if (shareFile) {
       try {
-        await navigator.share({
-          files: [shareFile],
-          title: options.title || 'CruiseSip JSON-Datei',
-          text: options.text || 'CruiseSip-Datendatei'
-        });
+        const shareData = { files: [shareFile] };
+        if (options.title) shareData.title = options.title;
+        await navigator.share(shareData);
         return { method: 'share', cancelled: false };
       } catch (error) {
         if (error?.name === 'AbortError') return { method: 'share', cancelled: true };
@@ -2640,33 +2659,180 @@ async function saveJsonFile(filename, payload, options = {}) {
   return { method: 'download', cancelled: false };
 }
 function safeFile(value) { return String(value || 'Reise').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'Reise'; }
+function tripExportPayloadWithoutIntegrity(payload) {
+  const copy = { ...payload };
+  delete copy.integrity;
+  return copy;
+}
+function isSupportedTripExport(payload) {
+  return payload?.type === TRIP_EXPORT_TYPE || payload?.type === LEGACY_TRIP_EXPORT_TYPE;
+}
+async function validateTripExportPayload(payload, fileName = 'Geräteexport') {
+  const errors = [];
+  const warnings = [];
+  if (!isPlainRecord(payload) || !isSupportedTripExport(payload)) errors.push(`${fileName}: Keine gültige CruiseSip-Reiseexportdatei.`);
+  const isV2 = payload?.type === TRIP_EXPORT_TYPE;
+  if (isV2 && payload.exportFormatVersion !== TRIP_EXPORT_FORMAT_VERSION) errors.push(`${fileName}: Exportformat ${payload.exportFormatVersion ?? 'unbekannt'} wird nicht unterstützt.`);
+  if (!isPlainRecord(payload?.trip) || typeof payload.trip.id !== 'string' || !payload.trip.id.trim()) errors.push(`${fileName}: Die Reise besitzt keine stabile ID.`);
+  if (!Array.isArray(payload?.persons)) errors.push(`${fileName}: Personenliste fehlt.`);
+  if (!Array.isArray(payload?.logs)) errors.push(`${fileName}: Buchungsliste fehlt.`);
+  if (!payload?.device?.id) errors.push(`${fileName}: Geräte-ID fehlt; eine sichere Dublettenprüfung ist nicht möglich.`);
+  const personIds = new Set();
+  for (const person of payload?.persons || []) {
+    if (!isPlainRecord(person) || typeof person.id !== 'string' || !person.id.trim()) { errors.push(`${fileName}: Eine Person besitzt keine stabile ID.`); continue; }
+    if (personIds.has(person.id)) errors.push(`${fileName}: Personen-ID „${person.id}“ ist mehrfach enthalten.`);
+    personIds.add(person.id);
+    if (person.tripId && person.tripId !== payload.trip?.id) errors.push(`${fileName}: Person „${person.name || person.id}“ ist einer anderen Reise zugeordnet.`);
+  }
+  const mergeKeys = new Set();
+  for (const log of payload?.logs || []) {
+    if (!isPlainRecord(log) || typeof log.id !== 'string' || !log.id.trim()) { errors.push(`${fileName}: Eine Buchung besitzt keine ID.`); continue; }
+    if (log.tripId && log.tripId !== payload.trip?.id) errors.push(`${fileName}: Eine Buchung ist einer anderen Reise zugeordnet.`);
+    if (!personIds.has(log.personId)) errors.push(`${fileName}: Buchung „${log.id}“ verweist auf eine nicht enthaltene Person.`);
+    const key = logMergeKey(log, payload.device?.id || '');
+    if (!key) errors.push(`${fileName}: Buchung „${log.id}“ besitzt keinen stabilen Merge-Key.`);
+    else if (mergeKeys.has(key)) errors.push(`${fileName}: Merge-Key „${key}“ ist mehrfach enthalten.`);
+    else mergeKeys.add(key);
+  }
+  if (isV2) {
+    if (payload?.integrity?.algorithm !== 'SHA-256' || !payload?.integrity?.digest) errors.push(`${fileName}: Integritätsprüfung fehlt.`);
+    else {
+      const actual = await sha256Hex(stableStringify(tripExportPayloadWithoutIntegrity(payload)));
+      if (actual !== payload.integrity.digest) errors.push(`${fileName}: Integritätsprüfung fehlgeschlagen.`);
+    }
+  } else {
+    warnings.push(`${fileName}: Älterer Reiseexport ohne Prüfsumme; Import wird kompatibel durchgeführt.`);
+  }
+  return { errors, warnings, isV2 };
+}
+function canonicalTripLog(log) {
+  const copy = cloneRow(log);
+  delete copy.id;
+  delete copy.originId;
+  delete copy.mergeKey;
+  delete copy.importedAt;
+  delete copy.updatedAt;
+  delete copy.personName;
+  delete copy.trackedByDeviceName;
+  return copy;
+}
+function tripLogsEqual(left, right) {
+  return stableStringify(canonicalTripLog(left)) === stableStringify(canonicalTripLog(right));
+}
+async function importTripFiles(files) {
+  const parsed = [];
+  for (const file of files) {
+    let payload;
+    try { payload = JSON.parse(await file.text()); }
+    catch (_) { throw new Error(`Die Datei „${file.name}“ enthält kein gültiges JSON.`); }
+    const validation = await validateTripExportPayload(payload, file.name);
+    if (validation.errors.length) throw new Error(validation.errors[0]);
+    parsed.push({ file, payload, validation });
+  }
 
-async function importTrip(text, fileName) {
-  const payload = JSON.parse(text);
-  if (!payload || payload.type !== 'CruiseSipExport') throw new Error('Keine gültige CruiseSip-Exportdatei.');
-  if (!currentTrip()) throw new Error('Bitte zuerst eine Zielreise anlegen.');
-  const existingPersons = currentPersons();
-  const personMap = new Map();
-  for (const imported of payload.persons || []) {
-    const match = existingPersons.find(p => normalize(p.name) === normalize(imported.name));
-    if (match) { personMap.set(imported.id, match.id); continue; }
-    const id = `person_${uid()}`;
-    personMap.set(imported.id, id);
-    await put('persons', { ...imported, id, tripId: state.currentTripId, color: PERSON_COLORS[(existingPersons.length + personMap.size) % PERSON_COLORS.length], createdAt: nowIso(), updatedAt: nowIso() });
+  const local = await readAllStoresSnapshot();
+  const rows = Object.fromEntries(STORE_NAMES.map(store => [store, []]));
+  const tripById = new Map((local.trips || []).map(row => [row.id, row]));
+  const personById = new Map((local.persons || []).map(row => [row.id, row]));
+  const logByKey = new Map((local.logs || []).map(row => [logMergeKey(row, state.settings.deviceId || ''), row]));
+  const usedLogIds = new Set((local.logs || []).map(row => row.id));
+  const summary = { files: parsed.length, trips: 0, persons: 0, logs: 0, duplicates: 0, conflicts: 0, nameWarnings: 0, legacyFiles: 0 };
+  const importedTripIds = [];
+
+  for (const { file, payload, validation } of parsed) {
+    if (!validation.isV2) summary.legacyFiles += 1;
+    const trip = cloneRow(payload.trip);
+    const tripId = trip.id;
+    importedTripIds.push(tripId);
+    const existingTrip = tripById.get(tripId);
+    let fileConflicts = 0;
+    let fileAddedLogs = 0;
+    let fileDuplicates = 0;
+    if (!existingTrip) {
+      trip.createdAt = trip.createdAt || nowIso();
+      trip.updatedAt = trip.updatedAt || nowIso();
+      rows.trips.push(trip);
+      tripById.set(tripId, trip);
+      summary.trips += 1;
+    } else if (!rowsMeaningfullyEqual('trips', existingTrip, trip)) {
+      summary.conflicts += 1;
+      fileConflicts += 1;
+    }
+
+    for (const incomingPerson of payload.persons || []) {
+      const person = cloneRow(incomingPerson);
+      person.tripId = tripId;
+      const existingPerson = personById.get(person.id);
+      if (!existingPerson) {
+        const sameName = Array.from(personById.values()).find(row => row.tripId === tripId && normalize(row.name) === normalize(person.name) && row.id !== person.id);
+        if (sameName) summary.nameWarnings += 1;
+        person.createdAt = person.createdAt || nowIso();
+        person.updatedAt = person.updatedAt || nowIso();
+        rows.persons.push(person);
+        personById.set(person.id, person);
+        summary.persons += 1;
+      } else if (existingPerson.tripId !== tripId || !rowsMeaningfullyEqual('persons', existingPerson, person)) {
+        summary.conflicts += 1;
+        fileConflicts += 1;
+      }
+    }
+
+    for (const incomingLog of payload.logs || []) {
+      const key = logMergeKey(incomingLog, payload.device?.id || '');
+      const existingLog = logByKey.get(key);
+      if (existingLog) {
+        if (tripLogsEqual(existingLog, incomingLog)) {
+          summary.duplicates += 1;
+          fileDuplicates += 1;
+        } else {
+          summary.conflicts += 1;
+          fileConflicts += 1;
+        }
+        continue;
+      }
+      if (!tripById.has(tripId) || !personById.has(incomingLog.personId)) {
+        summary.conflicts += 1;
+        fileConflicts += 1;
+        continue;
+      }
+      const log = normalizeIncomingLog(incomingLog, payload.device?.id || '', usedLogIds);
+      log.tripId = tripId;
+      log.personId = incomingLog.personId;
+      log.personName = personById.get(log.personId)?.name || log.personName;
+      log.trackedByDeviceId = incomingLog.trackedByDeviceId || payload.device?.id || 'unknown';
+      log.trackedByDeviceName = incomingLog.trackedByDeviceName || payload.device?.name || 'Import';
+      rows.logs.push(log);
+      logByKey.set(key, log);
+      usedLogIds.add(log.id);
+      summary.logs += 1;
+      fileAddedLogs += 1;
+    }
+
+    rows.imports.push({
+      id: `import_${uid()}`,
+      kind: 'Geräteabgleich',
+      fileName: file.name,
+      importedAt: nowIso(),
+      sourceDeviceId: payload.device?.id || '',
+      sourceDeviceName: payload.device?.name || '',
+      tripId,
+      added: fileAddedLogs,
+      duplicates: fileDuplicates,
+      conflicts: fileConflicts,
+      exportId: payload.exportId || ''
+    });
   }
-  const existingKeys = new Set((await all('logs')).map(l => l.mergeKey || `${l.trackedByDeviceId || ''}:${l.originId || l.id}`));
-  let added = 0, duplicates = 0;
-  for (const imported of payload.logs || []) {
-    const mergeKey = imported.mergeKey || `${imported.trackedByDeviceId || payload.device?.id || 'unknown'}:${imported.originId || imported.id}`;
-    if (existingKeys.has(mergeKey)) { duplicates += 1; continue; }
-    const id = `log_${uid()}`;
-    await put('logs', { ...imported, id, originId: imported.originId || imported.id, mergeKey, tripId: state.currentTripId, personId: personMap.get(imported.personId) || imported.personId, trackedByDeviceId: imported.trackedByDeviceId || payload.device?.id || 'unknown', trackedByDeviceName: imported.trackedByDeviceName || payload.device?.name || 'Import', importedAt: nowIso(), updatedAt: nowIso() });
-    existingKeys.add(mergeKey);
-    added += 1;
-  }
-  await put('imports', { id: `import_${uid()}`, kind: 'Reise', fileName, importedAt: nowIso(), sourceDeviceId: payload.device?.id || '', sourceDeviceName: payload.device?.name || '', added, duplicates });
-  await loadState(); render();
-  toast(`Import abgeschlossen: ${added} neu, ${duplicates} doppelt`);
+
+  const currentId = activeTripId();
+  if (!currentId && importedTripIds[0]) rows.settings.push({ id: 'currentTripId', value: importedTripIds[0], updatedAt: nowIso() });
+  await putRowsAtomic(rows);
+  await loadState();
+  render();
+  const notices = [];
+  if (summary.nameWarnings) notices.push(`${summary.nameWarnings} gleichnamige Person(en) mit unterschiedlicher ID wurden getrennt beibehalten.`);
+  if (summary.legacyFiles) notices.push(`${summary.legacyFiles} ältere Exportdatei(en) wurden kompatibel importiert.`);
+  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${summary.files}\nNeue Reisen: ${summary.trips}\nNeue Personen: ${summary.persons}\nNeue Buchungen: ${summary.logs}\nBereits vorhanden: ${summary.duplicates}\nKonflikte: ${summary.conflicts}${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
+  toast(`${summary.logs} neue Buchungen · ${summary.duplicates} doppelt`);
 }
 
 function normalizeDrinks(drinks) {
@@ -2765,6 +2931,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.4.2</h2>
+  <ul>
+    <li>Bis zu 20 Reiseexporte können in einem Schritt ausgewählt und sicher zusammengeführt werden.</li>
+    <li>Reisen und Personen werden anhand stabiler IDs erkannt; gleichnamige Personen mit unterschiedlichen IDs bleiben getrennt.</li>
+    <li>Buchungen werden über ihren stabilen Merge-Key abgeglichen. Bereits vorhandene Buchungen werden übersprungen, abweichende Datensätze als Konflikt lokal beibehalten.</li>
+    <li>Reiseexporte erhalten Formatversion, Export-ID, Bestandsübersicht und SHA-256-Integritätsprüfung.</li>
+    <li>Beim iOS-Teilen wird nur noch die JSON-Datei übergeben; die zusätzliche Textdatei entfällt.</li>
+  </ul>
   <h2>Version 4.4.1</h2>
   <ul>
     <li>Vollbackup, Reiseexport und Backup-Test öffnen auf unterstützten iPhones und iPads das native Teilen-Menü.</li>

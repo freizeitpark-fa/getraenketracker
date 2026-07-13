@@ -1,4 +1,6 @@
-# Offline-Nutzung auf dem iPhone
+# Offline-Nutzung
+
+Aktueller Stand: **CruiseSip 4.4.2**. Geräteexporte werden weiterhin vollständig offline als lokale JSON-Dateien erstellt und manuell über die Dateien-App zusammengeführt. auf dem iPhone
 
 ## Einrichtung vor der Kreuzfahrt
 

@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.4.1**
+Aktuelle Entwicklungsfassung: **4.4.2**
 
-Version 4.4.1 öffnet für Vollbackup, Reiseexport und Backup-Test auf unterstützten iPhones und iPads das native Teilen-Menü. Über „In Dateien sichern“ kann der gewünschte Zielordner ausgewählt werden. Das vollständige Backupformat, die Importvorschau und die sichere Zusammenführung aus Version 4.4.0 bleiben unverändert erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.4.2 erweitert den manuellen Geräteabgleich: Bis zu 20 Reiseexporte können gleichzeitig ausgewählt werden. Reisen und Personen werden anhand stabiler IDs zusammengeführt; Buchungsdubletten werden über den Merge-Key erkannt. Reiseexporte besitzen zusätzlich eine SHA-256-Integritätsprüfung. Beim iOS-Teilen wird nur noch die JSON-Datei übergeben, sodass keine zusätzliche Textdatei entsteht. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,7 +20,7 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.4.1 Dateien-App-Export`.
+4. Commit erstellen, z. B. `CruiseSip v4.4.2 Geräteabgleich`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.

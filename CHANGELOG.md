@@ -1,5 +1,34 @@
 # Changelog
 
+## 4.4.2 – Mehrere Geräteexporte sicher zusammenführen
+
+### Neu
+
+- Bis zu 20 Reiseexporte können gleichzeitig über die Dateien-App ausgewählt und in einem Schritt zusammengeführt werden.
+- Reiseexporte verwenden das neue Format `CruiseSipTripExport` mit Formatversion `2`, Export-ID, App-Version, Gerätekennung, Bestandsübersicht und SHA-256-Integritätsprüfung.
+- Fehlende Reisen und Personen werden mit ihren bestehenden stabilen IDs ergänzt. Dadurch können alle Geräte weiterhin für jede gemeinsame Person buchen.
+- Buchungen werden geräteübergreifend über ihren stabilen `mergeKey` erkannt und bei Mehrfachimporten nicht doppelt angelegt.
+- Ältere Reiseexporte vom Typ `CruiseSipExport` bleiben importierbar und werden als kompatibler Altbestand protokolliert.
+- Nach dem Abgleich erscheint eine Zusammenfassung zu Dateien, neuen Reisen, Personen, Buchungen, Dubletten und Konflikten.
+
+### Sicherheit
+
+- Der gesamte Mehrdateiimport wird vor dem Schreiben validiert. Eine fehlerhafte Datei bricht den Vorgang ab, bevor lokale Daten verändert werden.
+- Gleichnamige Personen mit unterschiedlichen IDs werden nicht automatisch zusammengeführt.
+- Bei derselben ID beziehungsweise demselben Merge-Key mit abweichenden Inhalten bleibt der lokale Datensatz unverändert; der Fall wird als Konflikt protokolliert.
+- Neue Datensätze mehrerer Dateien werden gemeinsam in einer atomaren IndexedDB-Transaktion geschrieben.
+
+### Behoben
+
+- Beim iOS-Teilen wird nur noch die eigentliche JSON-Datei übergeben. Der zusätzliche Freigabetext, der in der Dateien-App als separate Textdatei erscheinen konnte, wurde entfernt.
+
+### Technisch
+
+- App-Version auf `4.4.2` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-4-2-20260713a` erhöht.
+- IndexedDB-Name `cruisesip_v4` und Datenbankversion `1` bleiben unverändert.
+- Barkarte, Paketdaten, Navigation und bestehende lokale Daten bleiben unverändert.
+
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
 ## 4.4.1 – Speichern über die iPhone-Dateien-App

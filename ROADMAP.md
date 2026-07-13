@@ -1,5 +1,13 @@
 # Roadmap CruiseSip
 
+## Version 4.4.2 Geräteabgleich
+
+- Bis zu 20 Reiseexporte in einem Arbeitsschritt auswählen und atomar zusammenführen.
+- Reisen und Personen anhand stabiler IDs erkennen und fehlende Datensätze mit unveränderter ID ergänzen.
+- Buchungen über den stabilen Merge-Key deduplizieren; lokale Daten bei Konflikten nicht überschreiben.
+- Reiseexportformat mit Formatversion, Export-ID, Bestandsübersicht und SHA-256-Prüfsumme absichern.
+- Zusätzliche Textdatei beim iOS-Teilen entfernen.
+
 ## Version 4.4.1 Dateien-App-Export
 
 - Vollbackup, Reiseexport und Backup-Test über das native iOS-Teilen-Menü bereitstellen.

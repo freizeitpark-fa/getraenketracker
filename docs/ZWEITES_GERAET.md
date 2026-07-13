@@ -194,3 +194,18 @@ Nach jedem Import sollten kurz geprüft werden:
 - Analysewerte.
 
 Bei einer Warnung oder einem unerwarteten Konflikt den Import nicht als `Vollständig ersetzen` fortsetzen. Zunächst die vorhandenen Backupdateien aufbewahren und die angezeigten Angaben prüfen.
+
+## Mehrere Geräteexporte in einem Schritt zusammenführen
+
+Ab Version 4.4.2 können bis zu 20 Reiseexporte gleichzeitig ausgewählt werden:
+
+1. Auf den beteiligten Geräten jeweils `Aktuelle Reise exportieren` wählen.
+2. Die JSON-Dateien in einem gemeinsamen Ordner der Dateien-App ablegen.
+3. Auf dem Zielgerät `Geräteexporte auswählen und zusammenführen` antippen.
+4. In der Dateien-App mehrere JSON-Dateien markieren und öffnen.
+5. Die Abschlussmeldung zu neuen Reisen, Personen, Buchungen, Dubletten und Konflikten prüfen.
+
+Reisen und Personen werden anhand ihrer internen IDs erkannt. Dieselbe Person wird daher auch dann korrekt verwendet, wenn die Buchung auf einem anderen Gerät erfasst wurde. Gleichnamige Personen mit unterschiedlichen IDs werden bewusst nicht automatisch zusammengeführt.
+
+Bereits importierte Buchungen werden über ihren stabilen Merge-Key erkannt und übersprungen. Ein wiederholter Import derselben Dateien ist deshalb zulässig.
+
