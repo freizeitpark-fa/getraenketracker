@@ -2,6 +2,22 @@
 
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
+## 4.3.7 – Preis beim Getränkewechsel automatisch aktualisieren
+
+### Verbessert
+
+- Beim Wechsel des Getränks in der Verlaufskorrektur wird der aktuelle Preis aus der lokalen Barkarte sofort in das Preisfeld übernommen.
+- Der Paketstatus wird gleichzeitig passend zur ausgewählten Person und deren Getränkepaket neu bestimmt.
+- Zusätzliche Absicherung beim Speichern: Wurde das Getränk geändert und der Preis danach nicht bewusst manuell angepasst, wird immer der aktuelle Stammdatenpreis gespeichert.
+- Eine manuelle Preisabweichung bleibt für begründete Sonderfälle weiterhin möglich.
+
+### Technisch
+
+- Eigener, gezielter Change-Handler für Person und Getränk im Verlaufsformular; keine globalen Touch-, Click- oder Pointer-Hacks.
+- App-Version auf `4.3.7` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-3-7-20260713a` erhöht.
+- Keine Änderung an IndexedDB-Struktur, Barkarte, Paketdaten, Tracking-Erfassung oder Navigation.
+
 ## 4.3.6 – Fehlbuchungen direkt im Verlauf korrigieren
 
 ### Neu / verbessert

@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '4.3.6';
+const APP_VERSION = '4.3.7';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -442,6 +442,7 @@ function syncViewportLayout() {
 
 function bindShell() {
   document.addEventListener('click', handleClick);
+  document.addEventListener('change', handleLogEditDerivedChange, true);
   document.addEventListener('input', preserveFormDraft, true);
   document.addEventListener('change', preserveFormDraft, true);
   document.addEventListener('submit', handleSubmit);
@@ -474,9 +475,18 @@ function preserveFormDraft(event) {
   if (!section || !field.name) return;
   state.formDraft[section] = state.formDraft[section] || {};
   state.formDraft[section][field.name] = field.value;
-  if (form?.id === 'logEditForm' && (field.name === 'personId' || field.name === 'drinkId')) {
-    syncLogEditDerivedFields(form, field.name);
+  if (form?.id === 'logEditForm' && field.name === 'price' && event.isTrusted !== false) {
+    state.formDraft.log.priceManuallyChanged = true;
   }
+}
+function handleLogEditDerivedChange(event) {
+  const field = event.target;
+  if (!field?.matches?.('#logEditForm select[name="personId"], #logEditForm select[name="drinkId"]')) return;
+  const form = field.closest('#logEditForm');
+  if (!form) return;
+  state.formDraft.log = state.formDraft.log || {};
+  state.formDraft.log[field.name] = field.value;
+  syncLogEditDerivedFields(form, field.name);
 }
 function draftValue(section, name, fallback = '') {
   const draft = state.formDraft?.[section];
@@ -1119,7 +1129,7 @@ function logEditItemHtml(log, person) {
           <div class="formField"><label for="logPriceInput">Preis</label><input id="logPriceInput" name="price" type="text" inputmode="decimal" autocomplete="off" value="${esc(price)}"></div>
           <div class="formField"><label for="logStatusInput">Paketstatus</label><select id="logStatusInput" name="packageStatus"><option value="included" ${packageStatus === 'included' ? 'selected' : ''}>enthalten</option><option value="not_included" ${packageStatus === 'not_included' ? 'selected' : ''}>nicht enthalten</option><option value="unclear" ${packageStatus === 'unclear' ? 'selected' : ''}>unklar</option></select></div>
         </div>
-        <p class="logEditHint">Beim Wechsel von Person oder Getränk werden Preis und Paketstatus passend zur aktuellen Barkarte vorgeschlagen. Beide Werte bleiben vor dem Speichern prüfbar.</p>
+        <p class="logEditHint">Beim Wechsel des Getränks werden Barkartenpreis und Paketstatus automatisch angepasst. Der Preis kann danach nur bei einem bewusst abweichenden Sonderfall manuell geändert werden.</p>
         <div class="logEditActions"><button id="logSaveButton" class="primary" type="submit">Änderungen speichern</button><button type="button" class="secondary dangerText" data-action="deleteLog" data-id="${esc(log.id)}">Eintrag löschen</button></div>
       </form>
     </div>
@@ -1578,7 +1588,8 @@ function editLog(id) {
     date: localDateInputValue(log.ts),
     time: localTimeInputValue(log.ts),
     price: String(Number(log.price) || 0).replace('.', ','),
-    packageStatus: log.packageStatus || 'unclear'
+    packageStatus: log.packageStatus || 'unclear',
+    priceManuallyChanged: false
   };
   render();
   requestAnimationFrame(() => $('#logEditForm')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
@@ -1593,8 +1604,10 @@ function syncLogEditDerivedFields(form, changedName) {
   const drink = drinkById(formValue(form, 'drinkId'));
   if (!person || !drink) return;
   if (changedName === 'drinkId') {
-    setFormValue(form, 'price', String(Number(drink.price) || 0).replace('.', ','));
-    state.formDraft.log.price = String(Number(drink.price) || 0).replace('.', ',');
+    const barkartenPreis = String(Number(drink.price) || 0).replace('.', ',');
+    setFormValue(form, 'price', barkartenPreis);
+    state.formDraft.log.price = barkartenPreis;
+    state.formDraft.log.priceManuallyChanged = false;
   }
   const status = statusForDrink(drink, person.packageId);
   setFormValue(form, 'packageStatus', status);
@@ -1615,8 +1628,11 @@ async function saveLogForm(form) {
   const ts = localDateTimeToTimestamp(date, time);
   if (!Number.isFinite(ts)) throw new Error('Datum oder Uhrzeit ist ungültig.');
   const priceText = String(formValue(form, 'price') ?? '').trim().replace(',', '.');
-  const price = Number(priceText);
-  if (!priceText || !Number.isFinite(price) || price < 0) throw new Error('Bitte einen gültigen, nicht negativen Preis angeben.');
+  const enteredPrice = Number(priceText);
+  if (!priceText || !Number.isFinite(enteredPrice) || enteredPrice < 0) throw new Error('Bitte einen gültigen, nicht negativen Preis angeben.');
+  const drinkChanged = drink.id !== original.drinkId;
+  const priceWasManuallyChanged = state.formDraft.log?.priceManuallyChanged === true;
+  const price = drinkChanged && !priceWasManuallyChanged ? Number(drink.price) || 0 : enteredPrice;
   const selectedStatus = formValue(form, 'packageStatus');
   const packageStatus = ['included', 'not_included', 'unclear'].includes(selectedStatus) ? selectedStatus : statusForDrink(drink, person.packageId);
   const updated = {
@@ -1973,6 +1989,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.3.7</h2>
+  <ul>
+    <li>Beim Wechsel des Getränks in einer Verlaufskorrektur wird der aktuelle Barkartenpreis sofort automatisch eingetragen.</li>
+    <li>Der Paketstatus wird weiterhin passend zur ausgewählten Person und deren Getränkepaket aktualisiert.</li>
+    <li>Eine manuelle Preisabweichung bleibt nach der automatischen Aktualisierung für Sonderfälle möglich.</li>
+  </ul>
   <h2>Version 4.3.6</h2>
   <ul>
     <li>Fehlbuchungen können direkt im Verlauf über ein natives, iPhone-taugliches Formular korrigiert werden.</li>

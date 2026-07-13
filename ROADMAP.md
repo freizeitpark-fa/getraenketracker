@@ -1,6 +1,13 @@
 # Roadmap CruiseSip
 
 
+## Version 4.3.7 Preisautomatik bei Verlaufskorrektur
+
+- Beim Wechsel des Getränks den Barkartenpreis sofort automatisch übernehmen.
+- Paketstatus passend zur ausgewählten Person neu bestimmen.
+- Stammdatenpreis beim Speichern zusätzlich absichern.
+- Manuelle Preisabweichung für Sonderfälle erhalten.
+
 ## Version 4.3.6 Verlaufskorrektur
 
 - Fehlbuchungen direkt im Verlauf bearbeiten.

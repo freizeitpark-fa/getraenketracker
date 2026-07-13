@@ -4,16 +4,16 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.3.6**
+Aktuelle Entwicklungsfassung: **4.3.7**
 
-Version 4.3.6 ergänzt eine direkte Korrektur von Fehlbuchungen im Verlauf. Person, Getränk, Datum, Uhrzeit, Preis und Paketstatus können in einem nativen Inline-Formular bearbeitet werden. Tagesübersicht, Analyse und nutzungsabhängige Sortierungen greifen danach automatisch auf den korrigierten Verlauf zu. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.3.7 aktualisiert beim Wechsel des Getränks in einer Verlaufskorrektur den Preis automatisch aus der lokalen Barkarte. Der Paketstatus wird gleichzeitig passend zur Person neu bestimmt. Manuelle Preisabweichungen bleiben nur für bewusste Sonderfälle möglich. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 ## GitHub Pages Veröffentlichung
 
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.3.6 Verlaufskorrektur`.
+4. Commit erstellen, z. B. `CruiseSip v4.3.7 Preisautomatik`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
