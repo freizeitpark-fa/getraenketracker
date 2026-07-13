@@ -2,6 +2,33 @@
 
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
+## 4.4.0 – Vollständige Datensicherung und sichere Wiederherstellung
+
+### Neu
+
+- Vollständiger Offline-Export aller sieben IndexedDB-Stores: Einstellungen, Reisen, Personen, Getränke, Buchungen, Importprotokoll und Barkartenstände.
+- Backupformat `CruiseSipFullBackup` mit eigener Formatversion, App-Version, Datenbankversion, Exportzeitpunkt, Geräte-ID, Gerätename und Bestandsübersicht.
+- SHA-256-Integritätsprüfung erkennt beschädigte oder veränderte Backupdateien vor dem Import.
+- Importvorschau vergleicht lokale Daten und Backupdaten und zeigt Ergänzungen, Dubletten, Konflikte und strukturelle Warnungen.
+- Modus `Daten ergänzen`: Fehlende Reisen, Personen und Buchungen werden anhand stabiler IDs ergänzt; vorhandene lokale Datensätze bleiben vorrangig bestehen.
+- Personen bleiben geräteunabhängig nutzbar. Buchungen behalten gleichzeitig ihre konsumierende Person und die Geräteherkunft.
+- Modus `Vollständig ersetzen`: Alle Stores werden in einer einzigen atomaren IndexedDB-Transaktion ersetzt. Ohne erfolgreichen Abschluss bleibt der bisherige Datenbestand erhalten.
+- Vor dem vollständigen Ersetzen ist die exakte Texteingabe `DATEN ERSETZEN` und eine weitere Sicherheitsabfrage erforderlich.
+- Die aktuelle Geräte-ID und der aktuelle Gerätename bleiben standardmäßig erhalten. Die Backup-Geräte-ID kann nur über eine klar gekennzeichnete Expertenoption übernommen werden.
+- Der Geräteabgleich bleibt bewusst manuell über lokale JSON-Dateien, die über die iPhone-Dateien-App, iCloud Drive oder AirDrop weitergegeben werden können; es erfolgt keine automatische Cloud-Synchronisation.
+- Ausführliche Anleitung `docs/ZWEITES_GERAET.md` für die Bereitstellung des gemeinsamen Ausgangsbestands, die Ersteinrichtung eines zweiten Geräts, den laufenden bidirektionalen Abgleich und die sichere Wahl zwischen `Daten ergänzen` und `Vollständig ersetzen`.
+
+### Behoben
+
+- Beim Speichern lokal bearbeiteter Getränkepreise wurde eine nicht definierte Variable verwendet. Der Preis wird jetzt korrekt aus dem Formular gelesen und validiert.
+
+### Technisch
+
+- IndexedDB-Name `cruisesip_v4` und Datenbankversion `1` bleiben unverändert; bestehende lokale Daten benötigen keine Migration.
+- App-Version auf `4.4.0` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-4-0-20260713b` erhöht.
+- Keine Änderung an Barkartenstammdaten, Paketdefinitionen, Navigation oder Trackingablauf.
+
 ## 4.3.8 – Offline-Sicherheitsstatus im Setup
 
 ### Neu

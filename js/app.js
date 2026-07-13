@@ -1,12 +1,15 @@
 'use strict';
 
-const APP_VERSION = '4.3.8';
-const APP_CACHE_NAME = 'cruisesip-v4-3-8-20260713a';
+const APP_VERSION = '4.4.0';
+const APP_CACHE_NAME = 'cruisesip-v4-4-0-20260713a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
 const DB_VERSION = 1;
 const CACHE_HINT = 'GitHub Pages / PWA / Offline';
+const FULL_BACKUP_TYPE = 'CruiseSipFullBackup';
+const FULL_BACKUP_FORMAT_VERSION = 1;
+const FULL_BACKUP_MAX_BYTES = 25 * 1024 * 1024;
 
 const STORE_NAMES = ['settings', 'trips', 'persons', 'drinks', 'logs', 'imports', 'barkarten'];
 const PERSON_COLORS = ['#e0f2fe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#ccfbf1', '#f1f5f9'];
@@ -47,7 +50,8 @@ let state = {
   pendingFileMode: null,
   lastBarkarteComparison: null,
   online: navigator.onLine,
-  offlineDiagnostics: null
+  offlineDiagnostics: null,
+  pendingBackup: null
 };
 
 const actionLocks = Object.create(null);
@@ -138,6 +142,105 @@ function writeStore(store, operation) {
 function put(store, obj) { return writeStore(store, objectStore => objectStore.put(obj)); }
 function del(store, id) { return writeStore(store, objectStore => objectStore.delete(id)); }
 function clearStore(store) { return writeStore(store, objectStore => objectStore.clear()); }
+function readAllStoresSnapshot() {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAMES, 'readonly');
+    const snapshot = {};
+    let settled = false;
+    const fail = error => {
+      if (settled) return;
+      settled = true;
+      reject(error || transaction.error || new Error('Lokale Daten konnten nicht vollständig gelesen werden.'));
+    };
+    for (const store of STORE_NAMES) {
+      const request = transaction.objectStore(store).getAll();
+      request.onsuccess = () => { snapshot[store] = request.result || []; };
+      request.onerror = () => fail(request.error);
+    }
+    transaction.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      resolve(snapshot);
+    };
+    transaction.onerror = () => fail(transaction.error);
+    transaction.onabort = () => fail(transaction.error);
+  });
+}
+function putRowsAtomic(rowsByStore) {
+  const stores = STORE_NAMES.filter(store => Array.isArray(rowsByStore?.[store]) && rowsByStore[store].length);
+  if (!stores.length) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(stores, 'readwrite');
+    let settled = false;
+    const fail = error => {
+      if (settled) return;
+      settled = true;
+      reject(error || transaction.error || new Error('Daten konnten nicht vollständig ergänzt werden.'));
+    };
+    try {
+      for (const store of stores) {
+        const objectStore = transaction.objectStore(store);
+        for (const row of rowsByStore[store]) {
+          const request = objectStore.put(row);
+          request.onerror = () => {
+            try { transaction.abort(); } catch (_) {}
+            fail(request.error);
+          };
+        }
+      }
+    } catch (error) {
+      try { transaction.abort(); } catch (_) {}
+      fail(error);
+      return;
+    }
+    transaction.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    transaction.onerror = () => fail(transaction.error);
+    transaction.onabort = () => fail(transaction.error);
+  });
+}
+function replaceAllStoresAtomic(rowsByStore) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAMES, 'readwrite');
+    let settled = false;
+    const fail = error => {
+      if (settled) return;
+      settled = true;
+      reject(error || transaction.error || new Error('Wiederherstellung wurde abgebrochen. Der bisherige Datenbestand bleibt erhalten.'));
+    };
+    try {
+      for (const store of STORE_NAMES) {
+        const objectStore = transaction.objectStore(store);
+        const clearRequest = objectStore.clear();
+        clearRequest.onerror = () => {
+          try { transaction.abort(); } catch (_) {}
+          fail(clearRequest.error);
+        };
+        for (const row of rowsByStore?.[store] || []) {
+          const request = objectStore.put(row);
+          request.onerror = () => {
+            try { transaction.abort(); } catch (_) {}
+            fail(request.error);
+          };
+        }
+      }
+    } catch (error) {
+      try { transaction.abort(); } catch (_) {}
+      fail(error);
+      return;
+    }
+    transaction.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    transaction.onerror = () => fail(transaction.error);
+    transaction.onabort = () => fail(transaction.error);
+  });
+}
 async function putSetting(id, value) { await put('settings', { id, value, updatedAt: nowIso() }); state.settings[id] = value; }
 async function getSetting(id) { const row = await get('settings', id); return row ? row.value : undefined; }
 function formValue(form, name) { return form?.elements?.namedItem(name)?.value ?? ''; }
@@ -515,8 +618,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.3.8',
-    './js/app.js?v=4.3.8',
+    './css/styles.css?v=4.4.0',
+    './js/app.js?v=4.4.0',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -582,13 +685,13 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
         label: 'Speicherverwaltung',
         value: `${usage} belegt`,
         level: persisted === true ? 'ok' : 'info',
-        detail: persisted === true ? `Dauerhafter Browserspeicher bestätigt · verfügbar: ${quota}.` : `Speicher wird von iOS verwaltet · verfügbar: ${quota}. Regelmäßig Reiseexporte erstellen.`
+        detail: persisted === true ? `Dauerhafter Browserspeicher bestätigt · verfügbar: ${quota}.` : `Speicher wird von iOS verwaltet · verfügbar: ${quota}. Regelmäßig vollständige Backups erstellen.`
       });
     } catch (_) {
-      items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Regelmäßige Reiseexporte bleiben die wichtigste Datensicherung.' });
+      items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Regelmäßige vollständige Backups bleiben die wichtigste Datensicherung.' });
     }
   } else {
-    items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Eine Speicherquote wird nicht bereitgestellt. Regelmäßig Reiseexporte erstellen.' });
+    items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Eine Speicherquote wird nicht bereitgestellt. Regelmäßig vollständige Backups erstellen.' });
   }
 
   items.push({
@@ -760,6 +863,11 @@ async function handleClick(event) {
   if (action === 'saveLog') { await runActionOnce('saveLog', () => saveLogForm($('#logEditForm'))); return; }
   if (action === 'deleteLog') { await deleteLog(id); return; }
   if (action === 'exportTrip') { exportTrip(); return; }
+  if (action === 'exportFullBackup') { await runActionOnce('exportFullBackup', exportFullBackup); return; }
+  if (action === 'importFullBackup') { openFile('fullBackup'); return; }
+  if (action === 'cancelFullBackupImport') { state.pendingBackup = null; render(); return; }
+  if (action === 'mergeFullBackup') { await runActionOnce('mergeFullBackup', mergeFullBackup); return; }
+  if (action === 'replaceFullBackup') { await runActionOnce('replaceFullBackup', replaceFullBackup); return; }
   if (action === 'backupTest') { backupTest(); return; }
   if (action === 'importTrip') { openFile('trip'); return; }
   if (action === 'importBarkarte') { openFile('barkarte'); return; }
@@ -792,10 +900,14 @@ function openFile(mode) {
 async function handleFileInput(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
-  const text = await file.text();
   try {
+    if (state.pendingFileMode === 'fullBackup' && file.size > FULL_BACKUP_MAX_BYTES) {
+      throw new Error('Die Backupdatei ist größer als 25 MB und wird aus Sicherheitsgründen nicht eingelesen.');
+    }
+    const text = await file.text();
     if (state.pendingFileMode === 'trip') await importTrip(text, file.name);
     if (state.pendingFileMode === 'barkarte') await importBarkarte(text, file.name);
+    if (state.pendingFileMode === 'fullBackup') await prepareFullBackupImport(text, file.name);
   } catch (error) {
     alert(`Import nicht möglich: ${error.message || error}`);
   } finally {
@@ -979,7 +1091,7 @@ function viewOnboarding() {
         ${onboardingStep('3', 'Geräteprüfung', `Geräte-ID: <span class="mono">${esc(state.settings.deviceId)}</span><br>Gerätename kann später in „Geräte“ angepasst werden.`, state.settings.deviceId ? 'ok' : 'warn')}
         ${onboardingStep('4', 'Offline-Status', `${sw ? 'Service Worker verfügbar.' : 'Service Worker nicht verfügbar.'} Aktueller Status: ${state.online ? 'online' : 'offline'}.`, sw ? 'ok' : 'warn')}
         ${onboardingStep('5', 'Barkarte geladen', `${esc(barkarte.version)} · ${state.drinks.length} Getränke`, state.drinks.length ? 'ok' : 'warn')}
-        ${onboardingStep('6', 'Backup-Test', 'Teste einmal den Export. Safari lädt eine JSON-Datei herunter, die später wieder importiert werden kann.', 'neutral', '<button class="secondary" data-action="backupTest">Backup-Test starten</button>')}
+        ${onboardingStep('6', 'Vollbackup', 'Erstelle einmal eine vollständige Sicherung. Safari lädt eine lokal wiederherstellbare JSON-Datei mit allen App-Daten herunter.', 'neutral', '<button class="secondary" data-action="exportFullBackup">Vollbackup erstellen</button>')}
       </div>
       <form id="onboardingTripForm" class="card formCard">
         <h2>Reise anlegen</h2>
@@ -1545,7 +1657,7 @@ function viewDevices() {
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
       </form>
       <div class="card"><h2>Personen dieser Reise</h2><div class="itemList">${currentPersons().map(personCardHtml).join('') || '<p class="emptyText">Noch keine Personen angelegt.</p>'}</div></div>
-      <div class="card"><h2>Export / Zusammenführen</h2><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Export importieren und zusammenführen</button><button class="secondary" data-action="backupTest">Backup-Test</button></div><p class="hint">Dublettenerkennung erfolgt über Geräte-ID und ursprüngliche Eintrags-ID. Mehrfachimporte desselben Geräteexports werden übersprungen.</p></div>
+      <div class="card"><h2>Export / Zusammenführen</h2><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Export importieren und zusammenführen</button><button class="secondary" data-action="exportFullBackup">Vollständiges Backup</button></div><p class="hint">Dublettenerkennung erfolgt über Geräte-ID und ursprüngliche Eintrags-ID. Mehrfachimporte desselben Geräteexports werden übersprungen.</p></div>
       <div class="card"><div class="sectionHead"><h2>Importprotokoll</h2><button class="mini" data-action="clearImportLog">Leeren</button></div>${importLogHtml()}</div>
     </section>`;
 }
@@ -1633,6 +1745,10 @@ async function saveDrinkArticleForm(form) {
   const id = formValue(form, 'id');
   const drink = drinkById(id);
   if (!drink) { alert('Artikel nicht gefunden.'); return; }
+  const rawPrice = formValue(form, 'price').trim();
+  if (!/^\d+(?:[.,]\d{1,2})?$/.test(rawPrice)) { alert('Bitte einen gültigen Preis mit höchstens zwei Nachkommastellen eingeben.'); return; }
+  const price = Number(rawPrice.replace(',', '.'));
+  if (!Number.isFinite(price) || price < 0) { alert('Bitte einen gültigen Preis eingeben.'); return; }
   const packages = { ...(drink.packages || {}) };
   for (const pkg of managedPackages()) {
     const raw = formValue(form, `pkg_${pkg.id}`) || 'unclear';
@@ -1704,6 +1820,7 @@ function viewSettings() {
         <button id="offlineDiagnosticsButton" class="secondary" data-action="runOfflineDiagnostics" ${offlineDiagnosticsRunning ? 'disabled' : ''}>${offlineDiagnosticsRunning ? 'Prüfung läuft …' : 'Offline-Status prüfen'}</button>
         <p class="hint">Die Diagnose löscht oder verändert keine Reisen und Buchungen. Für den endgültigen Praxistest CruiseSip einmal im Flugmodus vollständig neu öffnen.</p>
       </div>
+      ${fullBackupCardHtml()}
       <div class="card themeCard"><div class="sectionHead"><h2>Darstellung</h2><span class="subtle">${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}</span></div>
         <div class="themeSwitch" role="group" aria-label="Farbdarstellung wählen">
           <button class="themeOption ${effectiveTheme() === 'light' ? 'active' : ''}" data-action="setTheme" data-id="light" aria-pressed="${effectiveTheme() === 'light'}"><span aria-hidden="true">☀</span><b>Hell</b></button>
@@ -1712,8 +1829,8 @@ function viewSettings() {
         <p class="hint">Die Auswahl wird ausschließlich lokal auf diesem Gerät gespeichert.</p>
       </div>
       <div class="card"><h2>Verwaltung</h2><div class="buttonStack"><button class="secondary" data-route="trips">Reisen verwalten</button><button class="secondary" data-route="devices">Geräte & Personen</button><button class="secondary" data-route="barkarte">Barkarte verwalten</button></div></div>
-      <div class="card"><h2>Aktionen</h2><div class="buttonStack"><button class="secondary" data-action="checkAppUpdate">Jetzt auf Update prüfen</button><button class="secondary" data-route="changelog">Changelog öffnen</button><button class="secondary" data-action="reRunOnboarding">Onboarding erneut anzeigen</button><button class="secondary" data-action="backupTest">Backup-Test starten</button></div></div>
-      <div class="card"><h2>Offline-Hinweis</h2><p>Für die Kreuzfahrt: App vor Abfahrt einmal online öffnen, über Safari zum Home-Bildschirm hinzufügen, danach kurz im Flugmodus starten und einen Backup-Test durchführen.</p></div>
+      <div class="card"><h2>Aktionen</h2><div class="buttonStack"><button class="secondary" data-action="checkAppUpdate">Jetzt auf Update prüfen</button><button class="secondary" data-route="changelog">Changelog öffnen</button><button class="secondary" data-action="reRunOnboarding">Onboarding erneut anzeigen</button><button class="secondary" data-action="exportFullBackup">Vollständiges Backup exportieren</button></div></div>
+      <div class="card"><h2>Offline-Hinweis</h2><p>Für die Kreuzfahrt: App vor Abfahrt einmal online öffnen, über Safari zum Home-Bildschirm hinzufügen, danach kurz im Flugmodus starten und ein vollständiges Backup erstellen.</p></div>
     </section>`;
 }
 function infoRow(label, value) { return `<div class="infoRow"><span>${esc(label)}</span><code>${esc(value)}</code></div>`; }
@@ -2048,6 +2165,392 @@ async function deletePerson(id) {
   await del('persons', id); await loadState(); render();
 }
 
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(item => item === undefined ? 'null' : stableStringify(item)).join(',')}]`;
+  const keys = Object.keys(value).filter(key => value[key] !== undefined).sort();
+  return `{${keys.map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+}
+async function sha256Hex(value) {
+  if (!globalThis.crypto?.subtle) throw new Error('SHA-256 wird von diesem Browser nicht unterstützt.');
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+function backupPayloadWithoutIntegrity(payload) {
+  const copy = { ...payload };
+  delete copy.integrity;
+  return copy;
+}
+function settingValueFromRows(rows, id) {
+  return (rows || []).find(row => row.id === id)?.value;
+}
+function fullBackupSummary(snapshot) {
+  const favoriteCount = Array.isArray(settingValueFromRows(snapshot.settings, 'favorites')) ? settingValueFromRows(snapshot.settings, 'favorites').length : 0;
+  return {
+    settings: snapshot.settings.length,
+    trips: snapshot.trips.length,
+    persons: snapshot.persons.length,
+    drinks: snapshot.drinks.length,
+    logs: snapshot.logs.length,
+    imports: snapshot.imports.length,
+    barkarten: snapshot.barkarten.length,
+    favorites: favoriteCount,
+    manualDrinkOverrides: snapshot.drinks.filter(drink => drink.manualOverride || drink.manualOverrides).length
+  };
+}
+function localBackupFileStamp(date = new Date()) {
+  const pad = value => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`;
+}
+async function exportFullBackup() {
+  const snapshot = await readAllStoresSnapshot();
+  const exportedAt = nowIso();
+  const deviceId = settingValueFromRows(snapshot.settings, 'deviceId') || state.settings.deviceId || '';
+  const deviceName = settingValueFromRows(snapshot.settings, 'deviceName') || state.settings.deviceName || 'Gerät';
+  const payload = {
+    type: FULL_BACKUP_TYPE,
+    backupFormatVersion: FULL_BACKUP_FORMAT_VERSION,
+    app: { name: APP_NAME, version: APP_VERSION, databaseName: DB_NAME, databaseVersion: DB_VERSION },
+    exportedAt,
+    device: { id: deviceId, name: deviceName },
+    summary: fullBackupSummary(snapshot),
+    referenceData: { packages: state.packages, activeBarkarteVersion: activeBarkarteVersion() },
+    data: Object.fromEntries(STORE_NAMES.map(store => [store, snapshot[store] || []]))
+  };
+  payload.integrity = { algorithm: 'SHA-256', digest: await sha256Hex(stableStringify(payload)) };
+  downloadJson(`CruiseSip_Vollbackup_${safeFile(deviceName)}_${localBackupFileStamp()}.json`, payload);
+  await putSetting('lastFullBackupAt', exportedAt);
+  toast('Vollständiges Backup wurde erstellt');
+}
+function isPlainRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
+function meaningfulRow(store, row) {
+  const copy = JSON.parse(JSON.stringify(row || {}));
+  delete copy.updatedAt;
+  if (store === 'logs') delete copy.importedAt;
+  return copy;
+}
+function rowsMeaningfullyEqual(store, left, right) {
+  return stableStringify(meaningfulRow(store, left)) === stableStringify(meaningfulRow(store, right));
+}
+function logMergeKey(log, fallbackDeviceId = '') {
+  if (log?.mergeKey) return String(log.mergeKey);
+  const deviceId = log?.trackedByDeviceId || fallbackDeviceId;
+  const originId = log?.originId || log?.id;
+  return deviceId && originId ? `${deviceId}:${originId}` : '';
+}
+async function validateFullBackupPayload(payload) {
+  const errors = [];
+  const warnings = [];
+  if (!isPlainRecord(payload)) errors.push('Die Datei enthält kein gültiges Backupobjekt.');
+  if (payload?.type !== FULL_BACKUP_TYPE) errors.push('Die Datei ist nicht als vollständiges CruiseSip-Backup gekennzeichnet.');
+  if (payload?.backupFormatVersion !== FULL_BACKUP_FORMAT_VERSION) errors.push(`Backupformat ${payload?.backupFormatVersion ?? 'unbekannt'} wird nicht unterstützt.`);
+  if (!isPlainRecord(payload?.data)) errors.push('Der Datenbereich des Backups fehlt.');
+  for (const store of STORE_NAMES) {
+    const rows = payload?.data?.[store];
+    if (!Array.isArray(rows)) { errors.push(`Datenbereich „${store}“ fehlt oder ist ungültig.`); continue; }
+    const ids = new Set();
+    for (const [index, row] of rows.entries()) {
+      if (!isPlainRecord(row) || typeof row.id !== 'string' || !row.id.trim()) {
+        errors.push(`„${store}“ enthält in Zeile ${index + 1} keinen gültigen Datensatz mit ID.`);
+        continue;
+      }
+      if (ids.has(row.id)) errors.push(`„${store}“ enthält die ID „${row.id}“ mehrfach.`);
+      ids.add(row.id);
+    }
+  }
+  if (Array.isArray(payload?.data?.trips) && payload.data.trips.length < 1) errors.push('Das Backup enthält keine Reise.');
+  if (Array.isArray(payload?.data?.drinks) && payload.data.drinks.length < 1) errors.push('Das Backup enthält keine Getränkestammdaten.');
+  if (Array.isArray(payload?.data?.drinks) && payload.data.drinks.length !== 233) warnings.push(`Das Backup enthält ${payload.data.drinks.length} statt 233 Getränken. Dies kann bei einer später importierten Barkarte beabsichtigt sein.`);
+
+  const tripIds = new Set((payload?.data?.trips || []).map(row => row.id));
+  const personIds = new Set((payload?.data?.persons || []).map(row => row.id));
+  const drinkIds = new Set((payload?.data?.drinks || []).map(row => row.id));
+  for (const person of payload?.data?.persons || []) {
+    if (!tripIds.has(person.tripId)) errors.push(`Person „${person.name || person.id}“ verweist auf eine nicht vorhandene Reise.`);
+  }
+  const allowedStatuses = new Set(['included', 'not_included', 'unclear']);
+  const mergeKeys = new Set();
+  for (const log of payload?.data?.logs || []) {
+    if (!tripIds.has(log.tripId)) errors.push(`Buchung „${log.id}“ verweist auf eine nicht vorhandene Reise.`);
+    if (!personIds.has(log.personId)) errors.push(`Buchung „${log.id}“ verweist auf eine nicht vorhandene Person.`);
+    if (log.drinkId && !drinkIds.has(log.drinkId)) warnings.push(`Buchung „${log.id}“ verweist auf ein nicht vorhandenes Getränk.`);
+    if (!allowedStatuses.has(log.packageStatus)) errors.push(`Buchung „${log.id}“ enthält einen ungültigen Paketstatus.`);
+    const key = logMergeKey(log, payload?.device?.id || '');
+    if (!key) errors.push(`Buchung „${log.id}“ besitzt keine rekonstruierbare Buchungsidentität.`);
+    else if (mergeKeys.has(key)) errors.push(`Das Backup enthält die Buchungs-ID „${key}“ mehrfach.`);
+    else mergeKeys.add(key);
+  }
+  for (const drink of payload?.data?.drinks || []) {
+    for (const value of Object.values(drink.packages || {})) {
+      if (!allowedStatuses.has(value)) errors.push(`Getränk „${drink.name || drink.id}“ enthält einen ungültigen Paketstatus.`);
+    }
+  }
+  const summary = payload?.summary;
+  if (isPlainRecord(summary)) {
+    for (const store of STORE_NAMES) {
+      if (Number(summary[store]) !== (payload?.data?.[store] || []).length) warnings.push(`Die angegebene Anzahl für „${store}“ stimmt nicht mit dem Dateiinhalt überein.`);
+    }
+  } else warnings.push('Die Zusammenfassung des Backups fehlt.');
+  if (!payload?.integrity || payload.integrity.algorithm !== 'SHA-256' || !/^[a-f0-9]{64}$/i.test(payload.integrity.digest || '')) {
+    errors.push('Die SHA-256-Integritätsprüfung fehlt oder ist ungültig.');
+  } else {
+    const actualDigest = await sha256Hex(stableStringify(backupPayloadWithoutIntegrity(payload)));
+    if (actualDigest.toLowerCase() !== String(payload.integrity.digest).toLowerCase()) errors.push('Die Integritätsprüfung ist fehlgeschlagen. Die Datei wurde verändert oder beschädigt.');
+  }
+  const exportedTime = Date.parse(payload?.exportedAt || '');
+  if (!Number.isFinite(exportedTime)) warnings.push('Der Exportzeitpunkt ist nicht lesbar.');
+  return { errors: Array.from(new Set(errors)), warnings: Array.from(new Set(warnings)) };
+}
+function buildFullBackupPreview(payload, localSnapshot) {
+  const preview = { local: {}, backup: {}, additions: {}, duplicates: {}, conflicts: {}, warnings: [] };
+  for (const store of STORE_NAMES) {
+    preview.local[store] = (localSnapshot[store] || []).length;
+    preview.backup[store] = (payload.data[store] || []).length;
+    preview.additions[store] = 0;
+    preview.duplicates[store] = 0;
+    preview.conflicts[store] = 0;
+  }
+  for (const store of STORE_NAMES.filter(name => name !== 'logs')) {
+    const localById = new Map((localSnapshot[store] || []).map(row => [row.id, row]));
+    for (const incoming of payload.data[store] || []) {
+      const existing = localById.get(incoming.id);
+      if (!existing) preview.additions[store] += 1;
+      else if (store === 'settings' || rowsMeaningfullyEqual(store, existing, incoming)) preview.duplicates[store] += 1;
+      else preview.conflicts[store] += 1;
+    }
+  }
+  const localLogsByKey = new Map((localSnapshot.logs || []).map(log => [logMergeKey(log, state.settings.deviceId || ''), log]));
+  for (const incoming of payload.data.logs || []) {
+    const key = logMergeKey(incoming, payload.device?.id || '');
+    const existing = localLogsByKey.get(key);
+    if (!existing) preview.additions.logs += 1;
+    else if (rowsMeaningfullyEqual('logs', existing, incoming)) preview.duplicates.logs += 1;
+    else preview.conflicts.logs += 1;
+  }
+  const localPersonKeys = new Map((localSnapshot.persons || []).map(person => [`${person.tripId}|${normalize(person.name)}`, person.id]));
+  const personNameCollisions = (payload.data.persons || []).filter(person => {
+    const localId = localPersonKeys.get(`${person.tripId}|${normalize(person.name)}`);
+    return localId && localId !== person.id;
+  }).length;
+  if (personNameCollisions) preview.warnings.push(`${personNameCollisions} Person(en) haben denselben Namen in derselben Reise, aber unterschiedliche IDs. Sie werden beim Ergänzen nicht automatisch zusammengeführt.`);
+  const localTripKeys = new Map((localSnapshot.trips || []).map(trip => [`${normalize(trip.name)}|${trip.startDate || ''}|${trip.endDate || ''}`, trip.id]));
+  const tripNameCollisions = (payload.data.trips || []).filter(trip => {
+    const localId = localTripKeys.get(`${normalize(trip.name)}|${trip.startDate || ''}|${trip.endDate || ''}`);
+    return localId && localId !== trip.id;
+  }).length;
+  if (tripNameCollisions) preview.warnings.push(`${tripNameCollisions} Reise(n) wirken inhaltlich gleich, besitzen aber unterschiedliche IDs.`);
+  preview.totalAdditions = STORE_NAMES.reduce((sum, store) => sum + preview.additions[store], 0);
+  preview.totalDuplicates = STORE_NAMES.reduce((sum, store) => sum + preview.duplicates[store], 0);
+  preview.totalConflicts = STORE_NAMES.reduce((sum, store) => sum + preview.conflicts[store], 0);
+  return preview;
+}
+async function prepareFullBackupImport(text, fileName) {
+  const payload = JSON.parse(text);
+  const validation = await validateFullBackupPayload(payload);
+  const localSnapshot = await readAllStoresSnapshot();
+  const canPreview = isPlainRecord(payload?.data) && STORE_NAMES.every(store => Array.isArray(payload.data[store]));
+  const preview = canPreview ? buildFullBackupPreview(payload, localSnapshot) : null;
+  state.pendingBackup = { payload, fileName, validation, preview, preparedAt: nowIso() };
+  state.route = 'settings';
+  render();
+  requestAnimationFrame(() => $('#fullBackupPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  toast(validation.errors.length ? 'Backup enthält Fehler' : 'Backup geprüft – Importvorschau bereit');
+}
+function cloneRow(row) { return JSON.parse(JSON.stringify(row)); }
+function normalizeIncomingLog(log, fallbackDeviceId, usedIds = null) {
+  const copy = cloneRow(log);
+  const originalId = copy.originId || copy.id;
+  copy.trackedByDeviceId = copy.trackedByDeviceId || fallbackDeviceId || 'unknown';
+  copy.trackedByDeviceName = copy.trackedByDeviceName || 'Import';
+  copy.originId = originalId;
+  copy.mergeKey = logMergeKey(copy, fallbackDeviceId);
+  if (usedIds && usedIds.has(copy.id)) copy.id = `log_${uid()}`;
+  copy.importedAt = nowIso();
+  copy.updatedAt = nowIso();
+  return copy;
+}
+async function mergeFullBackup() {
+  const pending = state.pendingBackup;
+  if (!pending) throw new Error('Keine geprüfte Backupdatei ausgewählt.');
+  const validation = await validateFullBackupPayload(pending.payload);
+  if (validation.errors.length) throw new Error(validation.errors[0]);
+  const incoming = pending.payload.data;
+  const local = await readAllStoresSnapshot();
+  const rows = Object.fromEntries(STORE_NAMES.map(store => [store, []]));
+  const finalIds = {};
+  for (const store of STORE_NAMES) finalIds[store] = new Set((local[store] || []).map(row => row.id));
+
+  for (const store of ['trips', 'persons', 'drinks', 'imports', 'barkarten']) {
+    for (const row of incoming[store] || []) {
+      if (!finalIds[store].has(row.id)) {
+        rows[store].push(cloneRow(row));
+        finalIds[store].add(row.id);
+      }
+    }
+  }
+  const finalTripIds = finalIds.trips;
+  rows.persons = rows.persons.filter(person => finalTripIds.has(person.tripId));
+  const finalPersonIds = new Set([...(local.persons || []).map(row => row.id), ...rows.persons.map(row => row.id)]);
+  const finalDrinkIds = new Set([...(local.drinks || []).map(row => row.id), ...rows.drinks.map(row => row.id)]);
+
+  const localSettings = new Map((local.settings || []).map(row => [row.id, row]));
+  const protectedSettings = new Set(['deviceId', 'deviceName', 'appVersion', 'currentTripId']);
+  for (const setting of incoming.settings || []) {
+    if (setting.id === 'favorites') continue;
+    if (localSettings.has(setting.id) || protectedSettings.has(setting.id)) continue;
+    if (setting.id.startsWith('selectedPersonId:') && setting.value && !finalPersonIds.has(setting.value)) continue;
+    rows.settings.push(cloneRow(setting));
+    localSettings.set(setting.id, setting);
+  }
+  const localFavorites = Array.isArray(localSettings.get('favorites')?.value) ? localSettings.get('favorites').value : [];
+  const incomingFavorites = Array.isArray(settingValueFromRows(incoming.settings, 'favorites')) ? settingValueFromRows(incoming.settings, 'favorites') : [];
+  const mergedFavorites = Array.from(new Set([...localFavorites, ...incomingFavorites])).filter(id => finalDrinkIds.has(id));
+  if (stableStringify(mergedFavorites) !== stableStringify(localFavorites)) rows.settings.push({ id: 'favorites', value: mergedFavorites, updatedAt: nowIso() });
+  rows.settings.push({ id: 'lastFullBackupImportAt', value: nowIso(), updatedAt: nowIso() });
+
+  const existingMergeKeys = new Set((local.logs || []).map(log => logMergeKey(log, state.settings.deviceId || '')));
+  const usedLogIds = new Set((local.logs || []).map(log => log.id));
+  let duplicateLogs = 0;
+  for (const log of incoming.logs || []) {
+    const key = logMergeKey(log, pending.payload.device?.id || '');
+    if (existingMergeKeys.has(key)) { duplicateLogs += 1; continue; }
+    const normalized = normalizeIncomingLog(log, pending.payload.device?.id || '', usedLogIds);
+    if (!finalTripIds.has(normalized.tripId) || !finalPersonIds.has(normalized.personId)) continue;
+    rows.logs.push(normalized);
+    existingMergeKeys.add(normalized.mergeKey);
+    usedLogIds.add(normalized.id);
+  }
+  const addedCounts = Object.fromEntries(STORE_NAMES.map(store => [store, rows[store].length]));
+  const totalAdded = STORE_NAMES.reduce((sum, store) => sum + rows[store].length, 0);
+  rows.imports.push({
+    id: `import_${uid()}`,
+    kind: 'Vollbackup ergänzen',
+    fileName: pending.fileName,
+    importedAt: nowIso(),
+    sourceDeviceId: pending.payload.device?.id || '',
+    sourceDeviceName: pending.payload.device?.name || '',
+    added: totalAdded,
+    duplicates: duplicateLogs,
+    conflicts: pending.preview?.totalConflicts || 0,
+    details: addedCounts
+  });
+  await putRowsAtomic(rows);
+  state.pendingBackup = null;
+  await loadState();
+  render();
+  toast(`Backup ergänzt: ${rows.logs.length} neue Buchungen, ${duplicateLogs} doppelt`);
+}
+function prepareReplacementRows(payload, restoreDeviceIdentity) {
+  const rows = Object.fromEntries(STORE_NAMES.map(store => [store, (payload.data[store] || []).map(cloneRow)]));
+  const settingMap = new Map(rows.settings.map(row => [row.id, row]));
+  const backupDeviceId = payload.device?.id || settingMap.get('deviceId')?.value || deviceUid();
+  const backupDeviceName = payload.device?.name || settingMap.get('deviceName')?.value || 'Mein iPhone';
+  const currentDeviceId = state.settings.deviceId || backupDeviceId;
+  const currentDeviceName = state.settings.deviceName || backupDeviceName;
+  settingMap.set('deviceId', { id: 'deviceId', value: restoreDeviceIdentity ? backupDeviceId : currentDeviceId, updatedAt: nowIso() });
+  settingMap.set('deviceName', { id: 'deviceName', value: restoreDeviceIdentity ? backupDeviceName : currentDeviceName, updatedAt: nowIso() });
+  settingMap.set('appVersion', { id: 'appVersion', value: APP_VERSION, updatedAt: nowIso() });
+  settingMap.set('lastFullBackupImportAt', { id: 'lastFullBackupImportAt', value: nowIso(), updatedAt: nowIso() });
+  const tripIds = new Set(rows.trips.map(row => row.id));
+  const personIds = new Set(rows.persons.map(row => row.id));
+  const drinkIds = new Set(rows.drinks.map(row => row.id));
+  let currentTripId = settingMap.get('currentTripId')?.value;
+  if (!tripIds.has(currentTripId)) currentTripId = rows.trips.find(trip => !trip.archived)?.id || rows.trips[0]?.id;
+  settingMap.set('currentTripId', { id: 'currentTripId', value: currentTripId, updatedAt: nowIso() });
+  const favoriteIds = Array.isArray(settingMap.get('favorites')?.value) ? settingMap.get('favorites').value : [];
+  settingMap.set('favorites', { id: 'favorites', value: favoriteIds.filter(id => drinkIds.has(id)), updatedAt: nowIso() });
+  for (const [id, setting] of Array.from(settingMap.entries())) {
+    if (id.startsWith('selectedPersonId:') && setting.value && !personIds.has(setting.value)) settingMap.delete(id);
+  }
+  rows.settings = Array.from(settingMap.values());
+  const usedIds = new Set();
+  rows.logs = rows.logs.map(log => {
+    const copy = cloneRow(log);
+    copy.mergeKey = logMergeKey(copy, payload.device?.id || '');
+    copy.trackedByDeviceId = copy.trackedByDeviceId || payload.device?.id || 'unknown';
+    copy.trackedByDeviceName = copy.trackedByDeviceName || payload.device?.name || 'Import';
+    if (usedIds.has(copy.id)) copy.id = `log_${uid()}`;
+    usedIds.add(copy.id);
+    return copy;
+  });
+  rows.imports.push({
+    id: `import_${uid()}`,
+    kind: 'Vollbackup wiederhergestellt',
+    fileName: state.pendingBackup?.fileName || 'Vollbackup',
+    importedAt: nowIso(),
+    sourceDeviceId: payload.device?.id || '',
+    sourceDeviceName: payload.device?.name || '',
+    added: rows.logs.length,
+    duplicates: 0
+  });
+  return rows;
+}
+async function replaceFullBackup() {
+  const pending = state.pendingBackup;
+  if (!pending) throw new Error('Keine geprüfte Backupdatei ausgewählt.');
+  const confirmation = String($('#fullBackupReplaceConfirmation')?.value || '').trim();
+  if (confirmation !== 'DATEN ERSETZEN') {
+    alert('Bitte zur Bestätigung exakt „DATEN ERSETZEN“ eingeben.');
+    return;
+  }
+  const validation = await validateFullBackupPayload(pending.payload);
+  if (validation.errors.length) throw new Error(validation.errors[0]);
+  if (!confirm('Alle derzeit lokalen CruiseSip-Daten werden durch dieses Backup ersetzt. Fortfahren?')) return;
+  const restoreDeviceIdentity = !!$('#restoreBackupDeviceIdentity')?.checked;
+  const rows = prepareReplacementRows(pending.payload, restoreDeviceIdentity);
+  await replaceAllStoresAtomic(rows);
+  state.pendingBackup = null;
+  await loadState();
+  alert('Wiederherstellung abgeschlossen. CruiseSip wird jetzt neu geladen.');
+  window.location.reload();
+}
+function backupCountRow(label, localCount, backupCount, additionCount = null) {
+  const addition = additionCount === null ? '' : `<small>+${additionCount} beim Ergänzen</small>`;
+  return `<div class="backupCountRow"><span>${esc(label)}</span><b>${Number(localCount) || 0}</b><span>→</span><b>${Number(backupCount) || 0}</b>${addition}</div>`;
+}
+function fullBackupCardHtml() {
+  const lastBackup = state.settings.lastFullBackupAt ? formatDateTime(Date.parse(state.settings.lastFullBackupAt)) : 'noch nicht erstellt';
+  return `<div class="card fullBackupCard" id="fullBackupCard">
+    <div class="sectionHead"><div><h2>Vollständige Datensicherung</h2><p class="hint">Sichert Reisen, Personen, Buchungen, Favoriten, Einstellungen, Geräteinformationen sowie lokale Preis- und Paketänderungen.</p></div><span class="backupFormatBadge">JSON · offline</span></div>
+    <div class="infoBox"><span>Letztes Vollbackup</span><b>${esc(lastBackup)}</b></div>
+    <div class="buttonStack"><button class="primary" data-action="exportFullBackup">Vollständiges Backup exportieren</button><button class="secondary" data-action="importFullBackup">Vollbackup auswählen und prüfen</button></div>
+    <p class="hint">Die Datei bleibt lokal und sollte anschließend in der Dateien-App gespeichert oder bewusst per iCloud Drive beziehungsweise AirDrop weitergegeben werden. Es erfolgt kein automatischer Cloud-Abgleich.</p>
+    <div class="backupDeviceHint"><b>Mehrere Geräte vorbereiten</b><p>Das Vollbackup auf dem zweiten Gerät vollständig wiederherstellen und dort die eigene Geräte-ID beibehalten. Dadurch bleiben Reise- und Personen-IDs identisch; anschließend kann jedes Gerät für jede Person tracken.</p></div>
+    ${fullBackupPreviewHtml()}
+  </div>`;
+}
+function fullBackupPreviewHtml() {
+  const pending = state.pendingBackup;
+  if (!pending) return '';
+  const { payload, validation, preview } = pending;
+  const blocked = validation.errors.length > 0;
+  const exportedAt = Number.isFinite(Date.parse(payload?.exportedAt || '')) ? new Date(payload.exportedAt).toLocaleString('de-DE') : 'unbekannt';
+  const warnings = [...validation.warnings, ...(preview?.warnings || [])];
+  return `<div class="fullBackupPreview ${blocked ? 'blocked' : ''}" id="fullBackupPreview">
+    <div class="backupPreviewHead"><div><b>${esc(pending.fileName)}</b><small>${esc(payload?.device?.name || 'Unbekanntes Gerät')} · ${esc(exportedAt)} · App ${esc(payload?.app?.version || 'unbekannt')}</small></div><span class="diagnosticSummary ${blocked ? 'bad' : warnings.length ? 'warn' : 'ok'}">${blocked ? 'Import gesperrt' : warnings.length ? 'Geprüft mit Hinweisen' : 'Integrität bestätigt'}</span></div>
+    <div class="backupCountLegend"><span></span><b>Lokal</b><span></span><b>Backup</b><small>Ergänzen</small></div>
+    <div class="backupCountList">
+      ${backupCountRow('Reisen', preview?.local?.trips, preview?.backup?.trips, preview?.additions?.trips)}
+      ${backupCountRow('Personen', preview?.local?.persons, preview?.backup?.persons, preview?.additions?.persons)}
+      ${backupCountRow('Buchungen', preview?.local?.logs, preview?.backup?.logs, preview?.additions?.logs)}
+      ${backupCountRow('Getränke', preview?.local?.drinks, preview?.backup?.drinks, preview?.additions?.drinks)}
+      ${backupCountRow('Einstellungen', preview?.local?.settings, preview?.backup?.settings, preview?.additions?.settings)}
+    </div>
+    <div class="backupPreviewStats"><span><b>${preview?.totalDuplicates || 0}</b> bereits vorhanden</span><span class="${preview?.totalConflicts ? 'warnText' : ''}"><b>${preview?.totalConflicts || 0}</b> Konflikte · lokal bleibt</span></div>
+    ${validation.errors.length ? `<div class="backupMessages bad">${validation.errors.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
+    ${warnings.length ? `<div class="backupMessages warn">${warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
+    <div class="backupModeCard"><b>Daten ergänzen</b><p>Fehlende Reisen, Personen und Buchungen werden ergänzt. Vorhandene IDs und lokale Daten bleiben erhalten; doppelte Buchungen werden übersprungen.</p><button class="primary" data-action="mergeFullBackup" ${blocked ? 'disabled' : ''}>Geprüfte Daten ergänzen</button></div>
+    <div class="backupModeCard dangerZone"><b>Vorhandene Daten vollständig ersetzen</b><p>Alle lokalen CruiseSip-Daten werden in einer einzigen, atomaren Transaktion durch das Backup ersetzt. Die aktuelle Geräte-ID und der aktuelle Gerätename bleiben standardmäßig erhalten.</p>
+      <button class="secondary" data-action="exportFullBackup">Aktuellen Stand vorher sichern</button>
+      <label class="checkLine expertCheck"><input id="restoreBackupDeviceIdentity" type="checkbox"> Geräte-ID und Gerätename des Backups ebenfalls wiederherstellen <small>Nur verwenden, wenn das ursprüngliche Gerät nicht mehr parallel genutzt wird.</small></label>
+      <div class="formField"><label for="fullBackupReplaceConfirmation">Zur Bestätigung DATEN ERSETZEN eingeben</label><input id="fullBackupReplaceConfirmation" autocomplete="off" autocapitalize="characters" placeholder="DATEN ERSETZEN"></div>
+      <button class="dangerButton" data-action="replaceFullBackup" ${blocked ? 'disabled' : ''}>Lokale Daten vollständig ersetzen</button>
+    </div>
+    <button class="secondary" data-action="cancelFullBackupImport">Importvorschau schließen</button>
+  </div>`;
+}
+
 function exportTrip() {
   const trip = currentTrip();
   if (!trip) return;
@@ -2202,6 +2705,15 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.4.0</h2>
+  <ul>
+    <li>Vollständiges Offline-Backup aller lokalen IndexedDB-Daten mit App-Version, Exportzeitpunkt, Gerätekennung und SHA-256-Integritätsprüfung ergänzt.</li>
+    <li>Importvorschau zeigt lokale und gesicherte Reisen, Personen, Buchungen, Getränke, Einstellungen, Dubletten, Konflikte und Warnungen vor jeder Änderung.</li>
+    <li>„Daten ergänzen“ erhält stabile Reise-, Personen- und Buchungs-IDs, ergänzt fehlende Datensätze und überspringt bereits importierte Buchungen.</li>
+    <li>„Vollständig ersetzen“ arbeitet atomar über alle sieben Stores und verlangt die ausdrückliche Bestätigung „DATEN ERSETZEN“.</li>
+    <li>Die Geräte-ID bleibt beim Ersetzen standardmäßig erhalten; eine Wiederherstellung der Backup-Geräte-ID ist nur als klar gekennzeichnete Expertenoption möglich.</li>
+    <li>Bestehender Fehler beim Speichern lokal geänderter Getränkepreise behoben.</li>
+  </ul>
   <h2>Version 4.3.8</h2>
   <ul>
     <li>Offline-Sicherheitsstatus im Setup ergänzt.</li>

@@ -4,16 +4,23 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.3.8**
+Aktuelle Entwicklungsfassung: **4.4.0**
 
-Version 4.3.8 ergänzt im Setup einen rein diagnostischen Offline-Sicherheitsstatus. Geprüft werden Home-Bildschirm-Modus, Service Worker, aktueller App-Cache, lokaler IndexedDB-Speicher und – soweit von iOS bereitgestellt – die Speicherverwaltung. Reisen und Buchungen werden dabei nicht verändert. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.4.0 ergänzt ein vollständiges Offline-Backup aller lokalen App-Daten mit SHA-256-Prüfung, Importvorschau, sicherem Ergänzen und atomarer Wiederherstellung. Reisen, Personen und Buchungen behalten ihre stabilen IDs; die Geräte-ID und Gerätename bleiben beim Ersetzen standardmäßig lokal erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
+
+
+## Manueller Geräteabgleich
+
+CruiseSip führt keinen automatischen Cloud-Abgleich durch. Vollbackups und Reiseexporte werden als lokale JSON-Dateien erstellt. Diese können über die iPhone-Dateien-App unter „Auf meinem iPhone“ oder in iCloud Drive gespeichert beziehungsweise per AirDrop weitergegeben und anschließend bewusst importiert werden. Während der gesamten Reise bleibt das Tracking unabhängig von einer Internetverbindung funktionsfähig.
+
+Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zweiten Geräts und den späteren Abgleich befindet sich in `docs/ZWEITES_GERAET.md`.
 
 ## GitHub Pages Veröffentlichung
 
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.3.8 Offline-Sicherheitsstatus`.
+4. Commit erstellen, z. B. `CruiseSip v4.4.0 Vollbackup`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.

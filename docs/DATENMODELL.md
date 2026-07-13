@@ -27,3 +27,12 @@ Jeder Eintrag erhält einen `mergeKey`:
 ```
 
 Beim Import wird dieser Schlüssel geprüft. Bereits vorhandene Einträge werden übersprungen. Dadurch bleiben wiederholte Importe derselben Geräteexporte dublettensicher.
+
+
+## Vollbackupformat ab 4.4.0
+
+Das Format `CruiseSipFullBackup` mit `backupFormatVersion: 1` enthält unveränderte Datensätze aller Stores `settings`, `trips`, `persons`, `drinks`, `logs`, `imports` und `barkarten`. Zusätzlich werden App-/Datenbankversion, Exportzeitpunkt, Gerätekennung, Bestandszahlen, Paketdefinitionen und der aktive Barkartenstand gespeichert.
+
+Die Integrität wird über SHA-256 auf einer kanonisch sortierten JSON-Darstellung aller Backupfelder mit Ausnahme des Feldes `integrity` geprüft.
+
+Beim Ergänzen sind IDs maßgeblich. Personen mit gleicher ID werden wiederverwendet; gleiche Namen mit unterschiedlichen IDs werden nicht automatisch zusammengeführt. Buchungsdubletten werden über `mergeKey` beziehungsweise über Geräte-ID und ursprüngliche Buchungs-ID erkannt.

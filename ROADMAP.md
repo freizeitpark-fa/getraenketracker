@@ -1,5 +1,13 @@
 # Roadmap CruiseSip
 
+## Version 4.4.0 Vollständige Datensicherung
+
+- Vollbackup aller lokalen IndexedDB-Stores als JSON.
+- SHA-256-Integritätsprüfung und Importvorschau.
+- Nicht löschendes Ergänzen anhand stabiler Reise-, Personen- und Buchungs-IDs.
+- Atomare vollständige Wiederherstellung mit ausdrücklicher Sicherheitsbestätigung.
+- Geräte-ID und Gerätename bleiben standardmäßig auf dem Zielgerät erhalten.
+
 ## Version 4.3.8 Offline-Sicherheitsstatus
 
 - Home-Bildschirm-/Standalone-Modus erkennen.

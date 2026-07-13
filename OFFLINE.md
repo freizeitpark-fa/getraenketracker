@@ -54,3 +54,10 @@ Bei bestehender Internetverbindung prüft die installierte PWA beim Start und be
 5. Falls lokale Daten nicht übernommen wurden, die zuvor erzeugten Reiseexporte wieder importieren.
 
 Das Löschen von Safari-Websitedaten ist keine bevorzugte Update-Methode, da dadurch lokale IndexedDB-Daten verloren gehen können.
+
+## Vollbackup und Geräteabgleich
+
+Der Abgleich erfolgt bewusst manuell über JSON-Dateien. CruiseSip lädt keine Daten automatisch in eine Cloud. Backups können über die iPhone-Dateien-App lokal oder in iCloud Drive gespeichert und bei Bedarf auf einem anderen Gerät ausgewählt werden. Offline erfasste Buchungen bleiben vollständig in IndexedDB gespeichert, bis sie manuell exportiert werden.
+
+Eine vollständige Anleitung zur Ersteinrichtung, zur korrekten Auswahl von `Vollständig ersetzen` und zum späteren Abgleich über `Daten ergänzen` steht in `docs/ZWEITES_GERAET.md`.
+
