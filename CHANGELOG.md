@@ -2,6 +2,12 @@
 
 ## 4.4.2 – Mehrere Geräteexporte sicher zusammenführen
 
+### Hotfix Setup-Anordnung
+
+- Die Aktionen `Aktuelle Reise exportieren` und `Geräteexporte auswählen und zusammenführen` werden jetzt direkt auf der Setup-Seite unter `Geräteabgleich` angezeigt.
+- Die zuvor notwendige Navigation über `Setup → Verwaltung → Geräte & Personen` entfällt.
+- Cache und Dateiversionen wurden auf `cruisesip-v4-4-2-20260713b` erhöht, damit der Hotfix auf iPhone-PWAs sicher geladen wird.
+
 ### Neu
 
 - Bis zu 20 Reiseexporte können gleichzeitig über die Dateien-App ausgewählt und in einem Schritt zusammengeführt werden.

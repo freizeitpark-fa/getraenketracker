@@ -1,7 +1,7 @@
 'use strict';
 
 const APP_VERSION = '4.4.2';
-const APP_CACHE_NAME = 'cruisesip-v4-4-2-20260713a';
+const APP_CACHE_NAME = 'cruisesip-v4-4-2-20260713b';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -623,8 +623,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.4.2a',
-    './js/app.js?v=4.4.2a',
+    './css/styles.css?v=4.4.2b',
+    './js/app.js?v=4.4.2b',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -1671,7 +1671,6 @@ function viewDevices() {
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
       </form>
       <div class="card"><h2>Personen dieser Reise</h2><div class="itemList">${currentPersons().map(personCardHtml).join('') || '<p class="emptyText">Noch keine Personen angelegt.</p>'}</div></div>
-      <div class="card"><h2>Export / Geräteabgleich</h2><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und zusammenführen</button><button class="secondary" data-action="exportFullBackup">Vollständiges Backup</button></div><p class="hint">Du kannst bis zu 20 Reiseexporte gleichzeitig auswählen. Reisen und Personen werden über ihre stabilen IDs erkannt; Buchungsdubletten werden über den Merge-Key übersprungen.</p></div>
       <div class="card"><div class="sectionHead"><h2>Importprotokoll</h2><button class="mini" data-action="clearImportLog">Leeren</button></div>${importLogHtml()}</div>
     </section>`;
 }
@@ -1835,6 +1834,7 @@ function viewSettings() {
         <p class="hint">Die Diagnose löscht oder verändert keine Reisen und Buchungen. Für den endgültigen Praxistest CruiseSip einmal im Flugmodus vollständig neu öffnen.</p>
       </div>
       ${fullBackupCardHtml()}
+      <div class="card"><div class="sectionHead"><div><h2>Geräteabgleich</h2><p class="hint">Reisedaten mehrerer Geräte manuell über JSON-Dateien zusammenführen.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und zusammenführen</button></div><p class="hint">Bis zu 20 Reiseexporte können gemeinsam ausgewählt werden. Reisen und Personen werden über stabile IDs erkannt; bereits vorhandene Buchungen werden über den Merge-Key übersprungen.</p></div>
       <div class="card themeCard"><div class="sectionHead"><h2>Darstellung</h2><span class="subtle">${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}</span></div>
         <div class="themeSwitch" role="group" aria-label="Farbdarstellung wählen">
           <button class="themeOption ${effectiveTheme() === 'light' ? 'active' : ''}" data-action="setTheme" data-id="light" aria-pressed="${effectiveTheme() === 'light'}"><span aria-hidden="true">☀</span><b>Hell</b></button>
