@@ -4,14 +4,14 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.4.0**
+Aktuelle Entwicklungsfassung: **4.4.1**
 
-Version 4.4.0 ergänzt ein vollständiges Offline-Backup aller lokalen App-Daten mit SHA-256-Prüfung, Importvorschau, sicherem Ergänzen und atomarer Wiederherstellung. Reisen, Personen und Buchungen behalten ihre stabilen IDs; die Geräte-ID und Gerätename bleiben beim Ersetzen standardmäßig lokal erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.4.1 öffnet für Vollbackup, Reiseexport und Backup-Test auf unterstützten iPhones und iPads das native Teilen-Menü. Über „In Dateien sichern“ kann der gewünschte Zielordner ausgewählt werden. Das vollständige Backupformat, die Importvorschau und die sichere Zusammenführung aus Version 4.4.0 bleiben unverändert erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
 
-CruiseSip führt keinen automatischen Cloud-Abgleich durch. Vollbackups und Reiseexporte werden als lokale JSON-Dateien erstellt. Diese können über die iPhone-Dateien-App unter „Auf meinem iPhone“ oder in iCloud Drive gespeichert beziehungsweise per AirDrop weitergegeben und anschließend bewusst importiert werden. Während der gesamten Reise bleibt das Tracking unabhängig von einer Internetverbindung funktionsfähig.
+CruiseSip führt keinen automatischen Cloud-Abgleich durch. Vollbackups und Reiseexporte werden als lokale JSON-Dateien erstellt. Auf iPhone und iPad öffnet CruiseSip dafür das Teilen-Menü. Über „In Dateien sichern“ kann der Zielordner unter „Auf meinem iPhone“, in iCloud Drive oder bei einem eingebundenen Dateidienst ausgewählt werden; alternativ ist die Weitergabe per AirDrop möglich. Während der gesamten Reise bleibt das Tracking unabhängig von einer Internetverbindung funktionsfähig.
 
 Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zweiten Geräts und den späteren Abgleich befindet sich in `docs/ZWEITES_GERAET.md`.
 
@@ -20,7 +20,7 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.4.0 Vollbackup`.
+4. Commit erstellen, z. B. `CruiseSip v4.4.1 Dateien-App-Export`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.

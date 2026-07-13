@@ -1,5 +1,12 @@
 # Roadmap CruiseSip
 
+## Version 4.4.1 Dateien-App-Export
+
+- Vollbackup, Reiseexport und Backup-Test über das native iOS-Teilen-Menü bereitstellen.
+- Zielordner über `In Dateien sichern` bewusst auswählen.
+- Direkten JSON-Download als Fallback für nicht unterstützte Browser erhalten.
+- Abgebrochene Teilen-Dialoge nicht als erfolgreiches Backup protokollieren.
+
 ## Version 4.4.0 Vollständige Datensicherung
 
 - Vollbackup aller lokalen IndexedDB-Stores als JSON.

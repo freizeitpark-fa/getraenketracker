@@ -1,6 +1,6 @@
 # CruiseSip auf einem zweiten Gerät einrichten und Daten abgleichen
 
-Diese Anleitung beschreibt den sicheren manuellen Datenaustausch zwischen zwei iPhones. CruiseSip synchronisiert keine Daten automatisch. Der Austausch erfolgt über eine lokale JSON-Datei, die in der iPhone-Dateien-App, in iCloud Drive oder per AirDrop bereitgestellt wird.
+Diese Anleitung beschreibt den sicheren manuellen Datenaustausch zwischen zwei iPhones. CruiseSip synchronisiert keine Daten automatisch. Beim Export öffnet sich das iOS-Teilen-Menü. Über „In Dateien sichern“ wird der Zielordner in der Dateien-App, in iCloud Drive oder bei einem eingebundenen Dateidienst ausgewählt; alternativ kann die JSON-Datei per AirDrop bereitgestellt werden.
 
 ## Grundprinzip
 

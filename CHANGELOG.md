@@ -2,6 +2,22 @@
 
 Alle wesentlichen Änderungen an CruiseSip werden hier dokumentiert.
 
+## 4.4.1 – Speichern über die iPhone-Dateien-App
+
+### Neu / verbessert
+
+- Vollbackup, Reiseexport und Backup-Test öffnen auf unterstützten iPhones und iPads jetzt das native Teilen-Menü.
+- Über `In Dateien sichern` kann der Zielordner unter `Auf meinem iPhone`, iCloud Drive oder einem eingebundenen Dateidienst bewusst ausgewählt werden.
+- Bei Browsern ohne Dateifreigabe bleibt der bisherige direkte JSON-Download als Fallback erhalten.
+- Ein abgebrochener Teilen-Dialog wird nicht als erfolgreiches Backup protokolliert.
+- Für eine breitere iOS-Kompatibilität wird die JSON-Datei bei Bedarf zusätzlich als teilbare Textdatei mit unveränderter `.json`-Endung angeboten.
+
+### Technisch
+
+- App-Version auf `4.4.1` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-4-1-20260713a` erhöht.
+- Keine Änderung an IndexedDB-Name, Datenbankversion, Reisen, Personen, Buchungs-IDs, Barkarte oder Paketstatus.
+
 ## 4.4.0 – Vollständige Datensicherung und sichere Wiederherstellung
 
 ### Neu

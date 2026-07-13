@@ -1,7 +1,7 @@
 'use strict';
 
-const APP_VERSION = '4.4.0';
-const APP_CACHE_NAME = 'cruisesip-v4-4-0-20260713c';
+const APP_VERSION = '4.4.1';
+const APP_CACHE_NAME = 'cruisesip-v4-4-1-20260713a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -618,8 +618,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.4.0c',
-    './js/app.js?v=4.4.0c',
+    './css/styles.css?v=4.4.1a',
+    './js/app.js?v=4.4.1a',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -862,13 +862,13 @@ async function handleClick(event) {
   if (action === 'cancelEditLog') { cancelEditLog(); return; }
   if (action === 'saveLog') { await runActionOnce('saveLog', () => saveLogForm($('#logEditForm'))); return; }
   if (action === 'deleteLog') { await deleteLog(id); return; }
-  if (action === 'exportTrip') { exportTrip(); return; }
+  if (action === 'exportTrip') { await runActionOnce('exportTrip', exportTrip); return; }
   if (action === 'exportFullBackup') { await runActionOnce('exportFullBackup', exportFullBackup); return; }
   if (action === 'importFullBackup') { openFile('fullBackup'); return; }
   if (action === 'cancelFullBackupImport') { state.pendingBackup = null; render(); return; }
   if (action === 'mergeFullBackup') { await runActionOnce('mergeFullBackup', mergeFullBackup); return; }
   if (action === 'replaceFullBackup') { await runActionOnce('replaceFullBackup', replaceFullBackup); return; }
-  if (action === 'backupTest') { backupTest(); return; }
+  if (action === 'backupTest') { await runActionOnce('backupTest', backupTest); return; }
   if (action === 'importTrip') { openFile('trip'); return; }
   if (action === 'importBarkarte') { openFile('barkarte'); return; }
   if (action === 'clearImportLog') { await clearStore('imports'); await loadState(); render(); return; }
@@ -1091,7 +1091,7 @@ function viewOnboarding() {
         ${onboardingStep('3', 'Geräteprüfung', `Geräte-ID: <span class="mono">${esc(state.settings.deviceId)}</span><br>Gerätename kann später in „Geräte“ angepasst werden.`, state.settings.deviceId ? 'ok' : 'warn')}
         ${onboardingStep('4', 'Offline-Status', `${sw ? 'Service Worker verfügbar.' : 'Service Worker nicht verfügbar.'} Aktueller Status: ${state.online ? 'online' : 'offline'}.`, sw ? 'ok' : 'warn')}
         ${onboardingStep('5', 'Barkarte geladen', `${esc(barkarte.version)} · ${state.drinks.length} Getränke`, state.drinks.length ? 'ok' : 'warn')}
-        ${onboardingStep('6', 'Vollbackup', 'Erstelle einmal eine vollständige Sicherung. Safari lädt eine lokal wiederherstellbare JSON-Datei mit allen App-Daten herunter.', 'neutral', '<button class="secondary" data-action="exportFullBackup">Vollbackup erstellen</button>')}
+        ${onboardingStep('6', 'Vollbackup', 'Erstelle einmal eine vollständige Sicherung. CruiseSip öffnet das iOS-Teilen-Menü; wähle dort „In Dateien sichern“ und anschließend den gewünschten Ordner.', 'neutral', '<button class="secondary" data-action="exportFullBackup">Vollbackup erstellen</button>')}
       </div>
       <form id="onboardingTripForm" class="card formCard">
         <h2>Reise anlegen</h2>
@@ -2219,9 +2219,13 @@ async function exportFullBackup() {
     data: Object.fromEntries(STORE_NAMES.map(store => [store, snapshot[store] || []]))
   };
   payload.integrity = { algorithm: 'SHA-256', digest: await sha256Hex(stableStringify(payload)) };
-  downloadJson(`CruiseSip_Vollbackup_${safeFile(deviceName)}_${localBackupFileStamp()}.json`, payload);
+  const result = await saveJsonFile(`CruiseSip_Vollbackup_${safeFile(deviceName)}_${localBackupFileStamp()}.json`, payload, {
+    title: 'CruiseSip Vollbackup',
+    text: 'Vollständige lokale CruiseSip-Datensicherung. Zum Ablegen einen Zielordner über „In Dateien sichern“ auswählen.'
+  });
+  if (result.cancelled) { toast('Speichern des Vollbackups abgebrochen'); return; }
   await putSetting('lastFullBackupAt', exportedAt);
-  toast('Vollständiges Backup wurde erstellt');
+  toast(result.method === 'share' ? 'Vollbackup zum Speichern bereitgestellt' : 'Vollbackup wurde heruntergeladen');
 }
 function isPlainRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
 function meaningfulRow(store, row) {
@@ -2515,7 +2519,7 @@ function fullBackupCardHtml() {
     <div class="sectionHead"><div><h2>Vollständige Datensicherung</h2><p class="hint">Sichert Reisen, Personen, Buchungen, Favoriten, Einstellungen, Geräteinformationen sowie lokale Preis- und Paketänderungen.</p></div><span class="backupFormatBadge">JSON · offline</span></div>
     <div class="infoBox"><span>Letztes Vollbackup</span><b>${esc(lastBackup)}</b></div>
     <div class="buttonStack"><button class="primary" data-action="exportFullBackup">Vollständiges Backup exportieren</button><button class="secondary" data-action="importFullBackup">Vollbackup auswählen und prüfen</button></div>
-    <p class="hint">Die Datei bleibt lokal und sollte anschließend in der Dateien-App gespeichert oder bewusst per iCloud Drive beziehungsweise AirDrop weitergegeben werden. Es erfolgt kein automatischer Cloud-Abgleich.</p>
+    <p class="hint">CruiseSip öffnet nach der Erstellung das iOS-Teilen-Menü. Wähle „In Dateien sichern“, um den Zielordner unter „Auf meinem iPhone“, iCloud Drive oder einem eingebundenen Dateidienst festzulegen. Es erfolgt kein automatischer Cloud-Abgleich.</p>
     <div class="backupDeviceHint"><b>Mehrere Geräte vorbereiten</b><p>Das Vollbackup auf dem zweiten Gerät vollständig wiederherstellen und dort die eigene Geräte-ID beibehalten. Dadurch bleiben Reise- und Personen-IDs identisch; anschließend kann jedes Gerät für jede Person tracken.</p></div>
     ${fullBackupPreviewHtml()}
   </div>`;
@@ -2551,7 +2555,7 @@ function fullBackupPreviewHtml() {
   </div>`;
 }
 
-function exportTrip() {
+async function exportTrip() {
   const trip = currentTrip();
   if (!trip) return;
   const payload = {
@@ -2565,19 +2569,75 @@ function exportTrip() {
     logs: currentLogs(),
     favorites: favoriteIds()
   };
-  downloadJson(`CruiseSip_${safeFile(trip.name)}_${new Date().toISOString().slice(0, 10)}.json`, payload);
+  const result = await saveJsonFile(`CruiseSip_${safeFile(trip.name)}_${new Date().toISOString().slice(0, 10)}.json`, payload, {
+    title: `CruiseSip Reiseexport – ${trip.name}`,
+    text: 'CruiseSip-Reiseexport für den manuellen Geräteabgleich.'
+  });
+  if (result.cancelled) toast('Speichern des Reiseexports abgebrochen');
+  else toast(result.method === 'share' ? 'Reiseexport zum Speichern bereitgestellt' : 'Reiseexport wurde heruntergeladen');
 }
-function backupTest() {
-  const payload = { type: 'CruiseSipBackupTest', version: APP_VERSION, createdAt: nowIso(), deviceId: state.settings.deviceId, tripId: state.currentTripId, message: 'Backup-Test erfolgreich erstellt.' };
-  downloadJson(`CruiseSip_Backup_Test_${new Date().toISOString().slice(0, 10)}.json`, payload);
-  putSetting('lastBackupTestAt', nowIso());
+async function backupTest() {
+  const createdAt = nowIso();
+  const payload = { type: 'CruiseSipBackupTest', version: APP_VERSION, createdAt, deviceId: state.settings.deviceId, tripId: state.currentTripId, message: 'Backup-Test erfolgreich erstellt.' };
+  const result = await saveJsonFile(`CruiseSip_Backup_Test_${new Date().toISOString().slice(0, 10)}.json`, payload, {
+    title: 'CruiseSip Backup-Test',
+    text: 'Testdatei zur Prüfung des lokalen Speicherns über die iPhone-Dateien-App.'
+  });
+  if (result.cancelled) { toast('Backup-Test abgebrochen'); return; }
+  await putSetting('lastBackupTestAt', createdAt);
+  toast(result.method === 'share' ? 'Backup-Test zum Speichern bereitgestellt' : 'Backup-Test wurde heruntergeladen');
 }
-function downloadJson(filename, payload) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+function jsonFileCandidates(filename, jsonText) {
+  if (typeof File !== 'function') return [];
+  const options = { lastModified: Date.now() };
+  return [
+    new File([jsonText], filename, { ...options, type: 'application/json' }),
+    new File([jsonText], filename, { ...options, type: 'text/plain' })
+  ];
+}
+function downloadableJsonBlob(jsonText) {
+  return new Blob([jsonText], { type: 'application/json' });
+}
+function downloadJsonText(filename, jsonText) {
+  const blob = downloadableJsonBlob(jsonText);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+async function saveJsonFile(filename, payload, options = {}) {
+  const jsonText = JSON.stringify(payload, null, 2);
+  const files = jsonFileCandidates(filename, jsonText);
+  if (typeof navigator.share === 'function' && files.length) {
+    let shareFile = null;
+    for (const file of files) {
+      try {
+        if (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] })) {
+          shareFile = file;
+          break;
+        }
+      } catch (_) {}
+    }
+    if (shareFile) {
+      try {
+        await navigator.share({
+          files: [shareFile],
+          title: options.title || 'CruiseSip JSON-Datei',
+          text: options.text || 'CruiseSip-Datendatei'
+        });
+        return { method: 'share', cancelled: false };
+      } catch (error) {
+        if (error?.name === 'AbortError') return { method: 'share', cancelled: true };
+        console.warn('Dateifreigabe nicht verfügbar, verwende Download-Fallback.', error);
+      }
+    }
+  }
+  downloadJsonText(filename, jsonText);
+  return { method: 'download', cancelled: false };
 }
 function safeFile(value) { return String(value || 'Reise').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'Reise'; }
 
@@ -2705,6 +2765,13 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.4.1</h2>
+  <ul>
+    <li>Vollbackup, Reiseexport und Backup-Test öffnen auf unterstützten iPhones und iPads das native Teilen-Menü.</li>
+    <li>Über „In Dateien sichern“ kann der gewünschte Zielordner unter „Auf meinem iPhone“, in iCloud Drive oder bei einem eingebundenen Dateidienst ausgewählt werden.</li>
+    <li>Browser ohne Dateifreigabe verwenden weiterhin den direkten JSON-Download als Rückfalllösung.</li>
+    <li>Ein abgebrochener Teilen-Dialog wird nicht als erfolgreiches Backup protokolliert.</li>
+  </ul>
   <h2>Version 4.4.0</h2>
   <ul>
     <li>Vollständiges Offline-Backup aller lokalen IndexedDB-Daten mit App-Version, Exportzeitpunkt, Gerätekennung und SHA-256-Integritätsprüfung ergänzt.</li>
