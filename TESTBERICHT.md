@@ -1,38 +1,30 @@
-# Testbericht CruiseSip v5.1.0a
+# Testbericht CruiseSip v5.2.0a
 
-## Geprüft
+## Automatisierte Prüfungen
 
-- JavaScript-Syntax von `js/app.js` und `sw.js` mit `node --check`.
-- JSON-Syntax von Manifest, Barkarte und Paketdefinitionen.
-- HTML-Grundstruktur und CSS-Klammerbalance.
-- Einheitliche Versions-, Build- und Cachekennungen auf `5.1.0a`.
-- Vollständigkeit aller 28 im Service Worker hinterlegten Offline-Ressourcen.
-- Barkartenbestand mit 233 Getränken unverändert vorhanden.
-- Unit-Test der tatsächlichen Snapshot-Funktionen:
-  - Erstellung vollständiger interner Sicherungspunkte,
-  - Begrenzung auf fünf reguläre Stände,
-  - Erhalt der separaten v5-Migrationssicherung,
-  - Sortierung nach dem neuesten Stand,
-  - korrekte Bestandszahlen je Store,
-  - Verarbeitung von ISO-Zeitstempeln in der Anzeige.
-- Automatische Sicherungsaufrufe vor Reise-Löschung, Barkartenwechsel, Reiseverlaufs-Löschung, Vollbackup-Ersetzung, Vollbackup-Ergänzung, Geräteimport und Massenänderung bestehender Buchungen.
-- Reiseexport- und Vollbackupformat bleiben unverändert; der Store `snapshots` wird weiterhin nicht exportiert.
-- ZIP- und SHA-256-Prüfung nach der Paketierung.
+- JavaScript-Syntax von `js/app.js` und `sw.js` mit Node.js geprüft.
+- Versions-, Build- und Cachekennungen auf `5.2.0` / `5.2.0a` abgeglichen.
+- `manifest.json`, `data/barkarte.json` und `data/pakete.json` als gültiges JSON geprüft.
+- Vollständigkeit aller im Service Worker aufgeführten Offline-Ressourcen geprüft.
+- Barkartenbestand unverändert mit 233 Getränken bestätigt.
+- Reihenfolge der Erfassungsansicht unverändert bestätigt: Kategorien → Person → Suche → Getränke.
+- Logiktest für einen Geräteimport mit einer neuen, einer geänderten und einer identischen Buchung ausgeführt.
+- Konservative Vorauswahl „Lokale Version“ für Konflikte geprüft.
+- Übernahme der importierten Version einer geänderten Buchung geprüft; lokale Datensatz-ID und stabiler Merge-Key bleiben erhalten.
+- Sperre einer unsicheren Personen-/Reisezuordnung geprüft.
+- Automatische Erstellung eines Wiederherstellungspunkts vor der Zusammenführung im Logiktest bestätigt.
+- Erweiterte Importprotokollfelder einschließlich Konfliktentscheidung und Wiederherstellungspunkt geprüft.
+- Darstellungstexte der Importvorschau für neue, geänderte und doppelte Buchungen geprüft.
 
-## Unverändert
+## Fachliche Sicherheitslogik
 
-- Kompakte Erfassungsreihenfolge: Kategorien → Person → Suche → Getränke.
-- Einzelerfassung je ausgewählter Person.
-- Home-Schnellzugriff und „Noch einmal erfassen“.
-- Themes, Reiseverlauf, Paketprognose, Analyse, Berichtsexport und Geräteabgleich.
-- IndexedDB-Version 2; kein erneutes Datenbank-Upgrade erforderlich.
+- Identische Buchungen werden über den stabilen Merge-Key und den relevanten Buchungsinhalt als Dublette erkannt.
+- Abweichende Buchungen mit demselben Merge-Key werden als Änderung beziehungsweise Konflikt behandelt.
+- Die lokale Version bleibt standardmäßig ausgewählt.
+- Eine importierte Version wird nur bei sicher verwendbarer Reise- und Personenzuordnung angeboten.
+- Nicht sicher zuordenbare Datensätze bleiben gesperrt und werden nicht automatisch geschrieben.
+- Bei mehreren Importdateien kann je Ziel-Datensatz höchstens eine importierte Konfliktversion angewendet werden.
 
-## Noch auf dem iPhone prüfen
+## Nicht automatisiert prüfbar
 
-- Erstellen eines manuellen Wiederherstellungspunkts unter Setup.
-- Automatischer Sicherungspunkt vor einer testweisen kritischen Aktion.
-- Wiederherstellung eines Teststands mit Bestätigung `WIEDERHERSTELLEN`.
-- Verhalten bei fünf vorhandenen Sicherungspunkten und Erstellung eines sechsten Stands.
-- Offline-Update nach einmaligem Online-Aufruf.
-
-Eine automatisierte visuelle Safari-/iPhone-Prüfung ist in der Entwicklungsumgebung nicht möglich. Deshalb bleibt der abschließende Praxistest auf dem verwendeten iPhone erforderlich.
+Die abschließende visuelle und haptische Prüfung in der installierten iPhone-PWA bleibt erforderlich. Dabei sollten insbesondere das Aufklappen der Konfliktkarten, die Auswahlbuttons, der iOS-Dateidialog, die Bestätigungsdialoge und die Wiederherstellung nach einem realen Geräteimport geprüft werden.

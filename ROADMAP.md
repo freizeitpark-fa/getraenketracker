@@ -1,3 +1,12 @@
+## Version 5.2.0 Sicherer Geräteabgleich
+
+- Importvorschau für bis zu 20 Reiseexporte
+- getrennte Anzeige neuer, geänderter und doppelter Buchungen
+- Konfliktauswahl zwischen lokaler und importierter Version
+- Sperre unsicherer Reise- und Personenzuordnungen
+- automatischer Wiederherstellungspunkt vor der Zusammenführung
+- detailliertes lokales Importprotokoll
+
 ## Version 5.1.0 Interne Wiederherstellungspunkte
 
 - bis zu fünf gerätebezogene Sicherungsstände

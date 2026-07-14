@@ -122,11 +122,12 @@ Für den laufenden Abgleich wird der kompakte Reiseexport verwendet.
    - Quellgerät und Reise,
    - neue Personen,
    - neue Buchungen,
-   - bereits vorhandene Buchungen,
+   - geänderte Buchungen,
+   - bereits identisch vorhandene Buchungen,
    - Konflikte.
-6. Konflikte bei Bedarf aufklappen und den lokalen mit dem importierten Stand vergleichen.
-7. `Geprüfte Exporte jetzt zusammenführen` wählen.
-8. Das Importergebnis kontrollieren.
+6. Konflikte aufklappen und je sicher auflösbarem Datensatz `Lokale Version` oder `Importierte Version` wählen. Die lokale Version ist konservativ vorausgewählt.
+7. `Auswahl übernehmen und zusammenführen` wählen.
+8. Die Zusammenfassung und anschließend das Importprotokoll kontrollieren.
 
 Beim Zusammenführen gilt:
 
@@ -134,8 +135,10 @@ Beim Zusammenführen gilt:
 - fehlende Personen werden anhand ihrer stabilen ID ergänzt,
 - bereits vorhandene Personen werden wiederverwendet,
 - neue Buchungen werden ergänzt,
-- bereits importierte Buchungen werden übersprungen,
-- Konflikte werden nicht überschrieben; der lokale Stand bleibt erhalten,
+- identische Buchungen werden als Dubletten übersprungen,
+- bei sicher auflösbaren Konflikten gilt die ausdrücklich gewählte lokale oder importierte Version,
+- nicht sicher zuordenbare Datensätze bleiben gesperrt und werden nicht übernommen,
+- vor dem Schreiben wird automatisch ein interner Wiederherstellungspunkt erstellt,
 - Geräte-ID und Gerätename des Hauptgeräts bleiben unverändert.
 
 ## Teil 7: Daten in beide Richtungen abgleichen
@@ -151,7 +154,7 @@ Danach verfügen beide Geräte über denselben zusammengeführten Buchungsbestan
 
 ## Wann der Geräteabgleich verwendet wird
 
-Der Bereich `Geräteabgleich` ist die Standardauswahl für den laufenden Austausch von Reise-, Personen- und Buchungsdaten zwischen parallel genutzten Geräten. Die Vorschau verändert noch keine Daten. Erst `Geprüfte Exporte jetzt zusammenführen` ergänzt die geprüften neuen Datensätze. Bereits vorhandene Buchungen und Konflikte werden übersprungen.
+Der Bereich `Geräteabgleich` ist die Standardauswahl für den laufenden Austausch von Reise-, Personen- und Buchungsdaten zwischen parallel genutzten Geräten. Die Vorschau verändert noch keine Daten. Erst `Auswahl übernehmen und zusammenführen` ergänzt neue Datensätze und wendet die gewählten Konfliktentscheidungen an. Identische Dubletten werden übersprungen; unsichere Zuordnungen bleiben gesperrt.
 
 ## Wann `Vollständig ersetzen` verwendet wird
 
@@ -203,8 +206,9 @@ Ab Version 4.4.2 können bis zu 20 Reiseexporte gleichzeitig ausgewählt werden:
 2. Die JSON-Dateien in einem gemeinsamen Ordner der Dateien-App ablegen.
 3. Auf dem Zielgerät `Setup → Geräteabgleich → Geräteexporte auswählen und prüfen` antippen.
 4. In der Dateien-App mehrere JSON-Dateien markieren und öffnen.
-5. Die Importvorschau zu neuen Reisen, Personen, Buchungen, Dubletten und Konflikten prüfen.
-6. Erst danach `Geprüfte Exporte jetzt zusammenführen` wählen und die Abschlussmeldung kontrollieren.
+5. Die Importvorschau zu neuen Reisen, Personen sowie neuen, geänderten und doppelten Buchungen prüfen.
+6. Sicher auflösbare Konflikte je Datensatz entscheiden.
+7. Erst danach `Auswahl übernehmen und zusammenführen` wählen und die Abschlussmeldung sowie das Importprotokoll kontrollieren.
 
 Reisen und Personen werden anhand ihrer internen IDs erkannt. Dieselbe Person wird daher auch dann korrekt verwendet, wenn die Buchung auf einem anderen Gerät erfasst wurde. Gleichnamige Personen mit unterschiedlichen IDs werden bewusst nicht automatisch zusammengeführt.
 
@@ -214,3 +218,15 @@ Bereits importierte Buchungen werden über ihren stabilen Merge-Key erkannt und 
 ## Abgeschlossene Reisen ab Version 4.5.0
 
 Der Abschlussstatus wird je Gerät bewusst lokal geschützt. Schließe die Reise idealerweise erst ab, nachdem alle Geräteexporte zusammengeführt wurden. Enthält ein späterer Import neue Buchungen für eine lokal abgeschlossene Reise, zeigt CruiseSip dies in der Importvorschau an und verlangt eine zusätzliche Bestätigung. Die Reise bleibt nach dem Import abgeschlossen; prüfe die Abschlussdaten anschließend erneut oder reaktiviere die Reise für notwendige Korrekturen.
+
+
+## Konfliktprüfung ab Version 5.2.0
+
+Nach Auswahl der Geräteexporte zeigt CruiseSip zunächst eine Vorschau. Prüfe insbesondere:
+
+- **Neu:** bisher nicht vorhandene Buchungen, die ergänzt werden.
+- **Geändert:** dieselbe stabile Buchungsidentität liegt mit abweichenden Inhalten vor.
+- **Doppelt:** Buchung ist inhaltlich bereits identisch vorhanden.
+- **Konflikt:** Reise-, Personen- oder Buchungsdaten weichen voneinander ab.
+
+Bei sicher auflösbaren Konflikten ist standardmäßig die lokale Version ausgewählt. Alternativ kann die importierte Version gewählt werden. Nicht sicher zuordenbare Datensätze werden nicht automatisch übernommen. Vor der bestätigten Zusammenführung erstellt CruiseSip einen lokalen Wiederherstellungspunkt. Das Ergebnis bleibt anschließend im Importprotokoll nachvollziehbar.

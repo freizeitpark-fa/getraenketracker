@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.1.0** (Build **5.1.0a**)
+Aktuelle Entwicklungsfassung: **5.2.0** (Build **5.2.0a**)
 
-Version 5.1.0 ergänzt bis zu fünf interne Wiederherstellungspunkte. Vor kritischen Änderungen wie Reise-Löschung, Barkartenwechsel, Vollbackup-Wiederherstellung und Geräteimport wird automatisch lokal gesichert. Manuelle Sicherungen und kontrollierte Wiederherstellung stehen im Setup bereit. Die kompakte Erfassungsansicht, Themes, Reiseintelligenz und bestehende Backupformate bleiben unverändert. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 5.2.0 erweitert den manuellen Geräteabgleich um eine belastbare Importvorschau, getrennte Zählung neuer, geänderter und doppelter Buchungen sowie eine Auswahl zwischen lokaler und importierter Version bei sicher auflösbaren Konflikten. Vor jeder bestätigten Zusammenführung wird automatisch ein Wiederherstellungspunkt erstellt; die Entscheidungen werden im lokalen Importprotokoll dokumentiert. Die kompakte Erfassungsansicht bleibt unverändert. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v5.1.0 Interne Wiederherstellungspunkte`.
+4. Commit erstellen, z. B. `CruiseSip v5.2.0 Sicherer Geräteabgleich`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.1.0` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.2.0` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur
@@ -65,9 +65,9 @@ CruiseSip/
 - Durchschnittlicher Getränkewert pro Reisetag und Kategorienauswertung je Person
 - Auswertungen nach Person, Getränk, Kategorie, Tag und Reise inklusive vollständigem Getränkeverlauf
 - Export/Import je Reise
-- Zusammenführen mehrerer Geräte mit Importvorschau, Dubletten- und Konflikterkennung
+- Zusammenführen mehrerer Geräte mit Importvorschau, getrennter Anzeige neuer/geänderter/doppelter Buchungen und Konfliktauswahl
 - sichtbare Geräteherkunft je Buchung im Verlauf und in der Personenanalyse
-- Importprotokoll
+- detailliertes Importprotokoll mit Konfliktentscheidungen und Wiederherstellungspunkt
 - Barkartenimport mit Preis- und Paketvergleich
 - Artikelverwaltung für manuelle Preis- und Paketstatus-Anpassungen je Getränkepaket
 - Offline-Onboarding und Backup-Test

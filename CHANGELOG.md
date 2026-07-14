@@ -1,5 +1,17 @@
 # Changelog
 
+## 5.2.0 – Sicherer Geräteabgleich
+
+- Reiseexporte werden vor dem Import vollständig geprüft; lokale Daten bleiben bis zur Bestätigung unverändert.
+- Neue, geänderte und bereits vorhandene Buchungen werden getrennt ausgewiesen.
+- Änderungen derselben Buchung auf mehreren Geräten werden über den stabilen Merge-Key erkannt.
+- Für sicher auflösbare Reise-, Personen- und Buchungskonflikte kann je Datensatz zwischen lokaler und importierter Version gewählt werden.
+- Nicht sicher zuordenbare Datensätze bleiben gesperrt und werden nicht automatisch übernommen.
+- Vor jedem bestätigten Geräteabgleich wird automatisch ein lokaler Wiederherstellungspunkt erstellt.
+- Das Importprotokoll speichert je Datei Zählwerte, Konfliktentscheidungen und den Bezug zum Wiederherstellungspunkt.
+- Die Erfassungsansicht und das bestehende Datenmodell bleiben unverändert.
+- App- und Service-Worker-Build auf `5.2.0a` erhöht.
+
 ## 5.1.0 – Interne Wiederherstellungspunkte
 
 - Bis zu fünf vollständige lokale Sicherungsstände im getrennten Snapshot-Store.

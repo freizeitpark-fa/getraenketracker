@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.1.0';
-const APP_CACHE_NAME = 'cruisesip-v5-1-0-20260714a';
-const APP_BUILD = '5.1.0a';
-const SERVICE_WORKER_URL = './sw.js?v=5.1.0a';
+const APP_VERSION = '5.2.0';
+const APP_CACHE_NAME = 'cruisesip-v5-2-0-20260714a';
+const APP_BUILD = '5.2.0a';
+const SERVICE_WORKER_URL = './sw.js?v=5.2.0a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -1143,6 +1143,7 @@ async function handleClick(event) {
   if (action === 'deleteInternalRestorePoint') { await deleteInternalRestorePoint(id); return; }
   if (action === 'importTrip') { openFile('trip'); return; }
   if (action === 'cancelTripImport') { state.pendingTripImport = null; render(); return; }
+  if (action === 'setTripConflictResolution') { setTripConflictResolution(id, target.dataset.value); return; }
   if (action === 'applyTripImport') { await runActionOnce('applyTripImport', applyPreparedTripImport); return; }
   if (action === 'importBarkarte') { openFile('barkarte'); return; }
   if (action === 'clearImportLog') { await clearStore('imports'); await loadState(); render(); return; }
@@ -3381,9 +3382,21 @@ function personCardHtml(person) {
   const locked = isTripCompleted();
   return `<article class="itemCard" style="--person:${esc(person.color || '#e0f2fe')}"><div><b><span class="personDot"></span>${esc(person.name)}</b><small>${esc(packageName(person.packageId))}${person.packagePrice ? ` · Paketpreis ${eur(person.packagePrice)}` : ''} · ${count} Einträge</small></div>${locked ? '<span class="readOnlyBadge">Schreibgeschützt</span>' : `<div class="rowActions"><button class="mini" data-action="editPerson" data-id="${esc(person.id)}">Bearbeiten</button><button class="mini dangerText" data-action="deletePerson" data-id="${esc(person.id)}">Löschen</button></div>`}</article>`;
 }
+function importProtocolDetailsHtml(entry) {
+  const details = Array.isArray(entry.resolutionDetails) ? entry.resolutionDetails : [];
+  if (!details.length) return '';
+  return `<div class="importProtocolDecisions">${details.slice(0, 20).map(row => `<div><span>${esc(row.type === 'log' ? 'Buchung' : row.type === 'person' ? 'Person' : row.type === 'trip' ? 'Reise' : 'Zuordnung')}</span><b>${esc(row.title || 'Datensatz')}</b><small>${row.resolution === 'incoming' ? 'Importierte Version übernommen' : row.resolution === 'blocked' ? 'Nicht sicher übernehmbar' : 'Lokale Version beibehalten'}</small></div>`).join('')}${details.length > 20 ? `<p class="hint">Weitere ${details.length - 20} Entscheidungen sind im lokalen Protokolldatensatz enthalten.</p>` : ''}</div>`;
+}
 function importLogHtml() {
   if (!state.imports.length) return '<p class="emptyText">Noch keine Importe.</p>';
-  return `<div class="statList">${state.imports.slice(0, 10).map(i => `<div class="statRow"><div><b>${esc(i.fileName || 'Import')}</b><small>${esc(formatDateTime(Date.parse(i.importedAt)))}${i.sourceDeviceName ? ` · von ${esc(i.sourceDeviceName)}` : ''} · neu ${i.added || 0} · doppelt ${i.duplicates || 0}${i.conflicts ? ` · Konflikte ${i.conflicts}` : ''}</small></div><strong>${esc(i.kind || '')}</strong></div>`).join('')}</div>`;
+  return `<div class="importProtocolList">${state.imports.slice(0, 20).map(i => {
+    const addedLogs = Number(i.addedLogs ?? i.added ?? 0);
+    const changedLogs = Number(i.changedLogs || 0);
+    const duplicates = Number(i.duplicates || 0);
+    const conflicts = Number(i.conflicts || 0);
+    const resolutionLine = conflicts ? `${Number(i.resolvedLocal || 0)} lokal · ${Number(i.resolvedImported || 0)} importiert · ${Number(i.blockedConflicts || 0)} gesperrt` : 'keine Konflikte';
+    return `<details class="importProtocolRow"><summary><div><b>${esc(i.fileName || 'Import')}</b><small>${esc(formatDateTime(Date.parse(i.importedAt)))}${i.sourceDeviceName ? ` · von ${esc(i.sourceDeviceName)}` : ''}</small></div><span>${esc(i.kind || 'Import')}</span></summary><div class="importProtocolStats"><span><b>+${addedLogs}</b> neu</span><span><b>${changedLogs}</b> geändert</span><span><b>${duplicates}</b> doppelt</span><span><b>${conflicts}</b> Konflikte</span></div><p class="importProtocolResolution">${esc(resolutionLine)}${i.restorePointId ? ' · Wiederherstellungspunkt erstellt' : ''}</p>${importProtocolDetailsHtml(i)}</details>`;
+  }).join('')}</div>`;
 }
 
 function viewBarkarte() {
@@ -4562,9 +4575,32 @@ function canonicalTripLog(log) {
 function tripLogsEqual(left, right) {
   return stableStringify(canonicalTripLog(left)) === stableStringify(canonicalTripLog(right));
 }
+function stableTextHash(value) {
+  let hash = 2166136261;
+  for (const char of String(value || '')) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
 function tripConflictDetail(type, fileName, payload, localRow, incomingRow, message) {
   const deviceName = payload?.device?.name || 'Unbekanntes Gerät';
-  const detail = { type, fileName, deviceName, message };
+  const rowIdentity = type === 'log' || type === 'reference'
+    ? logMergeKey(incomingRow, payload?.device?.id || '') || incomingRow?.id || 'unknown'
+    : incomingRow?.id || localRow?.id || 'unknown';
+  const detail = {
+    id: `conflict_${stableTextHash(`${type}|${fileName}|${payload?.exportId || ''}|${rowIdentity}`)}`,
+    type,
+    fileName,
+    deviceName,
+    deviceId: payload?.device?.id || '',
+    message,
+    targetKey: `${type === 'reference' ? 'reference' : type}:${rowIdentity}`,
+    resolvable: type !== 'reference',
+    localRow: localRow ? cloneRow(localRow) : null,
+    incomingRow: incomingRow ? cloneRow(incomingRow) : null
+  };
+  if (type === 'person' && localRow?.tripId !== incomingRow?.tripId) detail.resolvable = false;
   if (type === 'trip') {
     detail.title = incomingRow?.name || incomingRow?.id || 'Reise';
     detail.local = `${localRow?.name || 'Unbenannt'} · ${formatDate(localRow?.startDate)} bis ${formatDate(localRow?.endDate)}`;
@@ -4610,7 +4646,7 @@ async function buildTripImportPlan(parsed, local) {
   const personById = new Map((local.persons || []).map(row => [row.id, row]));
   const logByKey = new Map((local.logs || []).map(row => [logMergeKey(row, state.settings.deviceId || ''), row]));
   const usedLogIds = new Set((local.logs || []).map(row => row.id));
-  const summary = { files: parsed.length, trips: 0, persons: 0, logs: 0, duplicates: 0, conflicts: 0, nameWarnings: 0, legacyFiles: 0, archivedTripLogs: 0 };
+  const summary = { files: parsed.length, trips: 0, persons: 0, logs: 0, duplicates: 0, changedLogs: 0, conflicts: 0, blockedConflicts: 0, nameWarnings: 0, legacyFiles: 0, archivedTripLogs: 0 };
   const fileSummaries = [];
   const conflicts = [];
   const warnings = [];
@@ -4637,7 +4673,9 @@ async function buildTripImportPlan(parsed, local) {
       addedPersons: 0,
       addedLogs: 0,
       duplicates: 0,
+      changedLogs: 0,
       conflicts: 0,
+      blockedConflicts: 0,
       archivedTripLogs: 0,
       legacy: !validation.isV2
     };
@@ -4674,7 +4712,11 @@ async function buildTripImportPlan(parsed, local) {
       } else if (existingPerson.tripId !== tripId || !rowsMeaningfullyEqual('persons', existingPerson, person)) {
         summary.conflicts += 1;
         fileSummary.conflicts += 1;
-        if (existingPerson.tripId !== tripId) blockedPersonIds.add(person.id);
+        if (existingPerson.tripId !== tripId) {
+          blockedPersonIds.add(person.id);
+          summary.blockedConflicts += 1;
+          fileSummary.blockedConflicts += 1;
+        }
         conflicts.push(tripConflictDetail('person', fileName, payload, existingPerson, person, existingPerson.tripId !== tripId
           ? 'Die Personen-ID ist lokal einer anderen Reise zugeordnet. Buchungen für diese Person werden aus dieser Datei nicht übernommen.'
           : 'Person mit gleicher ID besitzt abweichende Stammdaten. Der lokale Personenstand bleibt erhalten; neue Buchungen können weiterhin dieser Person zugeordnet werden.'));
@@ -4690,26 +4732,42 @@ async function buildTripImportPlan(parsed, local) {
           fileSummary.duplicates += 1;
         } else {
           summary.conflicts += 1;
+          summary.changedLogs += 1;
           fileSummary.conflicts += 1;
-          conflicts.push(tripConflictDetail('log', fileName, payload, existingLog, incomingLog, 'Buchung mit gleichem Merge-Key besitzt abweichende Inhalte.'));
+          fileSummary.changedLogs += 1;
+          const conflict = tripConflictDetail('log', fileName, payload, existingLog, incomingLog, 'Buchung mit gleichem Merge-Key wurde auf mindestens einem Gerät verändert.');
+          const incomingPerson = personById.get(incomingLog.personId);
+          if (blockedPersonIds.has(incomingLog.personId) || !incomingPerson || incomingPerson.tripId !== tripId || (incomingLog.tripId && incomingLog.tripId !== tripId)) {
+            conflict.resolvable = false;
+            conflict.message += ' Die importierte Version besitzt keine sicher verwendbare Reise- oder Personenzuordnung und bleibt deshalb gesperrt.';
+            summary.blockedConflicts += 1;
+            fileSummary.blockedConflicts += 1;
+          }
+          conflicts.push(conflict);
         }
         continue;
       }
       if (blockedPersonIds.has(incomingLog.personId)) {
         summary.conflicts += 1;
+        summary.blockedConflicts += 1;
         fileSummary.conflicts += 1;
+        fileSummary.blockedConflicts += 1;
         conflicts.push(tripConflictDetail('reference', fileName, payload, personById.get(incomingLog.personId), incomingLog, 'Die Personen-ID ist lokal einer anderen Reise zugeordnet. Diese Buchung wird nicht übernommen.'));
         continue;
       }
       if (!tripById.has(tripId)) {
         summary.conflicts += 1;
+        summary.blockedConflicts += 1;
         fileSummary.conflicts += 1;
+        fileSummary.blockedConflicts += 1;
         conflicts.push(tripConflictDetail('reference', fileName, payload, null, incomingLog, 'Die zugehörige Reise ist nicht verfügbar.'));
         continue;
       }
       if (!personById.has(incomingLog.personId)) {
         summary.conflicts += 1;
+        summary.blockedConflicts += 1;
         fileSummary.conflicts += 1;
+        fileSummary.blockedConflicts += 1;
         conflicts.push(tripConflictDetail('reference', fileName, payload, null, incomingLog, 'Die zugehörige Person ist nicht verfügbar.'));
         continue;
       }
@@ -4750,10 +4808,15 @@ async function parseTripImportFiles(files) {
   }
   return parsed;
 }
+function defaultTripConflictResolutions(plan, previous = {}) {
+  const result = {};
+  for (const conflict of plan.conflicts || []) result[conflict.id] = conflict.resolvable && previous[conflict.id] === 'incoming' ? 'incoming' : 'local';
+  return result;
+}
 async function prepareTripImportFiles(files) {
   const parsed = await parseTripImportFiles(files);
   const plan = await buildTripImportPlan(parsed, await readAllStoresSnapshot());
-  state.pendingTripImport = { parsed, plan, signature: tripImportPlanSignature(plan), preparedAt: nowIso() };
+  state.pendingTripImport = { parsed, plan, signature: tripImportPlanSignature(plan), resolutions: defaultTripConflictResolutions(plan), preparedAt: nowIso() };
   render();
   requestAnimationFrame(() => $('#tripImportPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   toast('Geräteexporte geprüft – noch keine Daten importiert');
@@ -4762,34 +4825,121 @@ function tripImportFileHtml(row) {
   const exportedAt = Number.isFinite(Date.parse(row.exportedAt || '')) ? new Date(row.exportedAt).toLocaleString('de-DE') : 'Zeitpunkt unbekannt';
   return `<div class="tripImportFile">
     <div class="tripImportFileHead"><div><b>${esc(row.deviceName)}</b><small>${esc(row.tripName)} · ${esc(exportedAt)}</small></div><span class="diagnosticSummary ${row.conflicts ? 'warn' : 'ok'}">${row.conflicts ? `${row.conflicts} Konflikt${row.conflicts === 1 ? '' : 'e'}` : 'Geprüft'}</span></div>
-    <div class="tripImportFileCounts"><span><b>+${row.addedPersons}</b> Personen</span><span><b>+${row.addedLogs}</b> Buchungen</span><span><b>${row.duplicates}</b> vorhanden</span></div>
+    <div class="tripImportFileCounts"><span><b>+${row.addedLogs}</b> neu</span><span><b>${row.changedLogs || 0}</b> geändert</span><span><b>${row.duplicates}</b> doppelt</span></div>
+    ${row.addedPersons || row.addedTrips ? `<small class="tripImportReferenceCounts">Zusätzlich: ${row.addedTrips || 0} Reise(n) · ${row.addedPersons || 0} Person(en)</small>` : ''}
     ${row.archivedTripLogs ? `<div class="archivedImportWarning">${row.archivedTripLogs} neue Buchung${row.archivedTripLogs === 1 ? '' : 'en'} für eine abgeschlossene Reise</div>` : ''}
     <small class="tripImportFileName">${esc(row.fileName)}${row.legacy ? ' · älteres Exportformat' : ''}</small>
   </div>`;
 }
+function conflictResolutionFor(conflict) {
+  if (!conflict.resolvable) return 'blocked';
+  return state.pendingTripImport?.resolutions?.[conflict.id] === 'incoming' ? 'incoming' : 'local';
+}
 function tripConflictHtml(row) {
-  const typeLabel = row.type === 'trip' ? 'Reise' : row.type === 'person' ? 'Person' : row.type === 'log' ? 'Buchung' : 'Zuordnung';
-  return `<details class="tripConflictItem"><summary><span><b>${esc(typeLabel)}: ${esc(row.title)}</b><small>${esc(row.deviceName)} · ${esc(row.fileName)}</small></span><strong>lokal bleibt</strong></summary><div class="tripConflictCompare"><div><span>Lokal</span><p>${esc(row.local)}</p></div><div><span>Export</span><p>${esc(row.incoming)}</p></div></div><p class="tripConflictMessage">${esc(row.message)}</p></details>`;
+  const typeLabel = row.type === 'trip' ? 'Reise' : row.type === 'person' ? 'Person' : row.type === 'log' ? 'Geänderte Buchung' : 'Nicht sichere Zuordnung';
+  const resolution = conflictResolutionFor(row);
+  const resolutionLabel = resolution === 'incoming' ? 'Importiert gewählt' : resolution === 'blocked' ? 'Nicht übernehmbar' : 'Lokal gewählt';
+  const choices = row.resolvable
+    ? `<div class="tripConflictChoices" role="group" aria-label="Version auswählen"><button class="${resolution === 'local' ? 'selected' : ''}" data-action="setTripConflictResolution" data-id="${esc(row.id)}" data-value="local">Lokale Version</button><button class="${resolution === 'incoming' ? 'selected' : ''}" data-action="setTripConflictResolution" data-id="${esc(row.id)}" data-value="incoming">Importierte Version</button></div>`
+    : `<div class="tripConflictBlocked">Dieser Datensatz kann wegen einer unsicheren Reise- oder Personenzuordnung nicht automatisch übernommen werden.</div>`;
+  return `<details class="tripConflictItem ${resolution}"><summary><span><b>${esc(typeLabel)}: ${esc(row.title)}</b><small>${esc(row.deviceName)} · ${esc(row.fileName)}</small></span><strong>${esc(resolutionLabel)}</strong></summary><div class="tripConflictCompare"><div class="${resolution === 'local' ? 'chosen' : ''}"><span>Lokal</span><p>${esc(row.local)}</p></div><div class="${resolution === 'incoming' ? 'chosen' : ''}"><span>Export</span><p>${esc(row.incoming)}</p></div></div>${choices}<p class="tripConflictMessage">${esc(row.message)}</p></details>`;
+}
+function tripResolutionSummary(plan, resolutions = {}) {
+  const result = { local: 0, incoming: 0, blocked: 0 };
+  for (const conflict of plan.conflicts || []) {
+    if (!conflict.resolvable) result.blocked += 1;
+    else if (resolutions[conflict.id] === 'incoming') result.incoming += 1;
+    else result.local += 1;
+  }
+  return result;
 }
 function tripImportPreviewHtml() {
   const pending = state.pendingTripImport;
   if (!pending) return '';
   const { plan } = pending;
   const { summary } = plan;
+  const resolutions = tripResolutionSummary(plan, pending.resolutions || {});
   return `<div class="tripImportPreview" id="tripImportPreview">
-    <div class="backupPreviewHead"><div><b>Importvorschau</b><small>${summary.files} Datei${summary.files === 1 ? '' : 'en'} geprüft · Noch keine lokalen Daten verändert</small></div><span class="diagnosticSummary ${summary.conflicts ? 'warn' : 'ok'}">${summary.conflicts ? 'Konflikte erkannt' : 'Bereit zum Zusammenführen'}</span></div>
+    <div class="backupPreviewHead"><div><b>Importvorschau</b><small>${summary.files} Datei${summary.files === 1 ? '' : 'en'} geprüft · Noch keine lokalen Daten verändert</small></div><span class="diagnosticSummary ${summary.conflicts ? 'warn' : 'ok'}">${summary.conflicts ? 'Auswahl erforderlich' : 'Bereit zum Zusammenführen'}</span></div>
     <div class="tripImportSummary">
-      <span><b>+${summary.trips}</b> Reisen</span><span><b>+${summary.persons}</b> Personen</span><span><b>+${summary.logs}</b> Buchungen</span><span><b>${summary.duplicates}</b> bereits vorhanden</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte</span>${summary.archivedTripLogs ? `<span class="warnText"><b>${summary.archivedTripLogs}</b> Buchungen für abgeschlossene Reisen</span>` : ''}
+      <span><b>+${summary.logs}</b> neue Buchungen</span><span><b>${summary.changedLogs || 0}</b> geänderte Buchungen</span><span><b>${summary.duplicates}</b> doppelte Buchungen</span><span><b>+${summary.persons}</b> Personen</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte gesamt</span>${summary.archivedTripLogs ? `<span class="warnText"><b>${summary.archivedTripLogs}</b> für abgeschlossene Reisen</span>` : ''}
     </div>
     <div class="tripImportFiles">${plan.fileSummaries.map(tripImportFileHtml).join('')}</div>
     ${plan.warnings.length ? `<div class="backupMessages warn">${plan.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
-    ${plan.conflicts.length ? `<div class="tripConflictSection"><div class="sectionHead"><div><h3>Konflikte</h3><p class="hint">Konfliktbehaftete Datensätze werden nicht übernommen. Der vorhandene lokale Datensatz bleibt unverändert.</p></div><span class="subtle">${plan.conflicts.length}</span></div>${plan.conflicts.slice(0, 50).map(tripConflictHtml).join('')}${plan.conflicts.length > 50 ? `<p class="hint">Weitere ${plan.conflicts.length - 50} Konflikte werden aus Platzgründen nicht einzeln angezeigt.</p>` : ''}</div>` : ''}
-    <div class="backupModeCard"><b>Geprüfte Daten zusammenführen</b><p>Nur neue Reisen, Personen und Buchungen werden ergänzt. Dubletten und Konflikte werden übersprungen; vorhandene lokale Daten werden nicht gelöscht oder überschrieben.</p><button class="primary" data-action="applyTripImport">Geprüfte Exporte jetzt zusammenführen</button></div>
+    ${plan.conflicts.length ? `<div class="tripConflictSection"><div class="sectionHead"><div><h3>Konflikte entscheiden</h3><p class="hint">CruiseSip verwendet zunächst die lokale Version. Für jeden sicher auflösbaren Konflikt kann stattdessen die importierte Version gewählt werden.</p></div><span class="subtle">${plan.conflicts.length}</span></div><div class="tripResolutionCounters"><span><b>${resolutions.local}</b> lokal</span><span><b>${resolutions.incoming}</b> importiert</span><span><b>${resolutions.blocked}</b> gesperrt</span></div>${plan.conflicts.slice(0, 100).map(tripConflictHtml).join('')}${plan.conflicts.length > 100 ? `<p class="hint">Weitere ${plan.conflicts.length - 100} Konflikte werden aus Platzgründen nicht einzeln angezeigt und bleiben lokal.</p>` : ''}</div>` : ''}
+    <div class="backupModeCard"><b>Geprüfte Daten zusammenführen</b><p>Neue Datensätze werden ergänzt. Dubletten werden übersprungen. Bei Konflikten gilt die oben gewählte Version. Vor der Änderung erstellt CruiseSip automatisch einen lokalen Wiederherstellungspunkt und schreibt ein Importprotokoll.</p><button class="primary" data-action="applyTripImport">Auswahl übernehmen und zusammenführen</button></div>
     <button class="secondary" data-action="cancelTripImport">Importvorschau schließen</button>
   </div>`;
 }
+function renderTripImportPreview() {
+  const element = $('#tripImportPreview');
+  if (element) element.outerHTML = tripImportPreviewHtml();
+}
+function setTripConflictResolution(id, value) {
+  const pending = state.pendingTripImport;
+  const conflict = pending?.plan?.conflicts?.find(row => row.id === id);
+  if (!pending || !conflict) return;
+  if (!conflict.resolvable) { toast('Dieser Konflikt kann nicht sicher automatisch aufgelöst werden'); return; }
+  const resolution = value === 'incoming' ? 'incoming' : 'local';
+  if (!pending.resolutions) pending.resolutions = defaultTripConflictResolutions(pending.plan);
+  if (resolution === 'incoming') {
+    for (const other of pending.plan.conflicts) {
+      if (other.id !== conflict.id && other.targetKey === conflict.targetKey) pending.resolutions[other.id] = 'local';
+    }
+  }
+  pending.resolutions[conflict.id] = resolution;
+  renderTripImportPreview();
+  haptic();
+}
 function deviceSyncCardHtml() {
-  return `<div class="card deviceSyncCard"><div class="sectionHead"><div><h2>Geräteabgleich</h2><p class="hint">Reisedaten mehrerer Geräte manuell über JSON-Dateien zusammenführen.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und prüfen</button></div><p class="hint">Bis zu 20 Reiseexporte können gemeinsam ausgewählt werden. Vor dem Import zeigt CruiseSip neue Personen und Buchungen, Dubletten sowie Konflikte an.</p>${tripImportPreviewHtml()}</div>`;
+  return `<div class="card deviceSyncCard"><div class="sectionHead"><div><h2>Geräteabgleich</h2><p class="hint">Reisedaten mehrerer Geräte manuell über JSON-Dateien zusammenführen.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und prüfen</button></div><p class="hint">Bis zu 20 Reiseexporte können gemeinsam geprüft werden. CruiseSip zeigt neue, geänderte und doppelte Buchungen getrennt an. Bei sicher erkannten Konflikten entscheidest du zwischen lokaler und importierter Version.</p>${tripImportPreviewHtml()}</div>`;
+}
+function incomingTripConflictRow(conflict) {
+  const local = cloneRow(conflict.localRow || {});
+  const incoming = cloneRow(conflict.incomingRow || {});
+  const row = { ...local, ...incoming, id: local.id || incoming.id, updatedAt: nowIso() };
+  for (const key of ['archived', 'itinerary', 'itineraryImportedAt', 'itinerarySource']) {
+    if (Object.prototype.hasOwnProperty.call(local, key)) row[key] = local[key];
+    else delete row[key];
+  }
+  row.createdAt = local.createdAt || incoming.createdAt || nowIso();
+  return row;
+}
+function incomingPersonConflictRow(conflict) {
+  const local = cloneRow(conflict.localRow || {});
+  const incoming = cloneRow(conflict.incomingRow || {});
+  return { ...incoming, id: local.id || incoming.id, tripId: local.tripId || incoming.tripId, createdAt: local.createdAt || incoming.createdAt || nowIso(), updatedAt: nowIso() };
+}
+function incomingLogConflictRow(conflict) {
+  const local = cloneRow(conflict.localRow || {});
+  const incoming = cloneRow(conflict.incomingRow || {});
+  const row = { ...incoming };
+  row.id = local.id || incoming.id || `log_${uid()}`;
+  row.originId = local.originId || incoming.originId || incoming.id || row.id;
+  row.mergeKey = logMergeKey(incoming, conflict.deviceId || incoming.trackedByDeviceId || '');
+  row.trackedByDeviceId = incoming.trackedByDeviceId || conflict.deviceId || local.trackedByDeviceId || 'unknown';
+  row.trackedByDeviceName = incoming.trackedByDeviceName || conflict.deviceName || local.trackedByDeviceName || 'Import';
+  row.importedAt = nowIso();
+  row.updatedAt = nowIso();
+  return row;
+}
+function applyTripConflictResolutions(plan, resolutions = {}) {
+  const stats = { local: 0, incoming: 0, blocked: 0, byFile: {} };
+  const selectedTargets = new Set();
+  for (const conflict of plan.conflicts || []) {
+    const fileStats = stats.byFile[conflict.fileName] ||= { local: 0, incoming: 0, blocked: 0, details: [] };
+    let resolution = conflict.resolvable && resolutions[conflict.id] === 'incoming' ? 'incoming' : conflict.resolvable ? 'local' : 'blocked';
+    if (resolution === 'incoming' && selectedTargets.has(conflict.targetKey)) resolution = 'local';
+    if (resolution === 'incoming') selectedTargets.add(conflict.targetKey);
+    stats[resolution] += 1;
+    fileStats[resolution] += 1;
+    fileStats.details.push({ id: conflict.id, type: conflict.type, title: conflict.title, resolution, message: conflict.message });
+    if (resolution !== 'incoming') continue;
+    if (conflict.type === 'trip') plan.rows.trips.push(incomingTripConflictRow(conflict));
+    if (conflict.type === 'person') plan.rows.persons.push(incomingPersonConflictRow(conflict));
+    if (conflict.type === 'log') plan.rows.logs.push(incomingLogConflictRow(conflict));
+  }
+  return stats;
 }
 async function applyPreparedTripImport() {
   const pending = state.pendingTripImport;
@@ -4801,32 +4951,54 @@ async function applyPreparedTripImport() {
   }
   const plan = await buildTripImportPlan(pending.parsed, await readAllStoresSnapshot());
   const currentSignature = tripImportPlanSignature(plan);
+  const resolutions = defaultTripConflictResolutions(plan, pending.resolutions || {});
   if (currentSignature !== pending.signature) {
-    state.pendingTripImport = { ...pending, plan, signature: currentSignature, preparedAt: nowIso() };
+    state.pendingTripImport = { ...pending, plan, signature: currentSignature, resolutions, preparedAt: nowIso() };
     render();
-    alert('Der lokale Datenbestand hat sich seit der Vorschau geändert. Die Importvorschau wurde aktualisiert. Bitte prüfe die Werte erneut.');
+    alert('Der lokale Datenbestand hat sich seit der Vorschau geändert. Die Importvorschau wurde aktualisiert. Bitte prüfe die Konfliktauswahl erneut.');
     return;
   }
-  if (plan.summary.conflicts && !confirm(`${plan.summary.conflicts} Konflikt${plan.summary.conflicts === 1 ? '' : 'e'} wurde${plan.summary.conflicts === 1 ? '' : 'n'} erkannt. Konfliktbehaftete Datensätze werden übersprungen; lokale Daten bleiben erhalten. Trotzdem zusammenführen?`)) return;
+  state.pendingTripImport = { ...pending, plan, resolutions };
+  const resolutionStats = applyTripConflictResolutions(plan, resolutions);
   if (plan.summary.archivedTripLogs && !confirm(`${plan.summary.archivedTripLogs} neue Buchung${plan.summary.archivedTripLogs === 1 ? '' : 'en'} wird einer lokal abgeschlossenen Reise hinzugefügt. Die Reise bleibt abgeschlossen und die neuen Daten sollten anschließend erneut geprüft werden. Trotzdem importieren?`)) return;
+  if (plan.summary.conflicts && !confirm(`${plan.summary.conflicts} Konflikt${plan.summary.conflicts === 1 ? '' : 'e'}: ${resolutionStats.local} lokal, ${resolutionStats.incoming} importiert, ${resolutionStats.blocked} nicht übernehmbar. Auswahl jetzt anwenden?`)) return;
+
   const importedAt = nowIso();
+  const batchId = `sync_${uid()}`;
+  const restorePoint = await createInternalRestorePoint('Vor dem Zusammenführen von Geräteexporten', {
+    files: plan.summary.files,
+    newLogs: plan.summary.logs,
+    changedLogs: plan.summary.changedLogs,
+    importedConflicts: resolutionStats.incoming
+  });
   for (const fileSummary of plan.fileSummaries) {
+    const fileResolution = resolutionStats.byFile[fileSummary.fileName] || { local: 0, incoming: 0, blocked: 0, details: [] };
     plan.rows.imports.push({
       id: `import_${uid()}`,
-      kind: 'Geräteabgleich',
+      batchId,
+      kind: 'Geräteabgleich v5.2',
+      status: 'abgeschlossen',
       fileName: fileSummary.fileName,
       importedAt,
       sourceDeviceId: fileSummary.deviceId,
       sourceDeviceName: fileSummary.deviceName,
       tripId: fileSummary.tripId,
       exportId: fileSummary.exportId || '',
+      restorePointId: restorePoint?.id || '',
       added: fileSummary.addedLogs,
+      addedTrips: fileSummary.addedTrips,
+      addedPersons: fileSummary.addedPersons,
+      addedLogs: fileSummary.addedLogs,
+      changedLogs: fileSummary.changedLogs || 0,
       duplicates: fileSummary.duplicates,
-      conflicts: fileSummary.conflicts
+      conflicts: fileSummary.conflicts,
+      resolvedLocal: fileResolution.local,
+      resolvedImported: fileResolution.incoming,
+      blockedConflicts: fileResolution.blocked,
+      archivedTripLogs: fileSummary.archivedTripLogs || 0,
+      resolutionDetails: fileResolution.details.slice(0, 100)
     });
   }
-  const tripImportAdditions = Number(plan.summary.trips || 0) + Number(plan.summary.persons || 0) + Number(plan.summary.logs || 0);
-  if (tripImportAdditions > 0) await createInternalRestorePoint('Vor dem Zusammenführen von Geräteexporten', { files: plan.summary.files, additions: tripImportAdditions });
   await putRowsAtomic(plan.rows);
   state.pendingTripImport = null;
   await loadState();
@@ -4835,9 +5007,8 @@ async function applyPreparedTripImport() {
   if (plan.summary.nameWarnings) notices.push(`${plan.summary.nameWarnings} gleichnamige Person(en) mit unterschiedlicher ID wurden getrennt beibehalten.`);
   if (plan.summary.legacyFiles) notices.push(`${plan.summary.legacyFiles} ältere Exportdatei(en) wurden kompatibel importiert.`);
   if (plan.summary.archivedTripLogs) notices.push(`${plan.summary.archivedTripLogs} neue Buchung(en) wurden abgeschlossenen Reisen hinzugefügt; der lokale Abschlussstatus blieb erhalten.`);
-  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${plan.summary.files}\nNeue Reisen: ${plan.summary.trips}\nNeue Personen: ${plan.summary.persons}\nNeue Buchungen: ${plan.summary.logs}\nBereits vorhanden: ${plan.summary.duplicates}\nKonflikte übersprungen: ${plan.summary.conflicts}
-Buchungen für abgeschlossene Reisen: ${plan.summary.archivedTripLogs || 0}${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
-  toast(`${plan.summary.logs} neue Buchungen · ${plan.summary.duplicates} bereits vorhanden`);
+  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${plan.summary.files}\nNeue Reisen: ${plan.summary.trips}\nNeue Personen: ${plan.summary.persons}\nNeue Buchungen: ${plan.summary.logs}\nGeänderte Buchungen: ${plan.summary.changedLogs || 0}\nBereits vorhanden: ${plan.summary.duplicates}\nKonflikte lokal behalten: ${resolutionStats.local}\nImportierte Version übernommen: ${resolutionStats.incoming}\nNicht sicher übernehmbar: ${resolutionStats.blocked}\nWiederherstellungspunkt: erstellt${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
+  toast(`${plan.summary.logs} neu · ${resolutionStats.incoming} importiert · ${plan.summary.duplicates} doppelt`);
 }
 
 function normalizeDrinks(drinks) {
@@ -4937,6 +5108,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.2.0</h2>
+  <ul>
+    <li>Geräteexporte zeigen neue, geänderte und doppelte Buchungen vor der Zusammenführung getrennt an.</li>
+    <li>Bei sicher auflösbaren Konflikten kann je Reise, Person oder Buchung zwischen lokaler und importierter Version gewählt werden.</li>
+    <li>Nicht sicher zuordenbare Datensätze bleiben gesperrt und werden nicht automatisch übernommen.</li>
+    <li>Vor jeder bestätigten Zusammenführung wird automatisch ein lokaler Wiederherstellungspunkt erstellt.</li>
+    <li>Das erweiterte Importprotokoll dokumentiert Quellgerät, Zählwerte und jede Konfliktentscheidung.</li>
+  </ul>
   <h2>Version 5.1.0</h2>
   <ul>
     <li>Bis zu fünf vollständige lokale Wiederherstellungspunkte im getrennten Snapshot-Speicher.</li>
@@ -4947,7 +5126,7 @@ const CHANGELOG_HTML = `
   </ul>
   <h2>Version 5.0.2</h2>
   <ul>
-    <li>Erfassungsansicht deutlich kompakter aufgebaut; die Getränkesuche steht nun als erstes Bedienelement über allen Auswahlen.</li>
+    <li>Erfassungsansicht deutlich kompakter aufgebaut; die Getränkesuche steht direkt über der Getränkeliste nach Kategorien und Personenauswahl.</li>
     <li>„Noch einmal erfassen“ bleibt auf Home, wurde aber aus der Erfassungsansicht entfernt.</li>
     <li>Die Mehrfachauswahl wurde aus der regulären Erfassungsansicht zurückgenommen; jede Getränkekachel erfasst wieder eindeutig für eine Person.</li>
     <li>Personenwechsel, Kategorien und Ergebnisleiste benötigen weniger Höhe, sodass mehr Getränkekacheln gleichzeitig sichtbar sind.</li>

@@ -41,8 +41,8 @@ Beim ersten Start nach dem Update von v4 auf v5 wird vor der Migration einmalig 
 
 ## Technischer Stand
 
-- App-Version: 5.1.0
-- Build: 5.1.0a
+- App-Version: 5.2.0
+- Build: 5.2.0a
 - IndexedDB-Version: 2
 - Neue Store-Struktur: `snapshots`
 - Bestehende Kern-Stores und IDs bleiben unverändert.
@@ -69,3 +69,8 @@ Die Suchleiste wurde innerhalb des kompakten Erfassungskopfs hinter Kategorien u
 ## Ergänzung 5.1.0
 
 Der bereits vorhandene Snapshot-Store wird für bis zu fünf reguläre interne Wiederherstellungspunkte erweitert. CruiseSip sichert vor kritischen Änderungen automatisch den vollständigen lokalen Kernbestand. Wiederherstellungspunkte können im Setup manuell erstellt, kontrolliert wiederhergestellt und einzeln gelöscht werden. Die v5-Migrationssicherung bleibt getrennt bestehen.
+
+
+## Ergänzung 5.2.0
+
+Der Geräteabgleich klassifiziert Reiseexporte vor der Übernahme. Neue Buchungen werden ergänzt, Dubletten übersprungen und abweichende Datensätze als Konflikt dargestellt. Für sicher auflösbare Konflikte wird die lokale oder importierte Version festgelegt. Unsichere Referenzkonflikte bleiben gesperrt. Vor dem Schreiben in IndexedDB wird ein Wiederherstellungspunkt erstellt; das Importprotokoll dokumentiert Quelle, Zählwerte und Entscheidungen.

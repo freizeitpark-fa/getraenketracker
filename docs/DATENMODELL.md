@@ -83,3 +83,21 @@ Jeder Wiederherstellungspunkt enthält:
 - vollständige Kopie der sieben Kern-Stores
 
 Es werden höchstens fünf reguläre Wiederherstellungspunkte aufbewahrt. Die v5-Migrationssicherung wird separat behandelt. Der Store `snapshots` bleibt weiterhin außerhalb von Vollbackup und Reiseexport, damit Sicherungen nicht rekursiv vervielfacht werden.
+
+
+## Importprotokoll ab Version 5.2.0
+
+Der Store `imports` bleibt unverändert bestehen und erhält für Geräteabgleiche zusätzliche optionale Felder:
+
+- `batchId`: gemeinsame Kennung eines Mehrdatei-Imports
+- `addedTrips`, `addedPersons`, `addedLogs`: tatsächlich ergänzte Datensätze
+- `changedLogs`: erkannte abweichende Buchungen mit gleichem Merge-Key
+- `duplicates`: identisch vorhandene Buchungen
+- `conflicts`: alle Reise-, Personen-, Buchungs- und Referenzkonflikte
+- `resolvedLocal`: Konflikte, bei denen die lokale Version beibehalten wurde
+- `resolvedImported`: Konflikte, bei denen die importierte Version übernommen wurde
+- `blockedConflicts`: nicht sicher automatisch übernehmbare Zuordnungen
+- `restorePointId`: Bezug zum unmittelbar vor dem Import erzeugten Wiederherstellungspunkt
+- `resolutionDetails`: kompakte Liste der getroffenen Konfliktentscheidungen
+
+Ältere Protokolleinträge ohne diese Felder bleiben lesbar. Eine Änderung der IndexedDB-Version ist nicht erforderlich.
