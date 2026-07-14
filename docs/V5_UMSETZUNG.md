@@ -41,8 +41,8 @@ Beim ersten Start nach dem Update von v4 auf v5 wird vor der Migration einmalig 
 
 ## Technischer Stand
 
-- App-Version: 5.2.0
-- Build: 5.2.0a
+- App-Version: 5.3.0
+- Build: 5.3.0a
 - IndexedDB-Version: 2
 - Neue Store-Struktur: `snapshots`
 - Bestehende Kern-Stores und IDs bleiben unverändert.
@@ -74,3 +74,8 @@ Der bereits vorhandene Snapshot-Store wird für bis zu fünf reguläre interne W
 ## Ergänzung 5.2.0
 
 Der Geräteabgleich klassifiziert Reiseexporte vor der Übernahme. Neue Buchungen werden ergänzt, Dubletten übersprungen und abweichende Datensätze als Konflikt dargestellt. Für sicher auflösbare Konflikte wird die lokale oder importierte Version festgelegt. Unsichere Referenzkonflikte bleiben gesperrt. Vor dem Schreiben in IndexedDB wird ein Wiederherstellungspunkt erstellt; das Importprotokoll dokumentiert Quelle, Zählwerte und Entscheidungen.
+
+## Ergänzung 5.3.0
+
+Barkarten und Getränkepakete werden als vollständige Referenzversionen gespeichert. Jede Reise verweist auf ihren eigenen Versionsstand. Ein Import wird vor dem Schreiben verglichen und kann nur gespeichert, für die aktuelle Reise aktiviert oder als Standard für neue Reisen gesetzt werden. Bestehende Buchungen behalten den bereits gespeicherten Preis und Paketstatus. Lokale Artikeländerungen erzeugen bei Bedarf eine abgeleitete Arbeitsversion. Reiseexport und Geräteabgleich transportieren die verwendete Referenzversion mit.
+

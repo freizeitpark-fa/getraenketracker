@@ -101,3 +101,14 @@ Der Store `imports` bleibt unverändert bestehen und erhält für Geräteabgleic
 - `resolutionDetails`: kompakte Liste der getroffenen Konfliktentscheidungen
 
 Ältere Protokolleinträge ohne diese Felder bleiben lesbar. Eine Änderung der IndexedDB-Version ist nicht erforderlich.
+
+## Referenzversionen ab Version 5.3.0
+
+Der bestehende Store `barkarten` enthält neben älteren Metadaten nun vollständige Referenzversionen mit `drinks[]` und `packages[]`. Eine verfügbare Version enthält außerdem Versionsbezeichnung, Quelle, Importzeitpunkt, Anzahl der Getränke und Pakete sowie optionale Angaben zu Stamm- oder Arbeitsversionen.
+
+Reisen erhalten die Felder `barkarteVersionId` und `packageVersionId`. Beim Update werden fehlende Felder auf den bisherigen aktiven Datenstand migriert. Die IndexedDB-Version bleibt 2.
+
+Die Buchungssätze selbst behalten Preis und Paketstatus als historischen Erfassungsstand. Ein späterer Wechsel der Referenzversion verändert vorhandene Buchungen nicht automatisch.
+
+Reiseexporte können `referenceDataVersion` enthalten. Beim Geräteimport wird eine fehlende vollständige Version in `barkarten` ergänzt. Vollbackups prüfen, dass referenzierte Versionen im Datenbestand vorhanden sind.
+

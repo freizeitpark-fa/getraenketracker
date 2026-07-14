@@ -1,3 +1,13 @@
+## Version 5.3.0 Versionierte Barkarten und Getränkepakete
+
+- vollständige Referenzversionen mit Getränken und Paketdefinitionen
+- feste Versionszuordnung je Reise
+- Änderungsvergleich vor dem Speichern oder Aktivieren
+- Standardversion ausschließlich für neue Reisen
+- lokale Arbeitsversionen statt Überschreiben gemeinsam genutzter Stammdaten
+- Referenzversion im Reiseexport und Geräteabgleich
+- Löschschutz für verwendete, mitgelieferte und als Standard gesetzte Versionen
+
 ## Version 5.2.0 Sicherer Geräteabgleich
 
 - Importvorschau für bis zu 20 Reiseexporte

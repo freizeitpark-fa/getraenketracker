@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.2.0';
-const APP_CACHE_NAME = 'cruisesip-v5-2-0-20260714a';
-const APP_BUILD = '5.2.0a';
-const SERVICE_WORKER_URL = './sw.js?v=5.2.0a';
+const APP_VERSION = '5.3.0';
+const APP_CACHE_NAME = 'cruisesip-v5-3-0-20260714a';
+const APP_BUILD = '5.3.0a';
+const SERVICE_WORKER_URL = './sw.js?v=5.3.0a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -66,6 +66,7 @@ let state = {
   drinks: [],
   logs: [],
   packages: [],
+  staticPackages: [],
   imports: [],
   barkarten: [],
   currentTripId: null,
@@ -90,6 +91,7 @@ let state = {
   pendingTripImport: null,
   pendingTripClosure: null,
   pendingItineraryImport: null,
+  pendingBarkarteImport: null,
   tripSetupWizard: { step: null, tripId: null, exported: false },
   multiPersonMode: false,
   selectedPersonIds: [],
@@ -498,17 +500,60 @@ async function bootstrap() {
 }
 
 async function loadStaticData() {
-  state.packages = await fetch('data/pakete.json').then(r => r.json()).catch(() => []);
+  const rawPackages = await fetch('data/pakete.json').then(r => r.json()).catch(() => []);
+  state.staticPackages = normalizePackageDefinitions(rawPackages, 'CruiseSip Stammdaten');
+  state.packages = cloneRow(state.staticPackages);
   const data = await fetch('data/barkarte.json').then(r => r.json()).catch(() => ({ version: 'unknown', source: 'lokal', drinks: [] }));
+  const staticDrinks = normalizeDrinks(data.drinks || []);
   const existingDrinks = await all('drinks');
-  const current = await getSetting('barkarteVersion');
+  const legacyCurrent = await getSetting('barkarteVersion');
   if (!existingDrinks.length) {
-    for (const drink of normalizeDrinks(data.drinks || [])) await put('drinks', drink);
+    for (const drink of staticDrinks) await put('drinks', drink);
   }
-  if (!(await get('barkarten', data.version))) {
-    await put('barkarten', { id: data.version || `barkarte_${uid()}`, version: data.version || 'unknown', source: data.source || 'Stammdaten', importedAt: nowIso(), count: (data.drinks || []).length, isDefault: true });
+
+  const existingVersions = await all('barkarten');
+  const legacyVersionName = legacyCurrent?.version || data.version || 'unknown';
+  let currentRecord = existingVersions.find(row => row.id === legacyVersionName || row.version === legacyVersionName) || null;
+  if (currentRecord && (!Array.isArray(currentRecord.drinks) || !currentRecord.drinks.length)) {
+    currentRecord = {
+      ...currentRecord,
+      drinks: normalizeDrinks(existingDrinks.length ? existingDrinks : staticDrinks),
+      packages: cloneRow(state.staticPackages),
+      count: existingDrinks.length || staticDrinks.length,
+      packageCount: state.staticPackages.length,
+      dataAvailable: true,
+      migratedAt: nowIso(),
+      updatedAt: nowIso()
+    };
+    await put('barkarten', currentRecord);
   }
-  if (!current) await putSetting('barkarteVersion', { version: data.version || 'unknown', source: data.source || 'Stammdaten', count: (data.drinks || []).length, updatedAt: nowIso() });
+
+  let staticRecord = currentRecord && (currentRecord.id === data.version || currentRecord.version === data.version)
+    ? currentRecord
+    : existingVersions.find(row => row.id === data.version || row.version === data.version) || null;
+  if (!staticRecord) {
+    staticRecord = buildReferenceVersionRecord({
+      id: data.version || `barkarte_${uid()}`,
+      version: data.version || 'unknown',
+      source: data.source || 'Stammdaten',
+      drinks: staticDrinks,
+      packages: state.staticPackages,
+      isBundled: true
+    });
+    await put('barkarten', staticRecord);
+  } else if (!Array.isArray(staticRecord.drinks) || !staticRecord.drinks.length) {
+    staticRecord = { ...staticRecord, drinks: staticDrinks, packages: cloneRow(state.staticPackages), count: staticDrinks.length, packageCount: state.staticPackages.length, dataAvailable: true, isBundled: true, updatedAt: nowIso() };
+    await put('barkarten', staticRecord);
+  } else if (!staticRecord.isBundled) {
+    staticRecord = { ...staticRecord, isBundled: true, updatedAt: staticRecord.updatedAt || nowIso() };
+    await put('barkarten', staticRecord);
+  }
+
+  const preferred = currentRecord?.id || staticRecord.id;
+  if (!(await getSetting('defaultBarkarteVersionId'))) await putSetting('defaultBarkarteVersionId', preferred);
+  if (!(await getSetting('defaultPackageVersionId'))) await putSetting('defaultPackageVersionId', preferred);
+  if (!(await getSetting('barkarteVersionId'))) await putSetting('barkarteVersionId', preferred);
+  if (!legacyCurrent) await putSetting('barkarteVersion', referenceVersionMeta(currentRecord || staticRecord));
   await putSetting('appVersion', APP_VERSION);
 }
 
@@ -521,7 +566,9 @@ async function ensureDefaults() {
   if (!(await getSetting('drinkSort'))) await putSetting('drinkSort', 'frequent');
   const trips = await all('trips');
   if (!trips.length) {
-    const trip = { id: `trip_${uid()}`, name: 'Aktuelle Reise', ship: '', startDate: '', endDate: '', archived: false, createdAt: nowIso(), updatedAt: nowIso() };
+    const referenceId = await getSetting('defaultBarkarteVersionId') || await getSetting('barkarteVersionId') || '';
+    const packageVersionId = await getSetting('defaultPackageVersionId') || referenceId;
+    const trip = { id: `trip_${uid()}`, name: 'Aktuelle Reise', ship: '', startDate: '', endDate: '', barkarteVersionId: referenceId, packageVersionId, archived: false, createdAt: nowIso(), updatedAt: nowIso() };
     await put('trips', trip);
     await putSetting('currentTripId', trip.id);
   }
@@ -532,8 +579,16 @@ async function migrateRowsToV4() {
   const deviceId = await getSetting('deviceId');
   const deviceName = await getSetting('deviceName');
   const currentTripId = await getSetting('currentTripId');
+  const defaultBarkarteVersionId = await getSetting('defaultBarkarteVersionId') || await getSetting('barkarteVersionId') || '';
+  const defaultPackageVersionId = await getSetting('defaultPackageVersionId') || defaultBarkarteVersionId;
   const trips = await all('trips');
   const fallbackTrip = currentTripId || trips[0]?.id;
+  for (const trip of trips) {
+    let changed = false;
+    if (!trip.barkarteVersionId && defaultBarkarteVersionId) { trip.barkarteVersionId = defaultBarkarteVersionId; changed = true; }
+    if (!trip.packageVersionId && defaultPackageVersionId) { trip.packageVersionId = defaultPackageVersionId; changed = true; }
+    if (changed) { trip.updatedAt = trip.updatedAt || nowIso(); await put('trips', trip); }
+  }
   for (const person of await all('persons')) {
     let changed = false;
     if (!person.tripId && fallbackTrip) { person.tripId = fallbackTrip; changed = true; }
@@ -556,7 +611,8 @@ async function loadState() {
   state.settings = Object.fromEntries(settingsRows.map(r => [r.id, r.value]));
   state.trips = (await all('trips')).sort((a, b) => Number(a.archived || false) - Number(b.archived || false) || String(b.startDate || '').localeCompare(String(a.startDate || '')));
   state.persons = await all('persons');
-  state.drinks = (await all('drinks')).sort((a, b) => String(a.name).localeCompare(String(b.name), 'de'));
+  const legacyDrinks = (await all('drinks')).sort((a, b) => String(a.name).localeCompare(String(b.name), 'de'));
+  state.drinks = legacyDrinks;
   state.logs = (await all('logs')).sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0));
   state.imports = (await all('imports')).sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
   state.barkarten = await all('barkarten');
@@ -569,6 +625,7 @@ async function loadState() {
     await put('settings', { id: 'currentTripId', value: state.currentTripId, updatedAt: nowIso() });
     state.settings.currentTripId = state.currentTripId;
   }
+  applyReferenceDataForCurrentTrip(legacyDrinks);
   const personsForTrip = currentPersons();
   const storedPersonId = state.settings[selectedPersonSettingKey()] || null;
   const currentIsValid = personsForTrip.some(person => person.id === state.selectedPersonId);
@@ -1041,6 +1098,8 @@ async function handleClick(event) {
     if (state.tripSetupWizard?.tripId && state.tripSetupWizard.tripId !== id) resetTripSetupWizard();
     await putSetting('currentTripId', id);
     state.currentTripId = id;
+    await loadState();
+    state.currentTripId = id;
     state.selectedPersonId = preferredPersonIdForTrip(id);
     state.selectedPersonIds = state.selectedPersonId ? [state.selectedPersonId] : [];
     state.multiPersonMode = false;
@@ -1146,6 +1205,11 @@ async function handleClick(event) {
   if (action === 'setTripConflictResolution') { setTripConflictResolution(id, target.dataset.value); return; }
   if (action === 'applyTripImport') { await runActionOnce('applyTripImport', applyPreparedTripImport); return; }
   if (action === 'importBarkarte') { openFile('barkarte'); return; }
+  if (action === 'cancelBarkarteImport') { state.pendingBarkarteImport = null; render(); return; }
+  if (action === 'saveBarkarteVersion') { await runActionOnce(`saveBarkarteVersion:${id || 'store'}`, () => savePendingBarkarteVersion(id || 'store')); return; }
+  if (action === 'activateReferenceVersion') { await runActionOnce(`activateReferenceVersion:${id}`, () => activateReferenceVersionForCurrentTrip(id)); return; }
+  if (action === 'setDefaultReferenceVersion') { await runActionOnce(`setDefaultReferenceVersion:${id}`, () => setDefaultReferenceVersion(id)); return; }
+  if (action === 'deleteReferenceVersion') { await runActionOnce(`deleteReferenceVersion:${id}`, () => deleteReferenceVersion(id)); return; }
   if (action === 'clearImportLog') { await clearStore('imports'); await loadState(); render(); return; }
   if (action === 'showChangelog') { state.route = 'changelog'; render(); return; }
   if (action === 'reRunOnboarding') { state.route = 'onboarding'; render(); return; }
@@ -1277,7 +1341,8 @@ function activeTripContextHtml() {
   if (!trip) return `<div class="activeTripContext missing" role="status"><span class="activeTripMarker" aria-hidden="true">!</span><div class="activeTripCopy"><small>Keine aktive Reise</small><b>Bitte zuerst eine Reise auswählen</b><span>Die Auswertungen und Einstellungen beziehen sich auf die geöffnete Reise.</span></div></div>`;
   const completed = isTripCompleted(trip);
   const dates = trip.startDate || trip.endDate ? `${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}` : 'Zeitraum offen';
-  const details = [trip.ship || 'Ohne Schiff', dates, tripItinerary(trip).length ? `${tripItinerary(trip).length} Reisetage` : ''].filter(Boolean).join(' · ');
+  const referenceLabel = referenceVersionById(trip.barkarteVersionId || '')?.version || '';
+  const details = [trip.ship || 'Ohne Schiff', dates, tripItinerary(trip).length ? `${tripItinerary(trip).length} Reisetage` : '', referenceLabel ? `Barkarte ${referenceLabel}` : ''].filter(Boolean).join(' · ');
   return `<div class="activeTripContext ${completed ? 'completed' : 'active'}" role="status" aria-label="${completed ? 'Geöffnete abgeschlossene Reise' : 'Aktive Reise'}: ${esc(trip.name || 'Ohne Namen')}"><span class="activeTripMarker" aria-hidden="true">${completed ? '✓' : '●'}</span><div class="activeTripCopy"><small>${completed ? 'Geöffnete Reise · abgeschlossen' : 'Aktive Reise'}</small><b title="${esc(trip.name || 'Ohne Namen')}">${esc(trip.name || 'Ohne Namen')}</b><span>${esc(details)}</span></div></div>`;
 }
 function tripAllowsChanges(tripId = activeTripId()) {
@@ -1326,8 +1391,80 @@ function currentLogs() {
   return state.logs.filter(l => (l.tripId || id) === id);
 }
 function favoriteIds() { return Array.isArray(state.settings.favorites) ? state.settings.favorites : []; }
-function activeBarkarteVersion() { return state.settings.barkarteVersion || { version: 'unbekannt', source: 'nicht gesetzt', count: state.drinks.length }; }
-
+function normalizePackageDefinitions(packages, fallbackSource = '') {
+  const rows = Array.isArray(packages) ? packages : [];
+  const normalized = rows.map(raw => ({
+    ...cloneRow(raw),
+    id: String(raw?.id || slug(raw?.name || '')).trim(),
+    name: String(raw?.name || raw?.Name || raw?.id || 'Unbenanntes Paket').trim(),
+    source: String(raw?.source || fallbackSource || '').trim()
+  })).filter(row => row.id && row.name);
+  const required = [
+    { id: 'none', name: 'Kein Getränkepaket', source: 'system' },
+    { id: 'unclear', name: 'Unklar / an Bord prüfen', source: 'manual' }
+  ];
+  for (const row of required) if (!normalized.some(item => item.id === row.id)) normalized.push(row);
+  return normalized;
+}
+function buildReferenceVersionRecord(input = {}) {
+  const id = String(input.id || input.version || `barkarte_${uid()}`).trim();
+  const drinks = normalizeDrinks(input.drinks || []);
+  const packages = normalizePackageDefinitions(input.packages || state.staticPackages || [], input.source || '');
+  const timestamp = input.importedAt || nowIso();
+  return {
+    id,
+    version: String(input.version || id || 'unbekannt'),
+    source: String(input.source || 'Lokaler Import'),
+    importedAt: timestamp,
+    updatedAt: input.updatedAt || timestamp,
+    count: drinks.length,
+    packageCount: packages.length,
+    drinks,
+    packages,
+    dataAvailable: true,
+    isBundled: !!input.isBundled,
+    isWorkingCopy: !!input.isWorkingCopy,
+    derivedFrom: input.derivedFrom || '',
+    notes: input.notes || ''
+  };
+}
+function referenceVersionMeta(record) {
+  if (!record) return { id: '', version: 'unbekannt', source: 'nicht gesetzt', count: state.drinks.length, packageCount: state.packages.length };
+  return { id: record.id, version: record.version || record.id, source: record.source || 'nicht gesetzt', count: Number(record.count ?? record.drinks?.length ?? 0), packageCount: Number(record.packageCount ?? record.packages?.length ?? 0), updatedAt: record.updatedAt || record.importedAt || '' };
+}
+function referenceVersionById(id) { return state.barkarten.find(row => row.id === id) || null; }
+function referenceVersionAvailable(row) { return !!row && row.dataAvailable !== false && Array.isArray(row.drinks) && row.drinks.length > 0; }
+function defaultBarkarteVersionId() {
+  const configured = state.settings.defaultBarkarteVersionId || state.settings.barkarteVersionId || '';
+  if (configured && referenceVersionAvailable(referenceVersionById(configured))) return configured;
+  return state.barkarten.find(referenceVersionAvailable)?.id || configured;
+}
+function defaultPackageVersionId() { return state.settings.defaultPackageVersionId || defaultBarkarteVersionId(); }
+function tripReferenceVersionId(trip = currentTrip()) { return trip?.barkarteVersionId || defaultBarkarteVersionId(); }
+function tripPackageVersionId(trip = currentTrip()) { return trip?.packageVersionId || tripReferenceVersionId(trip) || defaultPackageVersionId(); }
+function activeReferenceVersion(trip = currentTrip()) {
+  const barkarte = referenceVersionById(tripReferenceVersionId(trip));
+  if (referenceVersionAvailable(barkarte)) return barkarte;
+  const fallback = referenceVersionById(defaultBarkarteVersionId());
+  if (referenceVersionAvailable(fallback)) return fallback;
+  return state.barkarten.find(referenceVersionAvailable) || null;
+}
+function activePackageVersion(trip = currentTrip()) {
+  const packages = referenceVersionById(tripPackageVersionId(trip));
+  if (packages?.dataAvailable !== false && Array.isArray(packages.packages) && packages.packages.length) return packages;
+  return activeReferenceVersion(trip) || referenceVersionById(defaultPackageVersionId()) || null;
+}
+function applyReferenceDataForCurrentTrip(legacyDrinks = []) {
+  const barkarte = activeReferenceVersion();
+  const packageVersion = activePackageVersion();
+  const drinks = Array.isArray(barkarte?.drinks) && barkarte.drinks.length ? normalizeDrinks(barkarte.drinks) : normalizeDrinks(legacyDrinks || []);
+  const packages = Array.isArray(packageVersion?.packages) && packageVersion.packages.length ? normalizePackageDefinitions(packageVersion.packages, packageVersion.source || '') : normalizePackageDefinitions(state.staticPackages || [], 'CruiseSip Stammdaten');
+  state.drinks = drinks.sort((a, b) => String(a.name).localeCompare(String(b.name), 'de'));
+  state.packages = packages;
+}
+function activeBarkarteVersion() { return referenceVersionMeta(activeReferenceVersion()); }
+function versionUsageCount(id) { return state.trips.filter(trip => trip.barkarteVersionId === id || trip.packageVersionId === id).length; }
+function versionTripNames(id) { return state.trips.filter(trip => trip.barkarteVersionId === id || trip.packageVersionId === id).map(trip => trip.name || 'Unbenannte Reise'); }
 function packageName(id) { return state.packages.find(p => p.id === id)?.name || id || 'Kein Paket'; }
 function statusForDrink(drink, packageId) {
   if (!packageId || packageId === 'none') return 'not_included';
@@ -3064,6 +3201,8 @@ async function applyPreparedItineraryImport() {
     ship,
     startDate: validation.summary.startDate,
     endDate: validation.summary.endDate,
+    barkarteVersionId: defaultBarkarteVersionId(),
+    packageVersionId: defaultPackageVersionId() || defaultBarkarteVersionId(),
     archived: false,
     itinerary: validation.days,
     itineraryImportedAt: timestamp,
@@ -3146,8 +3285,9 @@ function tripCardHtml(trip) {
     : active
       ? '<span class="tripStateBadge active">Aktive Reise</span>'
       : '<span class="tripStateBadge available">Weitere Reise</span>';
+  const version = referenceVersionById(trip.barkarteVersionId || '')?.version || activeBarkarteVersion().version || 'unbekannt';
   return `<article class="itemCard tripListCard ${active ? 'activeTripSelection' : ''} ${trip.archived ? 'completedTripCard' : ''}">
-    <div><b>${esc(trip.name)}${badge}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${tripItinerary(trip).length ? ` · ${tripItinerary(trip).length} Routentage` : ''}${active ? ' · geöffnet' : ''}</small></div>
+    <div><b>${esc(trip.name)}${badge}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${tripItinerary(trip).length ? ` · ${tripItinerary(trip).length} Routentage` : ''} · Barkarte ${esc(version)}${active ? ' · geöffnet' : ''}</small></div>
     <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Buchungen ansehen' : 'Öffnen'}</button>${trip.archived ? '' : `<button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button>`}<button class="mini ${trip.archived ? '' : 'completeTripButton'}" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Reise abschließen'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
   </article>`;
 }
@@ -3391,32 +3531,104 @@ function importLogHtml() {
   if (!state.imports.length) return '<p class="emptyText">Noch keine Importe.</p>';
   return `<div class="importProtocolList">${state.imports.slice(0, 20).map(i => {
     const addedLogs = Number(i.addedLogs ?? i.added ?? 0);
+    const addedReferenceVersions = Number(i.addedReferenceVersions || 0);
     const changedLogs = Number(i.changedLogs || 0);
     const duplicates = Number(i.duplicates || 0);
     const conflicts = Number(i.conflicts || 0);
     const resolutionLine = conflicts ? `${Number(i.resolvedLocal || 0)} lokal · ${Number(i.resolvedImported || 0)} importiert · ${Number(i.blockedConflicts || 0)} gesperrt` : 'keine Konflikte';
-    return `<details class="importProtocolRow"><summary><div><b>${esc(i.fileName || 'Import')}</b><small>${esc(formatDateTime(Date.parse(i.importedAt)))}${i.sourceDeviceName ? ` · von ${esc(i.sourceDeviceName)}` : ''}</small></div><span>${esc(i.kind || 'Import')}</span></summary><div class="importProtocolStats"><span><b>+${addedLogs}</b> neu</span><span><b>${changedLogs}</b> geändert</span><span><b>${duplicates}</b> doppelt</span><span><b>${conflicts}</b> Konflikte</span></div><p class="importProtocolResolution">${esc(resolutionLine)}${i.restorePointId ? ' · Wiederherstellungspunkt erstellt' : ''}</p>${importProtocolDetailsHtml(i)}</details>`;
+    return `<details class="importProtocolRow"><summary><div><b>${esc(i.fileName || 'Import')}</b><small>${esc(formatDateTime(Date.parse(i.importedAt)))}${i.sourceDeviceName ? ` · von ${esc(i.sourceDeviceName)}` : ''}</small></div><span>${esc(i.kind || 'Import')}</span></summary><div class="importProtocolStats"><span><b>+${addedLogs}</b> neu</span><span><b>${changedLogs}</b> geändert</span><span><b>${duplicates}</b> doppelt</span><span><b>${conflicts}</b> Konflikte</span></div><p class="importProtocolResolution">${esc(resolutionLine)}${addedReferenceVersions ? ` · ${addedReferenceVersions} Barkarten-Version${addedReferenceVersions === 1 ? '' : 'en'} ergänzt` : ''}${i.restorePointId ? ' · Wiederherstellungspunkt erstellt' : ''}</p>${importProtocolDetailsHtml(i)}</details>`;
   }).join('')}</div>`;
 }
 
+function referenceVersionBadgeHtml(record, trip = currentTrip()) {
+  const badges = [];
+  if (trip && tripReferenceVersionId(trip) === record.id && tripPackageVersionId(trip) === record.id) badges.push('<span class="referenceBadge active">Aktuelle Reise</span>');
+  else {
+    if (trip && tripReferenceVersionId(trip) === record.id) badges.push('<span class="referenceBadge active">Barkarte der Reise</span>');
+    if (trip && tripPackageVersionId(trip) === record.id) badges.push('<span class="referenceBadge active">Pakete der Reise</span>');
+  }
+  if (defaultBarkarteVersionId() === record.id && defaultPackageVersionId() === record.id) badges.push('<span class="referenceBadge default">Standard für neue Reisen</span>');
+  else {
+    if (defaultBarkarteVersionId() === record.id) badges.push('<span class="referenceBadge default">Barkarten-Standard</span>');
+    if (defaultPackageVersionId() === record.id) badges.push('<span class="referenceBadge default">Paket-Standard</span>');
+  }
+  if (record.isWorkingCopy) badges.push('<span class="referenceBadge local">Lokale Anpassung</span>');
+  if (record.isBundled) badges.push('<span class="referenceBadge bundled">Mit App geliefert</span>');
+  if (record.dataAvailable === false || !Array.isArray(record.drinks) || !record.drinks.length) badges.push('<span class="referenceBadge unavailable">Daten nicht verfügbar</span>');
+  return badges.join('');
+}
+function referenceVersionListHtml() {
+  const trip = currentTrip();
+  const rows = [...state.barkarten].sort((a, b) => String(b.updatedAt || b.importedAt || '').localeCompare(String(a.updatedAt || a.importedAt || '')) || String(a.version || '').localeCompare(String(b.version || ''), 'de'));
+  if (!rows.length) return '<p class="emptyText">Noch keine versionierten Barkarten vorhanden.</p>';
+  return `<div class="referenceVersionList">${rows.map(record => {
+    const usage = versionUsageCount(record.id);
+    const names = versionTripNames(record.id);
+    const available = record.dataAvailable !== false && Array.isArray(record.drinks) && record.drinks.length;
+    const current = trip && tripReferenceVersionId(trip) === record.id && tripPackageVersionId(trip) === record.id;
+    const isDefault = defaultBarkarteVersionId() === record.id && defaultPackageVersionId() === record.id;
+    const canDelete = !record.isBundled && !usage && defaultBarkarteVersionId() !== record.id && defaultPackageVersionId() !== record.id;
+    return `<article class="referenceVersionCard ${current ? 'current' : ''}">
+      <div class="referenceVersionHead"><div><b>${esc(record.version || record.id)}</b><small>${esc(record.source || 'Ohne Quellenangabe')}</small></div><strong>${Number(record.count ?? record.drinks?.length ?? 0)} Getränke</strong></div>
+      <div class="referenceBadges">${referenceVersionBadgeHtml(record, trip)}</div>
+      <div class="referenceVersionMeta"><span>${Number(record.packageCount ?? record.packages?.length ?? 0)} Paketdefinitionen</span><span>${usage ? `${usage} Reise${usage === 1 ? '' : 'n'}` : 'Noch keiner Reise zugeordnet'}</span><span>${formatDateTime(record.updatedAt || record.importedAt) || 'Zeitpunkt unbekannt'}</span></div>
+      ${names.length ? `<p class="referenceUsage">Verwendet von: ${esc(names.join(', '))}</p>` : ''}
+      <div class="rowActions referenceVersionActions">
+        ${available && trip && !trip.archived && !current ? `<button class="mini" data-action="activateReferenceVersion" data-id="${esc(record.id)}">Für aktuelle Reise verwenden</button>` : ''}
+        ${available && !isDefault ? `<button class="mini" data-action="setDefaultReferenceVersion" data-id="${esc(record.id)}">Als Standard setzen</button>` : ''}
+        ${canDelete ? `<button class="mini dangerText" data-action="deleteReferenceVersion" data-id="${esc(record.id)}">Version löschen</button>` : ''}
+      </div>
+    </article>`;
+  }).join('')}</div>`;
+}
+function barkarteImportPreviewHtml() {
+  const pending = state.pendingBarkarteImport;
+  if (!pending) return '';
+  const cmp = pending.comparison;
+  const trip = currentTrip();
+  return `<div class="barkarteImportPreview" id="barkarteImportPreview">
+    <div class="backupPreviewHead"><div><b>Importvorschau</b><small>${esc(pending.fileName)} · Noch keine Barkarte wurde aktiviert</small></div><span class="diagnosticSummary ${cmp.totalChanges ? 'warn' : 'ok'}">${cmp.totalChanges ? 'Änderungen prüfen' : 'Keine Abweichung'}</span></div>
+    <div class="barkarteComparisonGrid">
+      <span><b>+${cmp.newDrinks}</b> neue Getränke</span>
+      <span><b>−${cmp.removedDrinks}</b> entfernte Getränke</span>
+      <span><b>${cmp.priceChanges}</b> Preisänderungen</span>
+      <span><b>${cmp.categoryChanges}</b> Kategorieänderungen</span>
+      <span><b>${cmp.packageChanges}</b> Paketstatusänderungen</span>
+      <span><b>${cmp.packageDefinitionChanges}</b> Paketdefinitionen</span>
+    </div>
+    <div class="infoBox"><span>Neue Version</span><b>${esc(pending.record.version)}</b></div>
+    <div class="infoBox"><span>Quelle</span><small>${esc(pending.record.source)}</small></div>
+    <div class="infoBox"><span>Umfang</span><b>${pending.record.drinks.length} Getränke · ${pending.record.packages.length} Pakete</b></div>
+    ${cmp.details.length ? `<details class="barkarteComparisonDetails"><summary>Änderungsdetails anzeigen</summary><div class="comparisonList">${cmp.details.map(row => `<div><b>${esc(row.name)}</b><small>${esc(row.text)}</small></div>`).join('')}</div></details>` : '<p class="hint">Die importierten Daten entsprechen inhaltlich der aktuell verwendeten Version.</p>'}
+    <div class="backupModeCard"><b>Version nur speichern</b><p>Die neue Barkarte wird lokal archiviert. Bestehende und neue Reisen wechseln noch nicht automatisch auf diese Version.</p><button class="secondary" data-action="saveBarkarteVersion" data-id="store">Als neue Version speichern</button></div>
+    ${trip && !trip.archived ? `<div class="backupModeCard"><b>Speichern und für aktuelle Reise verwenden</b><p>Nur künftige Erfassungen dieser Reise verwenden die neue Barkarte und Paketmatrix. Bereits gespeicherte Buchungswerte bleiben unverändert.</p><button class="primary" data-action="saveBarkarteVersion" data-id="current">Für „${esc(trip.name)}“ aktivieren</button></div>` : ''}
+    <div class="backupModeCard"><b>Speichern und als Standard setzen</b><p>Die Version wird für neu angelegte Reisen vorausgewählt. Bereits vorhandene Reisen bleiben fest mit ihrer bisherigen Version verbunden.</p><button class="secondary" data-action="saveBarkarteVersion" data-id="default">Als Standard für neue Reisen</button></div>
+    <button class="secondary" data-action="cancelBarkarteImport">Importvorschau schließen</button>
+  </div>`;
+}
 function viewBarkarte() {
   const v = activeBarkarteVersion();
   const cmp = state.settings.lastBarkarteComparison;
+  const trip = currentTrip();
+  const packageVersion = activePackageVersion(trip);
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Barkarte</h1><span class="subtle">${state.drinks.length} Getränke</span></div>
       ${activeTripContextHtml()}
       ${tripStatusNoticeHtml('barkarte')}
       <div class="card">
-        <h2>Aktuelle Barkarte</h2>
-        <div class="infoBox"><span>Version</span><b>${esc(v.version || 'unbekannt')}</b></div>
+        <div class="sectionHead"><div><h2>Version der aktuellen Reise</h2><p class="hint">Barkarte und Getränkepakete werden je Reise fest zugeordnet. Ein späterer Import verändert bestehende Reisen nicht automatisch.</p></div><span class="backupFormatBadge">Versioniert</span></div>
+        <div class="infoBox"><span>Barkarte</span><b>${esc(v.version || 'unbekannt')}</b></div>
+        <div class="infoBox"><span>Paketdefinitionen</span><b>${esc(packageVersion?.version || v.version || 'unbekannt')}</b></div>
         <div class="infoBox"><span>Quelle</span><small>${esc(v.source || 'nicht gesetzt')}</small></div>
-        <div class="infoBox"><span>Getränke</span><b>${state.drinks.length}</b></div>
-        <button class="primary" data-action="importBarkarte">Neue Barkarte importieren</button>
-        <p class="hint">Unterstützt werden strukturierte CruiseSip-JSON-Dateien und einfache CSV-Dateien. PDF-Erkennung ist bewusst nicht integriert, da die App offline und ohne externe Bibliotheken arbeitet.</p>
+        <div class="infoBox"><span>Umfang</span><b>${state.drinks.length} Getränke · ${state.packages.length} Pakete</b></div>
+        <button class="primary" data-action="importBarkarte">Neue Barkarte / Paketversion importieren</button>
+        <p class="hint">Unterstützt werden CruiseSip-JSON-Dateien mit <code>drinks[]</code>, <code>packages[]</code> oder beiden Bereichen sowie einfache CSV-Dateien. Ein Import wird zunächst nur verglichen und muss anschließend ausdrücklich gespeichert oder aktiviert werden.</p>
       </div>
+      ${barkarteImportPreviewHtml()}
+      <div class="card"><div class="sectionHead"><div><h2>Gespeicherte Versionen</h2><p class="hint">Alte Versionen bleiben für zugeordnete Reisen erhalten. Nicht verwendete Importversionen können wieder gelöscht werden.</p></div><span class="subtle">${state.barkarten.length}</span></div>${referenceVersionListHtml()}</div>
       ${articleManagementHtml()}
-      ${cmp ? comparisonHtml(cmp) : ''}
+      ${cmp && !state.pendingBarkarteImport ? comparisonHtml(cmp) : ''}
       <div class="card"><h2>Kategorien</h2>${categorySummaryHtml()}</div>
     </section>`;
 }
@@ -3442,7 +3654,7 @@ function articleEditFormHtml(drink) {
     <div class="twoCols"><div class="formField"><label for="articlePriceInput">Preis</label><input id="articlePriceInput" name="price" type="text" inputmode="decimal" value="${esc(String(Number(drink.price) || 0).replace('.', ','))}"></div><div class="formField"><label for="articleCategoryInput">Kategorie</label><input id="articleCategoryInput" name="category" value="${esc(drink.category || '')}"></div></div>
     <div class="packageStatusEditor"><b>Enthalten je Getränkepaket</b>${packageStatusFieldsHtml(drink)}</div>
     <label class="checkLine ${locked ? 'disabledCheckLine' : ''}"><input id="articleApplyLogsInput" name="applyLogs" type="checkbox" ${locked ? 'disabled' : 'checked'}> Bestehende Einträge dieser Reise für diesen Artikel aktualisieren</label>
-    ${locked ? '<p class="hint">Die aktuelle Reise ist abgeschlossen. Stammdatenänderungen gelten für künftige Buchungen; vorhandene Buchungen bleiben unverändert.</p>' : ''}
+    ${locked ? '<p class="hint">Die aktuelle Reise ist abgeschlossen. CruiseSip legt bei einer Änderung eine neue lokale Version als Standard für künftige Reisen an; die abgeschlossene Reise bleibt unverändert.</p>' : ''}
     <button class="primary" type="submit" data-action="saveArticle">Artikel speichern</button>
   </form>`;
 }
@@ -3473,6 +3685,35 @@ function editArticle(id) {
   renderArticleManagement();
   $('#articleForm')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+async function ensureEditableReferenceVersion(updatedDrink, options = {}) {
+  const trip = currentTrip();
+  const active = activeReferenceVersion(trip);
+  if (!trip || !active) throw new Error('Keine Barkarten-Version für die aktuelle Reise verfügbar.');
+  const detached = !!options.detached;
+  const otherTrips = state.trips.filter(row => row.id !== trip.id && (row.barkarteVersionId === active.id || row.packageVersionId === active.id));
+  const sharedOrProtected = detached || active.isBundled || !active.isWorkingCopy || otherTrips.length > 0 || defaultBarkarteVersionId() === active.id || defaultPackageVersionId() === active.id;
+  const drinks = normalizeDrinks(active.drinks || state.drinks).map(row => row.id === updatedDrink.id ? cloneRow(updatedDrink) : cloneRow(row));
+  if (!drinks.some(row => row.id === updatedDrink.id)) drinks.push(cloneRow(updatedDrink));
+  if (!sharedOrProtected) {
+    const next = buildReferenceVersionRecord({ ...active, id: active.id, drinks, packages: active.packages || state.packages, isWorkingCopy: true, updatedAt: nowIso() });
+    await put('barkarten', next);
+    return next;
+  }
+  const stamp = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const next = buildReferenceVersionRecord({
+    id: `local_${uid()}`,
+    version: `${active.version || 'Barkarte'} · lokale Anpassung ${stamp}`,
+    source: `Lokale Anpassung auf ${state.settings.deviceName || 'diesem Gerät'}`,
+    drinks,
+    packages: active.packages || state.packages,
+    isWorkingCopy: true,
+    derivedFrom: active.id,
+    notes: `Abgeleitet von ${active.version || active.id}`
+  });
+  await put('barkarten', next);
+  if (!detached) await put('trips', { ...trip, barkarteVersionId: next.id, packageVersionId: next.id, updatedAt: nowIso() });
+  return next;
+}
 async function saveDrinkArticleForm(form) {
   if (!form) { alert('Artikelformular nicht gefunden.'); return; }
   const id = formValue(form, 'id');
@@ -3489,8 +3730,10 @@ async function saveDrinkArticleForm(form) {
   }
   const applyLogs = !!form.elements.namedItem('applyLogs')?.checked;
   const activeId = activeTripId();
-  if (applyLogs && activeId && !ensureTripWritable(activeId, 'Die Aktualisierung bestehender Buchungen')) return;
+  const tripLocked = isTripCompleted();
+  if (!tripLocked && activeId && !ensureTripWritable(activeId, 'Die lokale Anpassung der Barkarten-Version')) return;
   if (applyLogs) await createInternalRestorePoint('Vor einer Barkartenänderung mit Aktualisierung bestehender Buchungen', { drinkId: id, drinkName: drink.name || '' });
+  else await createInternalRestorePoint(tripLocked ? 'Vor einer neuen Standardversion aus einer abgeschlossenen Reise' : 'Vor einer lokalen Barkartenänderung', { drinkId: id, drinkName: drink.name || '', tripId: activeId || '' });
   const updated = {
     ...drink,
     price,
@@ -3499,7 +3742,7 @@ async function saveDrinkArticleForm(form) {
     manualOverride: true,
     updatedAt: nowIso()
   };
-  await put('drinks', updated);
+  const version = await ensureEditableReferenceVersion(updated, { detached: tripLocked });
 
   let updatedLogs = 0;
   if (applyLogs) {
@@ -3519,11 +3762,17 @@ async function saveDrinkArticleForm(form) {
       updatedLogs += 1;
     }
   }
-  await putSetting('barkarteVersion', { ...activeBarkarteVersion(), count: state.drinks.length, updatedAt: nowIso(), manualOverrides: true });
+  if (tripLocked) {
+    await putSetting('defaultBarkarteVersionId', version.id);
+    await putSetting('defaultPackageVersionId', version.id);
+    await mirrorDefaultDrinksStore(version);
+  }
+  await putSetting('barkarteVersionId', version.id);
+  await putSetting('barkarteVersion', { ...referenceVersionMeta(version), manualOverrides: true });
   await loadState();
   state.editingDrinkId = id;
   render();
-  toast(`Artikel gespeichert${updatedLogs ? ` · ${updatedLogs} Einträge aktualisiert` : ''}`);
+  toast(`${tripLocked ? 'Neue Standardversion' : 'Lokale Barkarten-Version'} gespeichert${updatedLogs ? ` · ${updatedLogs} Einträge aktualisiert` : ''}`);
 }
 
 function categorySummaryHtml() {
@@ -3533,7 +3782,7 @@ function categorySummaryHtml() {
 }
 
 function comparisonHtml(cmp) {
-  return `<div class="card"><h2>Letzter Preis-/Paketvergleich</h2><div class="kpiGrid compact">${kpi('Neu', String(cmp.newDrinks || 0), 'Getränke')}${kpi('Preisänderungen', String(cmp.priceChanges || 0), 'Positionen')}${kpi('Paketänderungen', String(cmp.packageChanges || 0), 'Status')}${kpi('Importiert', cmp.applied ? 'Ja' : 'Nein', cmp.version || '')}</div>${cmp.details?.length ? `<div class="miniList">${cmp.details.slice(0, 12).map(d => `<div><b>${esc(d.name)}</b><small>${esc(d.text)}</small></div>`).join('')}</div>` : ''}</div>`;
+  return `<div class="card"><h2>Letzter Barkarten-/Paketvergleich</h2><div class="kpiGrid compact">${kpi('Neu / entfernt', `${cmp.newDrinks || 0} / ${cmp.removedDrinks || 0}`, 'Getränke')}${kpi('Preis / Kategorie', `${cmp.priceChanges || 0} / ${cmp.categoryChanges || 0}`, 'Änderungen')}${kpi('Paketstatus', String(cmp.packageChanges || 0), 'Zuordnungen')}${kpi('Gespeichert', cmp.saved ? 'Ja' : 'Nein', cmp.version || '')}</div>${cmp.details?.length ? `<div class="miniList">${cmp.details.slice(0, 16).map(d => `<div><b>${esc(d.name)}</b><small>${esc(d.text)}</small></div>`).join('')}</div>` : ''}</div>`;
 }
 
 function migrationSnapshotCardHtml() {
@@ -3838,6 +4087,8 @@ async function saveTripForm(form = null) {
       ship: fieldValue('#tripShipInput', form, 'ship').trim(),
       startDate: fieldValue('#tripStartInput', form, 'startDate'),
       endDate: fieldValue('#tripEndInput', form, 'endDate'),
+      barkarteVersionId: existing.barkarteVersionId || defaultBarkarteVersionId(),
+      packageVersionId: existing.packageVersionId || defaultPackageVersionId() || defaultBarkarteVersionId(),
       archived: !!existing.archived,
       createdAt: existing.createdAt || nowIso(),
       updatedAt: nowIso()
@@ -3869,7 +4120,7 @@ async function saveOnboardingTrip(form) {
   const current = currentTrip();
   const editableCurrent = current?.archived ? null : current;
   const id = editableCurrent?.id || `trip_${uid()}`;
-  const trip = { ...(editableCurrent || {}), id, name: formValue(form, 'name').trim() || 'Aktuelle Reise', ship: formValue(form, 'ship').trim(), startDate: formValue(form, 'startDate'), endDate: formValue(form, 'endDate'), archived: false, createdAt: editableCurrent?.createdAt || nowIso(), updatedAt: nowIso() };
+  const trip = { ...(editableCurrent || {}), id, name: formValue(form, 'name').trim() || 'Aktuelle Reise', ship: formValue(form, 'ship').trim(), startDate: formValue(form, 'startDate'), endDate: formValue(form, 'endDate'), barkarteVersionId: editableCurrent?.barkarteVersionId || defaultBarkarteVersionId(), packageVersionId: editableCurrent?.packageVersionId || defaultPackageVersionId() || defaultBarkarteVersionId(), archived: false, createdAt: editableCurrent?.createdAt || nowIso(), updatedAt: nowIso() };
   await put('trips', trip);
   await putSetting('currentTripId', id);
   clearDraft('onboardingTrip');
@@ -4090,6 +4341,14 @@ async function validateFullBackupPayload(payload) {
   const tripIds = new Set((payload?.data?.trips || []).map(row => row.id));
   const personIds = new Set((payload?.data?.persons || []).map(row => row.id));
   const drinkIds = new Set((payload?.data?.drinks || []).map(row => row.id));
+  for (const version of payload?.data?.barkarten || []) {
+    for (const drink of Array.isArray(version.drinks) ? version.drinks : []) if (drink?.id) drinkIds.add(drink.id);
+  }
+  const barkarteIds = new Set((payload?.data?.barkarten || []).map(row => row.id));
+  for (const trip of payload?.data?.trips || []) {
+    if (trip.barkarteVersionId && !barkarteIds.has(trip.barkarteVersionId)) errors.push(`Reise „${trip.name || trip.id}“ verweist auf eine nicht vorhandene Barkarten-Version.`);
+    if (trip.packageVersionId && !barkarteIds.has(trip.packageVersionId)) errors.push(`Reise „${trip.name || trip.id}“ verweist auf eine nicht vorhandene Paketversion.`);
+  }
   for (const person of payload?.data?.persons || []) {
     if (!tripIds.has(person.tripId)) errors.push(`Person „${person.name || person.id}“ verweist auf eine nicht vorhandene Reise.`);
   }
@@ -4109,6 +4368,11 @@ async function validateFullBackupPayload(payload) {
     for (const value of Object.values(drink.packages || {})) {
       if (!allowedStatuses.has(value)) errors.push(`Getränk „${drink.name || drink.id}“ enthält einen ungültigen Paketstatus.`);
     }
+  }
+  for (const version of payload?.data?.barkarten || []) {
+    if (version.dataAvailable === false) continue;
+    if (version.drinks !== undefined && !Array.isArray(version.drinks)) errors.push(`Barkarten-Version „${version.version || version.id}“ enthält ungültige Getränkedaten.`);
+    if (version.packages !== undefined && !Array.isArray(version.packages)) errors.push(`Barkarten-Version „${version.version || version.id}“ enthält ungültige Paketdefinitionen.`);
   }
   const summary = payload?.summary;
   if (isPlainRecord(summary)) {
@@ -4141,7 +4405,10 @@ function buildFullBackupPreview(payload, localSnapshot) {
       const existing = localById.get(incoming.id);
       if (!existing) preview.additions[store] += 1;
       else if (store === 'settings' || rowsMeaningfullyEqual(store, existing, incoming)) preview.duplicates[store] += 1;
-      else preview.conflicts[store] += 1;
+      else if (store === 'barkarten') {
+        preview.additions[store] += 1;
+        preview.warnings.push(`Barkarten-Version „${incoming.version || incoming.id}“ besitzt dieselbe ID wie ein lokaler, inhaltlich abweichender Stand. Beim Ergänzen wird sie mit einer getrennten lokalen ID gespeichert.`);
+      } else preview.conflicts[store] += 1;
     }
   }
   const localLogsByKey = new Map((localSnapshot.logs || []).map(log => [logMergeKey(log, state.settings.deviceId || ''), log]));
@@ -4199,8 +4466,36 @@ async function mergeFullBackup() {
   if (!pending) throw new Error('Keine geprüfte Backupdatei ausgewählt.');
   const validation = await validateFullBackupPayload(pending.payload);
   if (validation.errors.length) throw new Error(validation.errors[0]);
-  const incoming = pending.payload.data;
+  const incoming = Object.fromEntries(STORE_NAMES.map(store => [store, (pending.payload.data[store] || []).map(cloneRow)]));
   const local = await readAllStoresSnapshot();
+  const localReferenceById = new Map((local.barkarten || []).map(row => [row.id, row]));
+  const usedReferenceIds = new Set([...(local.barkarten || []).map(row => row.id), ...(incoming.barkarten || []).map(row => row.id)]);
+  const referenceIdRemap = new Map();
+  for (const version of incoming.barkarten || []) {
+    const existing = localReferenceById.get(version.id);
+    if (!existing || rowsMeaningfullyEqual('barkarten', existing, version)) continue;
+    const originalId = version.id;
+    const fingerprint = stableTextHash(stableStringify(meaningfulRow('barkarten', version))).slice(0, 7);
+    let replacementId = `${originalId}_backup_${fingerprint}`;
+    let sequence = 2;
+    while (usedReferenceIds.has(replacementId)) replacementId = `${originalId}_backup_${fingerprint}_${sequence++}`;
+    usedReferenceIds.add(replacementId);
+    version.id = replacementId;
+    version.version = `${version.version || originalId} · Backup-Variante`;
+    version.derivedFrom = originalId;
+    version.notes = [version.notes, `ID-Kollision beim Vollbackup-Ergänzen; lokaler Stand unter ${originalId} blieb unverändert.`].filter(Boolean).join(' ');
+    referenceIdRemap.set(originalId, replacementId);
+  }
+  if (referenceIdRemap.size) {
+    for (const trip of incoming.trips || []) {
+      if (referenceIdRemap.has(trip.barkarteVersionId)) trip.barkarteVersionId = referenceIdRemap.get(trip.barkarteVersionId);
+      if (referenceIdRemap.has(trip.packageVersionId)) trip.packageVersionId = referenceIdRemap.get(trip.packageVersionId);
+    }
+    for (const setting of incoming.settings || []) {
+      if (['defaultBarkarteVersionId', 'defaultPackageVersionId', 'barkarteVersionId'].includes(setting.id) && referenceIdRemap.has(setting.value)) setting.value = referenceIdRemap.get(setting.value);
+      if (setting.id === 'barkarteVersion' && setting.value?.id && referenceIdRemap.has(setting.value.id)) setting.value.id = referenceIdRemap.get(setting.value.id);
+    }
+  }
   const rows = Object.fromEntries(STORE_NAMES.map(store => [store, []]));
   const finalIds = {};
   for (const store of STORE_NAMES) finalIds[store] = new Set((local[store] || []).map(row => row.id));
@@ -4394,6 +4689,7 @@ async function exportTrip() {
     exportedAt: nowIso(),
     device: { id: state.settings.deviceId, name: state.settings.deviceName },
     barkarteVersion: activeBarkarteVersion(),
+    referenceDataVersion: cloneRow(activeReferenceVersion()),
     trip: cloneRow(trip),
     persons,
     logs,
@@ -4550,6 +4846,13 @@ async function validateTripExportPayload(payload, fileName = 'Geräteexport') {
     else if (mergeKeys.has(key)) errors.push(`${fileName}: Merge-Key „${key}“ ist mehrfach enthalten.`);
     else mergeKeys.add(key);
   }
+  if (payload?.referenceDataVersion !== undefined) {
+    const reference = payload.referenceDataVersion;
+    if (!isPlainRecord(reference) || typeof reference.id !== 'string' || !reference.id.trim()) errors.push(`${fileName}: Die mitgelieferte Barkarten-Version besitzt keine stabile ID.`);
+    if (!Array.isArray(reference?.drinks) || !reference.drinks.length) errors.push(`${fileName}: Die mitgelieferte Barkarten-Version enthält keine Getränke.`);
+    if (!Array.isArray(reference?.packages) || !reference.packages.length) warnings.push(`${fileName}: Die mitgelieferte Version enthält keine eigenen Paketdefinitionen; vorhandene Paketnamen werden verwendet.`);
+    if (payload.trip?.barkarteVersionId && reference?.id && payload.trip.barkarteVersionId !== reference.id) warnings.push(`${fileName}: Reise und mitgelieferte Barkarten-Version verwenden unterschiedliche IDs.`);
+  }
   if (isV2) {
     if (payload?.integrity?.algorithm !== 'SHA-256' || !payload?.integrity?.digest) errors.push(`${fileName}: Integritätsprüfung fehlt.`);
     else {
@@ -4628,7 +4931,8 @@ function tripImportPlanSignature(plan) {
     additions: {
       trips: (plan.rows.trips || []).map(row => row.id).sort(),
       persons: (plan.rows.persons || []).map(row => row.id).sort(),
-      logs: (plan.rows.logs || []).map(row => logMergeKey(row, row.trackedByDeviceId || '')).sort()
+      logs: (plan.rows.logs || []).map(row => logMergeKey(row, row.trackedByDeviceId || '')).sort(),
+      barkarten: (plan.rows.barkarten || []).map(row => row.id).sort()
     },
     conflicts: plan.conflicts.map(row => ({ type: row.type, fileName: row.fileName, title: row.title, local: row.local, incoming: row.incoming }))
   });
@@ -4637,16 +4941,18 @@ function tripImportLocalFingerprint(local) {
   return stableStringify({
     trips: (local.trips || []).map(row => meaningfulRow('trips', row)).sort((a, b) => String(a.id).localeCompare(String(b.id))),
     persons: (local.persons || []).map(row => meaningfulRow('persons', row)).sort((a, b) => String(a.id).localeCompare(String(b.id))),
-    logs: (local.logs || []).map(row => ({ key: logMergeKey(row, row.trackedByDeviceId || ''), data: canonicalTripLog(row) })).sort((a, b) => String(a.key).localeCompare(String(b.key)))
+    logs: (local.logs || []).map(row => ({ key: logMergeKey(row, row.trackedByDeviceId || ''), data: canonicalTripLog(row) })).sort((a, b) => String(a.key).localeCompare(String(b.key))),
+    barkarten: (local.barkarten || []).map(row => ({ id: row.id, version: row.version, count: row.count, packageCount: row.packageCount, updatedAt: row.updatedAt || row.importedAt || '' })).sort((a, b) => String(a.id).localeCompare(String(b.id)))
   });
 }
 async function buildTripImportPlan(parsed, local) {
   const rows = Object.fromEntries(STORE_NAMES.map(store => [store, []]));
   const tripById = new Map((local.trips || []).map(row => [row.id, row]));
   const personById = new Map((local.persons || []).map(row => [row.id, row]));
+  const referenceById = new Map((local.barkarten || []).map(row => [row.id, row]));
   const logByKey = new Map((local.logs || []).map(row => [logMergeKey(row, state.settings.deviceId || ''), row]));
   const usedLogIds = new Set((local.logs || []).map(row => row.id));
-  const summary = { files: parsed.length, trips: 0, persons: 0, logs: 0, duplicates: 0, changedLogs: 0, conflicts: 0, blockedConflicts: 0, nameWarnings: 0, legacyFiles: 0, archivedTripLogs: 0 };
+  const summary = { files: parsed.length, trips: 0, persons: 0, logs: 0, referenceVersions: 0, duplicates: 0, changedLogs: 0, conflicts: 0, blockedConflicts: 0, nameWarnings: 0, legacyFiles: 0, archivedTripLogs: 0 };
   const fileSummaries = [];
   const conflicts = [];
   const warnings = [];
@@ -4656,6 +4962,50 @@ async function buildTripImportPlan(parsed, local) {
     if (!validation.isV2) summary.legacyFiles += 1;
     warnings.push(...validation.warnings);
     const trip = cloneRow(payload.trip);
+    const incomingReferenceRaw = payload.referenceDataVersion;
+    let incomingReference = null;
+    let referenceAdded = false;
+    if (isPlainRecord(incomingReferenceRaw) && incomingReferenceRaw.id && Array.isArray(incomingReferenceRaw.drinks) && incomingReferenceRaw.drinks.length) {
+      incomingReference = buildReferenceVersionRecord({
+        ...incomingReferenceRaw,
+        id: incomingReferenceRaw.id,
+        version: incomingReferenceRaw.version || incomingReferenceRaw.id,
+        source: incomingReferenceRaw.source || `${fileName} · Geräteexport`,
+        drinks: incomingReferenceRaw.drinks,
+        packages: incomingReferenceRaw.packages || state.staticPackages
+      });
+      const originalReferenceId = incomingReference.id;
+      const existingReference = referenceById.get(originalReferenceId);
+      if (!existingReference) {
+        rows.barkarten.push(incomingReference);
+        referenceById.set(incomingReference.id, incomingReference);
+        summary.referenceVersions += 1;
+        referenceAdded = true;
+      } else if (!rowsMeaningfullyEqual('barkarten', existingReference, incomingReference)) {
+        const fingerprint = stableTextHash(stableStringify(meaningfulRow('barkarten', incomingReference))).slice(0, 7);
+        let collisionId = `${originalReferenceId}_import_${fingerprint}`;
+        let sequence = 2;
+        while (referenceById.has(collisionId)) collisionId = `${originalReferenceId}_import_${fingerprint}_${sequence++}`;
+        incomingReference = {
+          ...incomingReference,
+          id: collisionId,
+          version: `${incomingReference.version} · importierte Variante`,
+          derivedFrom: originalReferenceId,
+          notes: [incomingReference.notes, `ID-Kollision beim Import aus ${fileName}; lokaler Stand unter ${originalReferenceId} blieb unverändert.`].filter(Boolean).join(' ')
+        };
+        rows.barkarten.push(incomingReference);
+        referenceById.set(incomingReference.id, incomingReference);
+        summary.referenceVersions += 1;
+        referenceAdded = true;
+        if (!trip.barkarteVersionId || trip.barkarteVersionId === originalReferenceId) trip.barkarteVersionId = incomingReference.id;
+        if (!trip.packageVersionId || trip.packageVersionId === originalReferenceId) trip.packageVersionId = incomingReference.id;
+        warnings.push(`${fileName}: Die Versions-ID „${originalReferenceId}“ war lokal bereits mit abweichendem Inhalt vorhanden. CruiseSip hat die importierte Variante getrennt als „${incomingReference.id}“ gespeichert.`);
+      }
+      trip.barkarteVersionId = trip.barkarteVersionId || incomingReference.id;
+      trip.packageVersionId = trip.packageVersionId || incomingReference.id;
+    }
+    trip.barkarteVersionId = trip.barkarteVersionId || defaultBarkarteVersionId();
+    trip.packageVersionId = trip.packageVersionId || trip.barkarteVersionId || defaultPackageVersionId();
     const tripId = trip.id;
     importedTripIds.push(tripId);
     const existingTrip = tripById.get(tripId);
@@ -4672,6 +5022,7 @@ async function buildTripImportPlan(parsed, local) {
       addedTrips: 0,
       addedPersons: 0,
       addedLogs: 0,
+      addedReferenceVersions: referenceAdded ? 1 : 0,
       duplicates: 0,
       changedLogs: 0,
       conflicts: 0,
@@ -4787,7 +5138,7 @@ async function buildTripImportPlan(parsed, local) {
       summary.logs += 1;
       fileSummary.addedLogs += 1;
     }
-    fileSummary.added = fileSummary.addedTrips + fileSummary.addedPersons + fileSummary.addedLogs;
+    fileSummary.added = fileSummary.addedTrips + fileSummary.addedPersons + fileSummary.addedLogs + fileSummary.addedReferenceVersions;
     if (fileSummary.archivedTripLogs) warnings.push(`${fileName}: ${fileSummary.archivedTripLogs} neue Buchung${fileSummary.archivedTripLogs === 1 ? '' : 'en'} wird einer lokal abgeschlossenen Reise hinzugefügt. Die Reise bleibt abgeschlossen.`);
     fileSummaries.push(fileSummary);
   }
@@ -4826,7 +5177,7 @@ function tripImportFileHtml(row) {
   return `<div class="tripImportFile">
     <div class="tripImportFileHead"><div><b>${esc(row.deviceName)}</b><small>${esc(row.tripName)} · ${esc(exportedAt)}</small></div><span class="diagnosticSummary ${row.conflicts ? 'warn' : 'ok'}">${row.conflicts ? `${row.conflicts} Konflikt${row.conflicts === 1 ? '' : 'e'}` : 'Geprüft'}</span></div>
     <div class="tripImportFileCounts"><span><b>+${row.addedLogs}</b> neu</span><span><b>${row.changedLogs || 0}</b> geändert</span><span><b>${row.duplicates}</b> doppelt</span></div>
-    ${row.addedPersons || row.addedTrips ? `<small class="tripImportReferenceCounts">Zusätzlich: ${row.addedTrips || 0} Reise(n) · ${row.addedPersons || 0} Person(en)</small>` : ''}
+    ${row.addedPersons || row.addedTrips || row.addedReferenceVersions ? `<small class="tripImportReferenceCounts">Zusätzlich: ${row.addedTrips || 0} Reise(n) · ${row.addedPersons || 0} Person(en) · ${row.addedReferenceVersions || 0} Barkarten-Version(en)</small>` : ''}
     ${row.archivedTripLogs ? `<div class="archivedImportWarning">${row.archivedTripLogs} neue Buchung${row.archivedTripLogs === 1 ? '' : 'en'} für eine abgeschlossene Reise</div>` : ''}
     <small class="tripImportFileName">${esc(row.fileName)}${row.legacy ? ' · älteres Exportformat' : ''}</small>
   </div>`;
@@ -4862,7 +5213,7 @@ function tripImportPreviewHtml() {
   return `<div class="tripImportPreview" id="tripImportPreview">
     <div class="backupPreviewHead"><div><b>Importvorschau</b><small>${summary.files} Datei${summary.files === 1 ? '' : 'en'} geprüft · Noch keine lokalen Daten verändert</small></div><span class="diagnosticSummary ${summary.conflicts ? 'warn' : 'ok'}">${summary.conflicts ? 'Auswahl erforderlich' : 'Bereit zum Zusammenführen'}</span></div>
     <div class="tripImportSummary">
-      <span><b>+${summary.logs}</b> neue Buchungen</span><span><b>${summary.changedLogs || 0}</b> geänderte Buchungen</span><span><b>${summary.duplicates}</b> doppelte Buchungen</span><span><b>+${summary.persons}</b> Personen</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte gesamt</span>${summary.archivedTripLogs ? `<span class="warnText"><b>${summary.archivedTripLogs}</b> für abgeschlossene Reisen</span>` : ''}
+      <span><b>+${summary.logs}</b> neue Buchungen</span><span><b>${summary.changedLogs || 0}</b> geänderte Buchungen</span><span><b>${summary.duplicates}</b> doppelte Buchungen</span><span><b>+${summary.persons}</b> Personen</span><span><b>+${summary.referenceVersions || 0}</b> Barkarten-Versionen</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte gesamt</span>${summary.archivedTripLogs ? `<span class="warnText"><b>${summary.archivedTripLogs}</b> für abgeschlossene Reisen</span>` : ''}
     </div>
     <div class="tripImportFiles">${plan.fileSummaries.map(tripImportFileHtml).join('')}</div>
     ${plan.warnings.length ? `<div class="backupMessages warn">${plan.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
@@ -4976,7 +5327,7 @@ async function applyPreparedTripImport() {
     plan.rows.imports.push({
       id: `import_${uid()}`,
       batchId,
-      kind: 'Geräteabgleich v5.2',
+      kind: 'Geräteabgleich v5.3',
       status: 'abgeschlossen',
       fileName: fileSummary.fileName,
       importedAt,
@@ -4988,6 +5339,7 @@ async function applyPreparedTripImport() {
       added: fileSummary.addedLogs,
       addedTrips: fileSummary.addedTrips,
       addedPersons: fileSummary.addedPersons,
+      addedReferenceVersions: fileSummary.addedReferenceVersions || 0,
       addedLogs: fileSummary.addedLogs,
       changedLogs: fileSummary.changedLogs || 0,
       duplicates: fileSummary.duplicates,
@@ -5007,7 +5359,7 @@ async function applyPreparedTripImport() {
   if (plan.summary.nameWarnings) notices.push(`${plan.summary.nameWarnings} gleichnamige Person(en) mit unterschiedlicher ID wurden getrennt beibehalten.`);
   if (plan.summary.legacyFiles) notices.push(`${plan.summary.legacyFiles} ältere Exportdatei(en) wurden kompatibel importiert.`);
   if (plan.summary.archivedTripLogs) notices.push(`${plan.summary.archivedTripLogs} neue Buchung(en) wurden abgeschlossenen Reisen hinzugefügt; der lokale Abschlussstatus blieb erhalten.`);
-  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${plan.summary.files}\nNeue Reisen: ${plan.summary.trips}\nNeue Personen: ${plan.summary.persons}\nNeue Buchungen: ${plan.summary.logs}\nGeänderte Buchungen: ${plan.summary.changedLogs || 0}\nBereits vorhanden: ${plan.summary.duplicates}\nKonflikte lokal behalten: ${resolutionStats.local}\nImportierte Version übernommen: ${resolutionStats.incoming}\nNicht sicher übernehmbar: ${resolutionStats.blocked}\nWiederherstellungspunkt: erstellt${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
+  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${plan.summary.files}\nNeue Reisen: ${plan.summary.trips}\nNeue Personen: ${plan.summary.persons}\nNeue Barkarten-Versionen: ${plan.summary.referenceVersions || 0}\nNeue Buchungen: ${plan.summary.logs}\nGeänderte Buchungen: ${plan.summary.changedLogs || 0}\nBereits vorhanden: ${plan.summary.duplicates}\nKonflikte lokal behalten: ${resolutionStats.local}\nImportierte Version übernommen: ${resolutionStats.incoming}\nNicht sicher übernehmbar: ${resolutionStats.blocked}\nWiederherstellungspunkt: erstellt${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
   toast(`${plan.summary.logs} neu · ${resolutionStats.incoming} importiert · ${plan.summary.duplicates} doppelt`);
 }
 
@@ -5027,7 +5379,7 @@ function normalizeDrinks(drinks) {
 function cleanPackages(packages) {
   const allowed = new Set(['included', 'not_included', 'unclear']);
   const clean = {};
-  const keys = ['all_in', 'fun', 'kids_teens_all_in', 'kids_teens_fun'];
+  const keys = Array.from(new Set(['all_in', 'fun', 'kids_teens_all_in', 'kids_teens_fun', ...Object.keys(packages || {})]));
   keys.forEach(key => {
     let v = String(packages?.[key] || 'unclear').trim().toLowerCase();
     if (['ja', 'yes', 'enthalten', 'included', 'in'].includes(v)) v = 'included';
@@ -5036,59 +5388,205 @@ function cleanPackages(packages) {
   });
   return clean;
 }
+function uniqueReferenceVersionId(preferred) {
+  const base = String(preferred || `barkarte_${uid()}`).trim() || `barkarte_${uid()}`;
+  if (!state.barkarten.some(row => row.id === base)) return base;
+  return `${base}_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}_${uid().slice(0, 4)}`;
+}
 async function importBarkarte(text, fileName) {
   let data;
-  if (fileName.toLowerCase().endsWith('.csv')) data = { version: `csv_${new Date().toISOString().slice(0, 10)}_${uid()}`, source: fileName, drinks: parseCsv(text) };
-  else data = JSON.parse(text);
-  if (!data || !Array.isArray(data.drinks)) throw new Error('Barkarte muss ein JSON mit drinks[] sein oder eine CSV mit Kopfzeile.');
-  const incoming = normalizeDrinks(data.drinks);
-  if (!incoming.length) throw new Error('Keine gültigen Getränke gefunden.');
-  const comparison = compareDrinks(state.drinks, incoming);
-  const textSummary = `Neue Getränke: ${comparison.newDrinks}\nPreisänderungen: ${comparison.priceChanges}\nPaketänderungen: ${comparison.packageChanges}\n\nNeue Barkarte übernehmen?`;
-  const applied = confirm(textSummary);
-  comparison.applied = applied;
-  comparison.version = data.version || fileName;
+  if (fileName.toLowerCase().endsWith('.csv')) {
+    data = {
+      version: `csv_${new Date().toISOString().slice(0, 10)}_${uid().slice(0, 5)}`,
+      source: fileName,
+      drinks: parseCsv(text),
+      packages: cloneRow(state.packages)
+    };
+  } else data = JSON.parse(text);
+  const hasDrinks = Array.isArray(data?.drinks) && data.drinks.length > 0;
+  const hasPackages = Array.isArray(data?.packages) && data.packages.length > 0;
+  if (!data || (!hasDrinks && !hasPackages)) throw new Error('JSON muss mindestens drinks[] oder packages[] enthalten. CSV-Dateien benötigen eine Kopfzeile mit Getränken.');
+  const incoming = hasDrinks ? normalizeDrinks(data.drinks) : normalizeDrinks(state.drinks);
+  if (!incoming.length) throw new Error('Keine gültigen Getränke verfügbar.');
+  const incomingPackages = hasPackages
+    ? normalizePackageDefinitions(data.packages, data.source || fileName)
+    : normalizePackageDefinitions(state.packages, activePackageVersion()?.source || 'Bisherige Paketdefinitionen');
+  const preferredId = String(data.id || data.version || `barkarte_${uid()}`).trim();
+  const record = buildReferenceVersionRecord({
+    id: uniqueReferenceVersionId(preferredId),
+    version: data.version || fileName,
+    source: data.source || fileName,
+    drinks: incoming,
+    packages: incomingPackages,
+    notes: data.notes || ''
+  });
+  const comparison = compareDrinks(state.drinks, incoming, state.packages, incomingPackages);
+  comparison.version = record.version;
   comparison.fileName = fileName;
-  await putSetting('lastBarkarteComparison', comparison);
-  if (applied) {
-    await createInternalRestorePoint('Vor dem Ersetzen der Barkarte', { fileName, incomingVersion: data.version || fileName, incomingCount: incoming.length });
-    await clearStore('drinks');
-    for (const drink of incoming) await put('drinks', drink);
-    await put('barkarten', { id: data.version || `barkarte_${uid()}`, version: data.version || fileName, source: data.source || fileName, importedAt: nowIso(), count: incoming.length, isDefault: false });
-    await putSetting('barkarteVersion', { version: data.version || fileName, source: data.source || fileName, count: incoming.length, updatedAt: nowIso() });
-  }
-  await put('imports', { id: `import_${uid()}`, kind: 'Barkarte', fileName, importedAt: nowIso(), added: comparison.newDrinks, duplicates: 0 });
-  await loadState(); render();
+  comparison.totalChanges = comparison.newDrinks + comparison.removedDrinks + comparison.priceChanges + comparison.categoryChanges + comparison.packageChanges + comparison.packageDefinitionChanges;
+  state.pendingBarkarteImport = { fileName, record, comparison, preparedAt: nowIso() };
+  state.route = 'barkarte';
+  render();
+  requestAnimationFrame(() => $('#barkarteImportPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  toast('Barkarte geprüft – noch nicht aktiviert');
 }
+async function savePendingBarkarteVersion(mode = 'store') {
+  const pending = state.pendingBarkarteImport;
+  if (!pending?.record) throw new Error('Keine geprüfte Barkarten-Version vorhanden.');
+  const record = buildReferenceVersionRecord({ ...pending.record, id: uniqueReferenceVersionId(pending.record.id) });
+  await put('barkarten', record);
+  const comparison = { ...pending.comparison, applied: mode !== 'store', saved: true, versionId: record.id, savedAt: nowIso() };
+  await putSetting('lastBarkarteComparison', comparison);
+  await put('imports', {
+    id: `import_${uid()}`,
+    kind: 'Barkarte / Paketversion v5.3',
+    fileName: pending.fileName,
+    importedAt: nowIso(),
+    versionId: record.id,
+    version: record.version,
+    added: comparison.newDrinks,
+    removed: comparison.removedDrinks,
+    changed: comparison.priceChanges + comparison.categoryChanges + comparison.packageChanges + comparison.packageDefinitionChanges,
+    duplicates: comparison.totalChanges ? 0 : record.drinks.length,
+    activation: mode
+  });
+  state.pendingBarkarteImport = null;
+  await loadState();
+  if (mode === 'current') {
+    await activateReferenceVersionForCurrentTrip(record.id, { skipConfirm: true, reason: 'Import einer neuen Barkarten-Version' });
+    return;
+  }
+  if (mode === 'default') {
+    await setDefaultReferenceVersion(record.id, { skipConfirm: true });
+    return;
+  }
+  render();
+  toast('Neue Barkarten-Version gespeichert');
+}
+async function activateReferenceVersionForCurrentTrip(id, options = {}) {
+  const record = referenceVersionById(id) || await get('barkarten', id);
+  const trip = currentTrip();
+  if (!record || record.dataAvailable === false || !Array.isArray(record.drinks) || !record.drinks.length) throw new Error('Diese Version enthält keine verwendbaren Barkartendaten.');
+  if (!trip) throw new Error('Es ist keine Reise ausgewählt.');
+  if (!ensureTripWritable(trip.id, 'Der Wechsel der Barkarten-Version')) return;
+  if (trip.barkarteVersionId === id && trip.packageVersionId === id) { toast('Diese Version ist bereits der aktuellen Reise zugeordnet'); return; }
+  const logCount = currentLogs().length;
+  if (!options.skipConfirm && !confirm(`Barkarte und Getränkepakete der Reise „${trip.name}“ auf „${record.version}“ umstellen?\n\n${logCount ? `${logCount} vorhandene Buchung${logCount === 1 ? '' : 'en'} behält ihre gespeicherten Preise und Paketstatus. ` : ''}Nur neue Erfassungen verwenden die neue Version.`)) return;
+  await createInternalRestorePoint(options.reason || 'Vor dem Wechsel der Barkarten- und Paketversion', { tripId: trip.id, fromVersionId: trip.barkarteVersionId || '', toVersionId: id });
+  await put('trips', { ...trip, barkarteVersionId: id, packageVersionId: id, updatedAt: nowIso() });
+  await putSetting('barkarteVersionId', id);
+  await putSetting('barkarteVersion', referenceVersionMeta(record));
+  await loadState();
+  state.editingDrinkId = null;
+  render();
+  toast(`Version „${record.version}“ für diese Reise aktiviert`);
+  haptic();
+}
+async function mirrorDefaultDrinksStore(record) {
+  if (!record || !Array.isArray(record.drinks)) return;
+  await clearStore('drinks');
+  for (const drink of normalizeDrinks(record.drinks)) await put('drinks', drink);
+}
+async function setDefaultReferenceVersion(id, options = {}) {
+  const record = referenceVersionById(id) || await get('barkarten', id);
+  if (!record || record.dataAvailable === false || !Array.isArray(record.drinks) || !record.drinks.length) throw new Error('Diese Version kann nicht als Standard verwendet werden.');
+  if (!options.skipConfirm && !confirm(`„${record.version}“ als Standard für neu angelegte Reisen festlegen?\n\nBestehende Reisen behalten ihre bisherige Barkarten- und Paketversion.`)) return;
+  await putSetting('defaultBarkarteVersionId', id);
+  await putSetting('defaultPackageVersionId', id);
+  await putSetting('barkarteVersionId', id);
+  await putSetting('barkarteVersion', referenceVersionMeta(record));
+  await mirrorDefaultDrinksStore(record);
+  await loadState();
+  render();
+  toast(`„${record.version}“ ist jetzt Standard für neue Reisen`);
+  haptic();
+}
+async function deleteReferenceVersion(id) {
+  const record = referenceVersionById(id);
+  if (!record) return;
+  if (record.isBundled) { alert('Die mit CruiseSip gelieferte Stammversion kann nicht gelöscht werden.'); return; }
+  if (versionUsageCount(id)) { alert('Diese Version ist mindestens einer Reise zugeordnet und kann deshalb nicht gelöscht werden.'); return; }
+  if (defaultBarkarteVersionId() === id || defaultPackageVersionId() === id) { alert('Die Standardversion kann nicht gelöscht werden. Lege zuerst eine andere Standardversion fest.'); return; }
+  if (!confirm(`Die ungenutzte Version „${record.version}“ dauerhaft löschen?`)) return;
+  await del('barkarten', id);
+  await loadState();
+  render();
+  toast('Ungenutzte Version gelöscht');
+}
+
 function parseCsv(text) {
+  const firstLine = String(text || '').split(/\r?\n/, 1)[0] || '';
+  const delimiter = firstLine.includes(';') ? ';' : ',';
   const rows = [];
   let row = [], cell = '', quoted = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i], n = text[i + 1];
     if (c === '"' && quoted && n === '"') { cell += '"'; i++; continue; }
     if (c === '"') { quoted = !quoted; continue; }
-    if ((c === ';' || c === ',') && !quoted) { row.push(cell); cell = ''; continue; }
-    if ((c === '\n' || c === '\r') && !quoted) { if (cell || row.length) { row.push(cell); rows.push(row); row = []; cell = ''; } if (c === '\r' && n === '\n') i++; continue; }
+    if (c === delimiter && !quoted) { row.push(cell); cell = ''; continue; }
+    if ((c === '\n' || c === '\r') && !quoted) {
+      if (cell || row.length) { row.push(cell); rows.push(row); row = []; cell = ''; }
+      if (c === '\r' && n === '\n') i++;
+      continue;
+    }
     cell += c;
   }
   if (cell || row.length) { row.push(cell); rows.push(row); }
-  const headers = rows.shift().map(h => h.trim());
-  return rows.map(values => Object.fromEntries(headers.map((h, i) => [h, values[i] ?? ''])));
+  if (!rows.length) return [];
+  const headers = rows.shift().map(h => h.trim().replace(/^\uFEFF/, ''));
+  return rows.filter(values => values.some(value => String(value).trim())).map(values => Object.fromEntries(headers.map((h, i) => [h, values[i] ?? ''])));
 }
-function compareDrinks(oldDrinks, newDrinks) {
+
+function comparePackageDefinitions(oldPackages, newPackages) {
+  const oldById = new Map(normalizePackageDefinitions(oldPackages || []).map(row => [row.id, row]));
+  const newById = new Map(normalizePackageDefinitions(newPackages || []).map(row => [row.id, row]));
+  const details = [];
+  let changes = 0;
+  for (const [id, row] of newById) {
+    const old = oldById.get(id);
+    if (!old) { changes += 1; details.push({ name: row.name, text: 'neue Paketdefinition' }); continue; }
+    const oldComparable = { name: old.name || '', minAge: old.minAge ?? null, age: old.age || '' };
+    const newComparable = { name: row.name || '', minAge: row.minAge ?? null, age: row.age || '' };
+    if (stableStringify(oldComparable) !== stableStringify(newComparable)) {
+      changes += 1;
+      details.push({ name: row.name, text: `Paketdefinition geändert${old.name !== row.name ? ` · Name: ${old.name} → ${row.name}` : ''}` });
+    }
+  }
+  for (const [id, row] of oldById) {
+    if (!newById.has(id)) { changes += 1; details.push({ name: row.name, text: 'Paketdefinition entfällt' }); }
+  }
+  return { changes, details };
+}
+function compareDrinks(oldDrinks, newDrinks, oldPackages = state.packages, newPackages = state.packages) {
   const byKey = new Map(oldDrinks.map(d => [d.id || slug(d.name), d]));
   const byName = new Map(oldDrinks.map(d => [normalize(d.name), d]));
+  const matchedOldIds = new Set();
   const details = [];
-  let newCount = 0, priceChanges = 0, packageChanges = 0;
+  let newCount = 0, removedDrinks = 0, priceChanges = 0, categoryChanges = 0, packageChanges = 0;
+  const managedIds = Array.from(new Set([
+    ...normalizePackageDefinitions(oldPackages || []).map(pkg => pkg.id),
+    ...normalizePackageDefinitions(newPackages || []).map(pkg => pkg.id)
+  ])).filter(id => !['none', 'unclear'].includes(id));
   for (const drink of newDrinks) {
     const old = byKey.get(drink.id) || byName.get(normalize(drink.name));
     if (!old) { newCount += 1; details.push({ name: drink.name, text: `neu · ${eur(drink.price)}` }); continue; }
+    matchedOldIds.add(old.id || slug(old.name));
     if (Math.abs((Number(old.price) || 0) - (Number(drink.price) || 0)) >= 0.01) { priceChanges += 1; details.push({ name: drink.name, text: `Preis ${eur(old.price)} → ${eur(drink.price)}` }); }
-    for (const key of managedPackages().map(pkg => pkg.id)) {
-      if ((old.packages?.[key] || 'unclear') !== (drink.packages?.[key] || 'unclear')) { packageChanges += 1; details.push({ name: drink.name, text: `${packageName(key)}: ${statusLabel(old.packages?.[key] || 'unclear')} → ${statusLabel(drink.packages?.[key] || 'unclear')}` }); }
+    if (normalize(old.category) !== normalize(drink.category)) { categoryChanges += 1; details.push({ name: drink.name, text: `Kategorie ${old.category || 'ohne'} → ${drink.category || 'ohne'}` }); }
+    for (const key of managedIds) {
+      if ((old.packages?.[key] || 'unclear') !== (drink.packages?.[key] || 'unclear')) { packageChanges += 1; details.push({ name: drink.name, text: `${newPackages.find(pkg => pkg.id === key)?.name || oldPackages.find(pkg => pkg.id === key)?.name || key}: ${statusLabel(old.packages?.[key] || 'unclear')} → ${statusLabel(drink.packages?.[key] || 'unclear')}` }); }
     }
   }
-  return { newDrinks: newCount, priceChanges, packageChanges, details: details.slice(0, 50), checkedAt: nowIso() };
+  for (const old of oldDrinks) {
+    const oldId = old.id || slug(old.name);
+    if (!matchedOldIds.has(oldId) && !newDrinks.some(row => normalize(row.name) === normalize(old.name))) {
+      removedDrinks += 1;
+      details.push({ name: old.name, text: `entfällt · bisher ${eur(old.price)}` });
+    }
+  }
+  const packageDefinition = comparePackageDefinitions(oldPackages, newPackages);
+  details.push(...packageDefinition.details);
+  return { newDrinks: newCount, removedDrinks, priceChanges, categoryChanges, packageChanges, packageDefinitionChanges: packageDefinition.changes, details: details.slice(0, 120), checkedAt: nowIso() };
 }
 
 function pad2(value) { return String(value).padStart(2, '0'); }
@@ -5108,6 +5606,15 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.3.0</h2>
+  <ul>
+    <li>Barkarten und Getränkepakete werden als vollständige, unveränderliche Referenzversionen gespeichert.</li>
+    <li>Jede Reise ist fest mit ihrer Barkarten- und Paketversion verknüpft; alte Reisen bleiben auch nach späteren Preisänderungen nachvollziehbar.</li>
+    <li>Neue JSON- oder CSV-Daten werden vor dem Speichern mit der aktiven Version verglichen. JSON kann Getränke, Paketdefinitionen oder beides enthalten.</li>
+    <li>Importversionen können nur gespeichert, für die aktuelle Reise aktiviert oder als Standard für neue Reisen festgelegt werden.</li>
+    <li>Lokale Artikeländerungen erzeugen bei Bedarf automatisch eine abgeleitete Arbeitsversion, statt gemeinsam genutzte Stammdaten zu überschreiben.</li>
+    <li>Reiseexporte führen die zugehörige Referenzversion mit; der Geräteabgleich ergänzt fehlende Versionen.</li>
+  </ul>
   <h2>Version 5.2.0</h2>
   <ul>
     <li>Geräteexporte zeigen neue, geänderte und doppelte Buchungen vor der Zusammenführung getrennt an.</li>

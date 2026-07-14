@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.3.0 – Versionierte Barkarten und Getränkepakete
+
+- Barkarten und Paketdefinitionen werden als vollständige Referenzversionen im bestehenden Store `barkarten` gespeichert.
+- Jede Reise erhält eine feste Zuordnung über `barkarteVersionId` und `packageVersionId`. Bestehende Reisen behalten ihren bisherigen Stand.
+- JSON-Importe können `drinks[]`, `packages[]` oder beide Bereiche enthalten; CSV-Dateien übernehmen die aktuellen Paketdefinitionen.
+- Vor dem Speichern zeigt CruiseSip neue und entfallene Getränke sowie Preis-, Kategorie-, Paketstatus- und Paketdefinitionsänderungen.
+- Importversionen können nur gespeichert, für die aktuelle Reise aktiviert oder als Standard für neue Reisen festgelegt werden.
+- Vor einem Versionswechsel der aktuellen Reise wird automatisch ein interner Wiederherstellungspunkt erstellt.
+- Manuelle Artikeländerungen erzeugen bei gemeinsam genutzten oder geschützten Daten eine lokale abgeleitete Arbeitsversion.
+- Reiseexporte enthalten die vollständige zugehörige Referenzversion; der Geräteabgleich ergänzt fehlende Versionen.
+- Vollbackup-Prüfung und Importprotokoll wurden um Referenzversionen erweitert.
+- IndexedDB-Version bleibt `2`; App- und Service-Worker-Build wurden auf `5.3.0a` erhöht.
+
 ## 5.2.0 – Sicherer Geräteabgleich
 
 - Reiseexporte werden vor dem Import vollständig geprüft; lokale Daten bleiben bis zur Bestätigung unverändert.
@@ -170,8 +183,6 @@
 - Offline-App-Cache-Prüfung verwendet für CSS und JavaScript automatisch die aktuelle Build-Kennung.
 - Fehlanzeige `3/5 Kerndateien` nach dem Update auf Build 4.5.2b behoben.
 - Keine Änderung an IndexedDB, Reisen, Buchungen, Personen, Barkarte, Backup oder Geräteabgleich.
-
-# Changelog
 
 ## 4.5.2b – Importierter Reiseverlauf
 

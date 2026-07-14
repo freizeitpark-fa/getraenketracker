@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.2.0** (Build **5.2.0a**)
+Aktuelle Entwicklungsfassung: **5.3.0** (Build **5.3.0a**)
 
-Version 5.2.0 erweitert den manuellen Geräteabgleich um eine belastbare Importvorschau, getrennte Zählung neuer, geänderter und doppelter Buchungen sowie eine Auswahl zwischen lokaler und importierter Version bei sicher auflösbaren Konflikten. Vor jeder bestätigten Zusammenführung wird automatisch ein Wiederherstellungspunkt erstellt; die Entscheidungen werden im lokalen Importprotokoll dokumentiert. Die kompakte Erfassungsansicht bleibt unverändert. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 5.3.0 versioniert Barkarten und Getränkepakete vollständig. Jede Reise bleibt mit ihrem verwendeten Preis- und Paketstand verknüpft. Neue Dateien werden vor dem Speichern verglichen und können nur abgelegt, für die aktuelle Reise aktiviert oder als Standard für neue Reisen festgelegt werden. Lokale Artikeländerungen erzeugen bei Bedarf eine abgeleitete Arbeitsversion. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v5.2.0 Sicherer Geräteabgleich`.
+4. Commit erstellen, z. B. `CruiseSip v5.3.0 Versionierte Barkarten und Pakete`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.2.0` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.3.0` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur
@@ -65,11 +65,11 @@ CruiseSip/
 - Durchschnittlicher Getränkewert pro Reisetag und Kategorienauswertung je Person
 - Auswertungen nach Person, Getränk, Kategorie, Tag und Reise inklusive vollständigem Getränkeverlauf
 - Export/Import je Reise
-- Zusammenführen mehrerer Geräte mit Importvorschau, getrennter Anzeige neuer/geänderter/doppelter Buchungen und Konfliktauswahl
+- Zusammenführen mehrerer Geräte mit Importvorschau, Referenzversionen, getrennter Anzeige neuer/geänderter/doppelter Buchungen und Konfliktauswahl
 - sichtbare Geräteherkunft je Buchung im Verlauf und in der Personenanalyse
 - detailliertes Importprotokoll mit Konfliktentscheidungen und Wiederherstellungspunkt
-- Barkartenimport mit Preis- und Paketvergleich
-- Artikelverwaltung für manuelle Preis- und Paketstatus-Anpassungen je Getränkepaket
+- versionierter Barkarten- und Paketimport mit Vorschau, Aktivierung je Reise und Standard für neue Reisen
+- Artikelverwaltung mit automatisch abgeleiteten lokalen Arbeitsversionen für Preis- und Paketstatus-Anpassungen
 - Offline-Onboarding und Backup-Test
 - Offline-Sicherheitsstatus mit Prüfung von Installation, Service Worker, App-Cache und IndexedDB
 - Berichtsexport als Excel-CSV, eigenständige HTML-Datei und druckfreundliche PDF-Ansicht

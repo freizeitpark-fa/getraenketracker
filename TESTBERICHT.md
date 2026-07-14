@@ -1,30 +1,50 @@
-# Testbericht CruiseSip v5.2.0a
+# Testbericht CruiseSip v5.3.0a
 
-## Automatisierte Prüfungen
+Prüfdatum: 14.07.2026
 
-- JavaScript-Syntax von `js/app.js` und `sw.js` mit Node.js geprüft.
-- Versions-, Build- und Cachekennungen auf `5.2.0` / `5.2.0a` abgeglichen.
-- `manifest.json`, `data/barkarte.json` und `data/pakete.json` als gültiges JSON geprüft.
-- Vollständigkeit aller im Service Worker aufgeführten Offline-Ressourcen geprüft.
-- Barkartenbestand unverändert mit 233 Getränken bestätigt.
-- Reihenfolge der Erfassungsansicht unverändert bestätigt: Kategorien → Person → Suche → Getränke.
-- Logiktest für einen Geräteimport mit einer neuen, einer geänderten und einer identischen Buchung ausgeführt.
-- Konservative Vorauswahl „Lokale Version“ für Konflikte geprüft.
-- Übernahme der importierten Version einer geänderten Buchung geprüft; lokale Datensatz-ID und stabiler Merge-Key bleiben erhalten.
-- Sperre einer unsicheren Personen-/Reisezuordnung geprüft.
-- Automatische Erstellung eines Wiederherstellungspunkts vor der Zusammenführung im Logiktest bestätigt.
-- Erweiterte Importprotokollfelder einschließlich Konfliktentscheidung und Wiederherstellungspunkt geprüft.
-- Darstellungstexte der Importvorschau für neue, geänderte und doppelte Buchungen geprüft.
+## Automatisch erfolgreich geprüft
 
-## Fachliche Sicherheitslogik
+- JavaScript-Syntax mit Node.js.
+- Versions-, Build- und Cachekennungen auf `5.3.0` / `5.3.0a` abgeglichen.
+- Alle JSON-Dateien erfolgreich geparst.
+- Mitgelieferte Barkarte enthält weiterhin 233 Getränke.
+- Sämtliche 30 Service-Worker-Ressourcen sind im Projekt vorhanden.
+- CSS-Klammerstruktur ist ausgeglichen; alle verwendeten v5.3-Farbvariablen sind definiert.
+- Kritische v5.3-Funktionen sind jeweils nur einmal vorhanden.
+- ZIP-Integrität wurde ohne Fehler geprüft; eine SHA-256-Prüfsumme wurde erzeugt.
 
-- Identische Buchungen werden über den stabilen Merge-Key und den relevanten Buchungsinhalt als Dublette erkannt.
-- Abweichende Buchungen mit demselben Merge-Key werden als Änderung beziehungsweise Konflikt behandelt.
-- Die lokale Version bleibt standardmäßig ausgewählt.
-- Eine importierte Version wird nur bei sicher verwendbarer Reise- und Personenzuordnung angeboten.
-- Nicht sicher zuordenbare Datensätze bleiben gesperrt und werden nicht automatisch geschrieben.
-- Bei mehreren Importdateien kann je Ziel-Datensatz höchstens eine importierte Konfliktversion angewendet werden.
+## Funktionstests der Versionierungslogik
 
-## Nicht automatisiert prüfbar
+Erfolgreich getestet wurden:
 
-Die abschließende visuelle und haptische Prüfung in der installierten iPhone-PWA bleibt erforderlich. Dabei sollten insbesondere das Aufklappen der Konfliktkarten, die Auswahlbuttons, der iOS-Dateidialog, die Bestätigungsdialoge und die Wiederherstellung nach einem realen Geräteimport geprüft werden.
+- Normalisierung deutscher Dezimalpreise und Paketstatus.
+- Ergänzung der systemseitigen Paketdefinitionen `none` und `unclear`.
+- Aufbau einer vollständigen Referenzversion mit Getränken und Paketen.
+- Auswahl der zur aktuellen Reise gehörenden Referenzversion.
+- CSV-Import mit Semikolon und Dezimalkomma.
+- Vergleich neuer und entfallener Getränke.
+- Erkennung von Preis-, Kategorie- und Paketstatusänderungen.
+- Erkennung neuer und geänderter Paketdefinitionen.
+- Paket-only-JSON-Import mit Übernahme der aktuellen Getränkeliste.
+- Barkarten-only-Import mit Übernahme der aktuellen Paketdefinitionen.
+- Kollision zweier inhaltlich unterschiedlicher Referenzversionen mit gleicher ID beim Geräteabgleich: Die importierte Version erhält eine getrennte ID und die importierte Reise verweist auf diese Variante.
+- Kollision einer Referenzversion beim ergänzenden Vollbackup: Die Vorschau behandelt den abweichenden Stand als getrennt zu speichernde Version statt als überschreibbaren Konflikt.
+- Vollbackup-Prüfung berücksichtigt Getränke-IDs aus allen enthaltenen Referenzversionen.
+
+## Statische Integrationsprüfung
+
+- `index.html`, `app.js` und `sw.js` verwenden denselben Build.
+- Die neue Dokumentation `BARKARTEN_VERSIONIERUNG_V53.md` ist im Offline-Cache enthalten.
+- Reiseexport, Importvorschau, Importprotokoll und Vollbackup enthalten beziehungsweise berücksichtigen Referenzversionen.
+- Bestehende IndexedDB-Version 2 und alle bisherigen Stores bleiben erhalten.
+
+## Noch auf dem Zielgerät zu prüfen
+
+- Update einer bereits installierten v5.2-PWA auf v5.3 ohne Verlust lokaler Reisen.
+- Sichtbare Darstellung der Versionskarten auf dem verwendeten iPhone.
+- Import einer realen Barkarten-JSON-, Paket-only-JSON- und CSV-Datei aus der Dateien-App.
+- Wechsel einer Reise auf eine neue Version und anschließende Erfassung.
+- Reiseexport auf ein zweites Gerät einschließlich automatischer Übernahme der Referenzversion.
+- Start im Flugmodus nach vollständigem Service-Worker-Update.
+
+Die Zielgeräteprüfung ist erforderlich, weil iOS-Safari, Teilen-Menü und PWA-Cache nicht vollständig in der Entwicklungsumgebung simuliert werden können.

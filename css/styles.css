@@ -1440,9 +1440,9 @@ html[data-route="track"] .drinkSortControl.compact select{height:34px!important;
 .tripConflictChoices button{min-height:38px;border:1px solid var(--line);border-radius:11px;background:var(--cardSolid);color:var(--text);font:inherit;font-size:10px;font-weight:850;padding:8px;cursor:pointer}
 .tripConflictChoices button.selected{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,var(--cardSolid));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
 .tripConflictItem.incoming{border-color:color-mix(in srgb,var(--accent) 58%,var(--line))}
-.tripConflictItem.blocked{border-color:color-mix(in srgb,var(--danger) 45%,var(--line))}
+.tripConflictItem.blocked{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
 .tripConflictCompare>div.chosen{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--cardSolid))}
-.tripConflictBlocked{margin:0 9px 8px;border-radius:11px;background:color-mix(in srgb,var(--danger) 8%,var(--cardSolid));padding:8px;color:var(--danger);font-size:9px;line-height:1.4}
+.tripConflictBlocked{margin:0 9px 8px;border-radius:11px;background:color-mix(in srgb,var(--bad) 8%,var(--cardSolid));padding:8px;color:var(--bad);font-size:9px;line-height:1.4}
 .importProtocolList{display:grid;gap:8px}
 .importProtocolRow{border:1px solid var(--line);border-radius:14px;background:var(--cardSolid);overflow:hidden}
 .importProtocolRow summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;padding:10px;cursor:pointer;list-style:none}
@@ -1461,3 +1461,27 @@ html[data-route="track"] .drinkSortControl.compact select{height:34px!important;
 .importProtocolDecisions b{font-size:10px;overflow-wrap:anywhere}
 .importProtocolDecisions small{color:var(--muted);font-size:8px}
 @media(max-width:390px){.tripConflictChoices{grid-template-columns:1fr}.importProtocolRow summary{grid-template-columns:1fr}.importProtocolRow summary>span{justify-self:start}.importProtocolStats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* v5.3.0 – versionierte Barkarten und Getränkepakete */
+.referenceVersionList{display:grid;gap:10px}
+.referenceVersionCard{display:grid;gap:9px;border:1px solid var(--line);border-radius:16px;background:var(--cardSolid);padding:12px;min-width:0}
+.referenceVersionCard.current{border-color:color-mix(in srgb,var(--ok) 48%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--ok) 10%,var(--cardSolid)),var(--cardSolid));box-shadow:0 9px 24px color-mix(in srgb,var(--ok) 8%,transparent)}
+.referenceVersionHead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;min-width:0}
+.referenceVersionHead>div{min-width:0}.referenceVersionHead b,.referenceVersionHead small{display:block;min-width:0}.referenceVersionHead b{font-size:14px;line-height:1.3;overflow-wrap:anywhere}.referenceVersionHead small{margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35;overflow-wrap:anywhere}.referenceVersionHead strong{white-space:nowrap;font-size:11px;color:var(--text)}
+.referenceBadges{display:flex;flex-wrap:wrap;gap:5px}
+.referenceBadge{display:inline-flex;align-items:center;min-height:23px;border-radius:999px;padding:4px 7px;background:color-mix(in srgb,var(--muted) 10%,var(--cardSolid));color:var(--muted);font-size:8px;font-weight:900;line-height:1.2}
+.referenceBadge.active{background:color-mix(in srgb,var(--ok) 13%,var(--cardSolid));color:var(--ok)}
+.referenceBadge.default{background:color-mix(in srgb,var(--accent) 12%,var(--cardSolid));color:var(--accent)}
+.referenceBadge.local{background:color-mix(in srgb,var(--warn) 12%,var(--cardSolid));color:var(--warn)}
+.referenceBadge.bundled{background:color-mix(in srgb,var(--muted) 11%,var(--cardSolid));color:var(--text)}
+.referenceBadge.unavailable{background:color-mix(in srgb,var(--bad) 10%,var(--cardSolid));color:var(--bad)}
+.referenceVersionMeta{display:flex;flex-wrap:wrap;gap:6px}.referenceVersionMeta span{border-radius:999px;background:color-mix(in srgb,var(--bg) 62%,var(--cardSolid));padding:5px 7px;color:var(--muted);font-size:9px;line-height:1.25}
+.referenceUsage{margin:0;color:var(--muted);font-size:9px;line-height:1.4;overflow-wrap:anywhere}
+.referenceVersionActions{justify-content:flex-start}.referenceVersionActions .mini{flex:0 1 auto}
+.barkarteImportPreview{display:grid;gap:12px;border:1px solid color-mix(in srgb,var(--accent) 34%,var(--line));border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 7%,var(--cardSolid)),var(--card));padding:13px;box-shadow:var(--shadow)}
+.barkarteComparisonGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.barkarteComparisonGrid span{border:1px solid var(--line);border-radius:12px;background:var(--cardSolid);padding:8px;color:var(--muted);font-size:9px;text-align:center;line-height:1.3}
+.barkarteComparisonGrid b{display:block;color:var(--text);font-size:14px}
+.barkarteComparisonDetails{border:1px solid var(--line);border-radius:13px;background:var(--cardSolid);overflow:hidden}.barkarteComparisonDetails summary{padding:10px 11px;cursor:pointer;font-size:11px;font-weight:850}.comparisonList{display:grid;gap:6px;border-top:1px solid var(--line);padding:9px}.comparisonList>div{display:grid;gap:2px;border-radius:10px;background:color-mix(in srgb,var(--bg) 62%,var(--cardSolid));padding:7px}.comparisonList b{font-size:10px;overflow-wrap:anywhere}.comparisonList small{color:var(--muted);font-size:9px;line-height:1.35;overflow-wrap:anywhere}
+@media(max-width:520px){.barkarteComparisonGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.referenceVersionHead{grid-template-columns:1fr}.referenceVersionHead strong{justify-self:start}.referenceVersionActions{display:grid;grid-template-columns:1fr}.referenceVersionActions .mini{width:100%}}
+@media(min-width:800px){.referenceVersionList{grid-template-columns:repeat(2,minmax(0,1fr))}}
