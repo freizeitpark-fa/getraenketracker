@@ -1,32 +1,23 @@
-# Testbericht CruiseSip v5.4.1c
+# Testbericht CruiseSip v5.4.1d
 
-## Behobener Fehler
+## Schwerpunkt
 
-Der gespeicherte Reiseverlauf ließ sich in der iPhone-PWA über den sichtbaren Pfeil nicht zuverlässig aufklappen. Dadurch waren auch die Aktionen zum Bearbeiten und Löschen einzelner Reisetage nicht erreichbar.
+Der Bereich „Gespeicherten Verlauf anzeigen“ wurde nicht erneut über Checkbox, Label oder das native `details`-Element umgesetzt. Die neue Schaltfläche setzt den geöffneten Zustand direkt im CruiseSip-App-Zustand und rendert die Liste anschließend neu.
 
-## Umsetzung
+## Geprüft
 
-- Native `details`-Steuerung im Reiseverwaltungsbereich durch eine explizite Schaltfläche mit `aria-expanded` und kontrolliertem Inhaltsbereich ersetzt.
-- Gesamte Schaltfläche und Pfeil lösen denselben Auf-/Zuklappvorgang aus.
-- Bearbeiten- und Löschen-Schaltflächen sind nach dem Öffnen sichtbar.
-- Öffnen eines Editors hält den Verlauf aufgeklappt.
-- Reduzierte Effekte deaktivieren auch die Pfeilanimation.
+- JavaScript-Syntax von `app.js` und `sw.js`
+- JSON-Syntax von Manifest, Barkarte und Paketdefinitionen
+- echte Schaltfläche mit `data-action="toggleItineraryDetails"`
+- Öffnen und Schließen über den tatsächlichen `handleClick`-Code mit simuliertem Klick
+- Zustandswechsel `expandedItineraryTripId`: `null` → Reise-ID → `null`
+- erneuter Renderaufruf beim Öffnen und Schließen
+- Reisetage und Bearbeiten-/Löschen-Schaltflächen sind bereits im erzeugten Inhalt enthalten
+- sichtbarer Zustand über `is-open`, `hidden` und `aria-expanded`
+- eigener Service-Worker-Cache `cruisesip-v5-4-1-20260714d`
+- Versionsparameter aller Kernressourcen auf Build `5.4.1d`
+- ZIP-Integrität
 
-## Prüfungen
+## Ergebnis
 
-- JavaScript-Syntax mit `node --check` geprüft.
-- Service-Worker-Cache und Versionsparameter auf Build 5.4.1c geprüft.
-- Vorhandensein der Toggle-Aktion, ARIA-Zustände, Inhalts-ID und Bearbeitungsaktionen statisch geprüft.
-- JSON-Dateien validiert.
-- ZIP-Integrität geprüft.
-
-## Offener Praxistest
-
-Die tatsächliche Touch-Bedienung sollte nach Veröffentlichung einmal auf dem verwendeten iPhone geprüft werden.
-
-## Ergänzende Prüfung Build 5.4.1c
-
-- Checkbox-/Label-Aufklappmechanismus ohne Abhängigkeit vom delegierten Klickhandler geprüft.
-- Gesamter Aufklappbalken ist über das zugeordnete Label antippbar.
-- CSS-Zustände für Inhalt, Pfeildrehung und wechselnde Beschriftung geprüft.
-- Verwaltung steht im Setup unmittelbar unter der aktiven Reise.
+Die Aufklapplogik ist nun unabhängig von den zuvor auf dem iPhone problematischen nativen Aufklappmechanismen. Ein realer Touch-Test in der installierten iPhone-PWA bleibt nach Veröffentlichung erforderlich.

@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '5.4.1';
-const APP_CACHE_NAME = 'cruisesip-v5-4-1-20260714c';
-const APP_BUILD = '5.4.1c';
-const SERVICE_WORKER_URL = './sw.js?v=5.4.1c';
+const APP_CACHE_NAME = 'cruisesip-v5-4-1-20260714d';
+const APP_BUILD = '5.4.1d';
+const SERVICE_WORKER_URL = './sw.js?v=5.4.1d';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -1210,11 +1210,18 @@ async function handleClick(event) {
   if (action === 'cancelItineraryImport') { state.pendingItineraryImport = null; state.tripSetupWizard = { step: 'choice', tripId: null, exported: false }; render(); return; }
   if (action === 'applyItineraryImport') { await runActionOnce('applyItineraryImport', applyPreparedItineraryImport); return; }
   if (action === 'toggleItineraryDetails') {
-    const disclosure = $('#itinerarySavedDisclosure');
-    if (disclosure) {
-      disclosure.checked = !disclosure.checked;
-      disclosure.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    const trip = currentTrip();
+    if (!trip) return;
+    const wasOpen = state.expandedItineraryTripId === trip.id;
+    state.expandedItineraryTripId = wasOpen ? null : trip.id;
+    render();
+    requestAnimationFrame(() => {
+      const toggle = $('#itinerarySavedToggle');
+      const content = $('#itinerarySavedContent');
+      toggle?.focus({ preventScroll: true });
+      if (!wasOpen) content?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    haptic();
     return;
   }
   if (action === 'addItineraryDay') { openItineraryDayEditor(null); return; }
@@ -1684,20 +1691,6 @@ function bindRenderedControls() {
   bindDirectAction('#personSaveButton', 'savePerson', () => savePersonForm($('#personForm')));
   bindDirectAction('#deviceSaveButton', 'saveDevice', () => saveDeviceForm($('#deviceForm')));
   bindDirectAction('#logSaveButton', 'saveLog', () => saveLogForm($('#logEditForm')));
-  const itineraryDisclosure = $('#itinerarySavedDisclosure');
-  if (itineraryDisclosure && itineraryDisclosure.dataset.directBound !== '1') {
-    itineraryDisclosure.dataset.directBound = '1';
-    itineraryDisclosure.addEventListener('change', () => {
-      const trip = currentTrip();
-      const open = itineraryDisclosure.checked;
-      state.expandedItineraryTripId = open && trip ? trip.id : null;
-      const label = $('#itinerarySavedToggle');
-      const content = $('#itinerarySavedContent');
-      label?.setAttribute('aria-expanded', open ? 'true' : 'false');
-      content?.setAttribute('aria-hidden', open ? 'false' : 'true');
-      haptic();
-    });
-  }
 }
 
 function bindInputs() {
@@ -3463,13 +3456,12 @@ function itineraryManagementHtml(trip = currentTrip()) {
     ${itineraryDayEditorHtml(trip, days)}
     ${days.length ? (() => {
       const expanded = state.expandedItineraryTripId === trip.id || state.editingItineraryDayDate !== null;
-      return `<div class="itineraryDetails itineraryDisclosure">
-        <input type="checkbox" id="itinerarySavedDisclosure" class="itineraryDisclosureInput" ${expanded ? 'checked' : ''}>
-        <label id="itinerarySavedToggle" class="itineraryToggle" for="itinerarySavedDisclosure" role="button" aria-expanded="${expanded ? 'true' : 'false'}" aria-controls="itinerarySavedContent">
-          <span><b class="itineraryToggleLabel itineraryToggleLabelOpen">Gespeicherten Verlauf anzeigen</b><b class="itineraryToggleLabel itineraryToggleLabelClose">Gespeicherten Verlauf ausblenden</b><small>${days.length} Reisetage · mit Bearbeiten- und Löschen-Funktion</small></span>
+      return `<div class="itineraryDetails itineraryDisclosure ${expanded ? 'is-open' : ''}">
+        <button type="button" id="itinerarySavedToggle" class="itineraryToggle" data-action="toggleItineraryDetails" aria-expanded="${expanded ? 'true' : 'false'}" aria-controls="itinerarySavedContent">
+          <span><b class="itineraryToggleLabel">${expanded ? 'Gespeicherten Verlauf ausblenden' : 'Gespeicherten Verlauf anzeigen'}</b><small>${days.length} Reisetage · mit Bearbeiten- und Löschen-Funktion</small></span>
           <svg class="itineraryToggleChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
-        </label>
-        <div id="itinerarySavedContent" class="itineraryExpandable" aria-hidden="${expanded ? 'false' : 'true'}"><div class="itineraryPreviewList">${days.map(day => itineraryDayRowHtml(day, { editable: !locked })).join('')}</div></div>
+        </button>
+        <div id="itinerarySavedContent" class="itineraryExpandable ${expanded ? 'is-open' : ''}" aria-hidden="${expanded ? 'false' : 'true'}" ${expanded ? '' : 'hidden'}><div class="itineraryPreviewList">${days.map(day => itineraryDayRowHtml(day, { editable: !locked })).join('')}</div></div>
       </div>`;
     })() : '<p class="emptyText">Für diese Reise ist noch kein Reiseverlauf hinterlegt. Du kannst den ersten Reisetag manuell ergänzen.</p>'}
     ${locked ? '' : `<div class="buttonStack itineraryManagementActions"><button type="button" class="primary" data-action="addItineraryDay">Reisetag hinzufügen</button>${days.length ? '<button type="button" class="secondary dangerText" data-action="clearItinerary">Gesamten Verlauf entfernen</button>' : ''}</div>`}

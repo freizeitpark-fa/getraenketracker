@@ -1,3 +1,11 @@
+## v5.4.1d – Reiseverlauf zuverlässig per App-Zustand öffnen
+
+- Der Aufklappbereich verwendet nun eine echte Schaltfläche mit `data-action` statt Checkbox-/Label- oder nativer Details-Logik.
+- Der Klick setzt den geöffneten Zustand direkt in CruiseSip und rendert die Reisetage sichtbar neu.
+- Die Liste der Reisetage befindet sich vollständig im DOM und wird über einen eindeutigen `is-open`-Status ein- und ausgeblendet.
+- Pfeil, Beschriftung und ARIA-Zustand folgen demselben App-Zustand.
+- App- und Service-Worker-Build auf `5.4.1d` erhöht.
+
 ## v5.4.1c – Reiseverlauf-Aufklappen und Setup-Reihenfolge
 
 - Der Reiseverlauf verwendet jetzt einen nativen Checkbox-/Label-Mechanismus, der auch ohne JavaScript-Klickverarbeitung auf iPhone und in der installierten PWA zuverlässig auf- und zuklappt.
