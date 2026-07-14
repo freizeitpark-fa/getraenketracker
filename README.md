@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.5.1** (Build **4.5.1b**)
+Aktuelle Entwicklungsfassung: **4.5.2** (Build **4.5.2a**)
 
-Version 4.5.1 ergänzt die Abschlussauswertung je Person und für die gesamte Reise. Ausgewiesen werden Getränkeanzahl, Barkartenwerte, Paketstatus, Kosten außerhalb des Pakets, Paketpreise, Ersparnis oder Mehrkosten, Durchschnittswerte je Reisetag und Kategorien. Die Berechnung bleibt konservativ und verändert keine gespeicherten Buchungen. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.5.2 ergänzt einen Tages- und Reisebericht mit chronologischen Tageswerten, stärkstem Konsumtag, Tagesdurchschnitt, häufigsten und teuersten Getränken sowie Personen- und Kategorienvergleich. Die Berechnung erfolgt vollständig lokal und verändert keine gespeicherten Buchungen. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.5.1 Abschlussauswertung`.
+4. Commit erstellen, z. B. `CruiseSip v4.5.2 Tages- und Reisebericht`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v4.5.1` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v4.5.2` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur

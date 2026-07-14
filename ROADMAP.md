@@ -1,5 +1,14 @@
 # Roadmap CruiseSip
 
+## Version 4.5.2 Tages- und Reisebericht
+
+- chronologische Auswertung je Reisetag
+- Getränkeanzahl und Barkartenwert je Tag
+- stärkster Konsumtag und Tagesdurchschnitt
+- häufigste und teuerste Getränke
+- Vergleich der Personen und Getränkekategorien
+- übersichtlicher Abschluss- beziehungsweise Zwischenbericht
+
 ## Version 4.5.1 Abschlussauswertung je Person
 
 - Getränkeanzahl und Barkartenwert je Person

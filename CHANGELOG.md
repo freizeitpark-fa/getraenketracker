@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.5.2 – Tages- und Reisebericht
+
+### Neu
+
+- Chronologische Auswertung je Reisetag mit Getränkeanzahl, Barkartenwert und Verteilung auf enthalten, nicht enthalten und unklar.
+- Bei vollständig hinterlegtem Reisezeitraum werden auch Tage ohne Buchungen mit 0 berücksichtigt.
+- Stärkster Konsumtag sowie durchschnittliche Getränkeanzahl und durchschnittlicher Barkartenwert pro Reisetag.
+- Ranglisten für häufigste Getränke und teuerste Getränke nach gespeichertem Einzelpreis.
+- Direkter Vergleich der Personen und Getränkekategorien innerhalb des Reiseberichts.
+- Abgeschlossene Reisen zeigen den Bereich als Abschlussbericht, aktive Reisen als Zwischenbericht.
+
+### Technisch
+
+- App-Version auf `4.5.2`, Build auf `4.5.2a` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-5-2-20260714a` erhöht.
+- IndexedDB, Stores, IDs, Backupformate, Reiseexport und Geräteabgleich bleiben unverändert.
+- Sämtliche Kennzahlen werden ausschließlich aus lokal gespeicherten Buchungen berechnet.
+
 ## 4.5.1b – Hotfix zuverlässige PWA-Aktualisierung auf iOS
 
 ### Behoben

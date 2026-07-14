@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '4.5.1';
-const APP_CACHE_NAME = 'cruisesip-v4-5-1-20260714b';
-const APP_BUILD = '4.5.1b';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.1b';
+const APP_VERSION = '4.5.2';
+const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714a';
+const APP_BUILD = '4.5.2a';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.2a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -627,8 +627,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.5.1b',
-    './js/app.js?v=4.5.1b',
+    './css/styles.css?v=4.5.2a',
+    './js/app.js?v=4.5.2a',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -1589,6 +1589,7 @@ function viewStats() {
         ${kpi('Unklar', eur(total.unclear), `${total.unclearCount} an Bord prüfen`)}
       </div>
       ${isTripView ? overallCompletionSummaryHtml(persons, allTripLogs) : ''}
+      ${isTripView ? tripTravelReportHtml(persons, allTripLogs) : ''}
       ${isTripView ? personCompletionDashboardHtml(persons, allTripLogs) : ''}
       ${statusBreakdownHtml(logs)}
       ${outsidePackageHtml(logs)}
@@ -1776,6 +1777,123 @@ function personCompletionDashboardHtml(persons, logs) {
   }).join('');
   return `<div class="card"><div class="sectionHead"><h2>Abschlussauswertung je Person</h2><span class="subtle">antippen für Details</span></div><div class="personCompletionList">${cards}</div></div>`;
 }
+
+function isoDayKeyFromNumber(dayNumber) {
+  const date = new Date(Number(dayNumber) * 86400000);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+}
+function reportDateLabel(key, trip = currentTrip()) {
+  const match = String(key || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return 'Datum unbekannt';
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const formatted = date.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  const start = isoDateDayNumber(trip?.startDate);
+  const current = isoDateDayNumber(key);
+  if (start !== null && current !== null && current >= start) return `Tag ${current - start + 1} · ${formatted}`;
+  return formatted;
+}
+function tripReportDateKeys(logs, trip = currentTrip()) {
+  const start = isoDateDayNumber(trip?.startDate);
+  const end = isoDateDayNumber(trip?.endDate);
+  if (start !== null && end !== null && end >= start && end - start <= 366) {
+    return Array.from({ length: end - start + 1 }, (_, index) => isoDayKeyFromNumber(start + index));
+  }
+  return [...new Set(logs.map(log => localLogDayKey(log.ts)).filter(Boolean))].sort();
+}
+function tripDailyReport(logs, trip = currentTrip()) {
+  const dateKeys = tripReportDateKeys(logs, trip);
+  const map = new Map(dateKeys.map(key => [key, { key, count: 0, value: 0, includedCount: 0, included: 0, notIncludedCount: 0, notIncluded: 0, unclearCount: 0, unclear: 0 }]));
+  let invalidCount = 0;
+  logs.forEach(log => {
+    const key = localLogDayKey(log.ts);
+    if (!key) { invalidCount += 1; return; }
+    if (!map.has(key)) map.set(key, { key, count: 0, value: 0, includedCount: 0, included: 0, notIncludedCount: 0, notIncluded: 0, unclearCount: 0, unclear: 0 });
+    const row = map.get(key);
+    const price = Number(log.price) || 0;
+    row.count += 1;
+    row.value += price;
+    if (log.packageStatus === 'included') { row.includedCount += 1; row.included += price; }
+    else if (log.packageStatus === 'not_included') { row.notIncludedCount += 1; row.notIncluded += price; }
+    else { row.unclearCount += 1; row.unclear += price; }
+  });
+  const rows = [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+  const strongest = rows.filter(row => row.count > 0).sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key))[0] || null;
+  const days = tripDayInfo(logs, trip).days || rows.length;
+  const consumptionDays = rows.filter(row => row.count > 0).length;
+  return {
+    rows,
+    strongest,
+    days,
+    consumptionDays,
+    invalidCount,
+    averageCount: days ? logs.length / days : 0,
+    averageValue: days ? calcDetailed(logs).value / days : 0
+  };
+}
+function drinkReportRows(logs) {
+  const map = new Map();
+  logs.forEach(log => {
+    const key = String(log.drinkName || drinkById(log.drinkId)?.name || 'Unbekannt').trim() || 'Unbekannt';
+    if (!map.has(key)) map.set(key, { key, count: 0, value: 0, maxPrice: 0, minPrice: null });
+    const row = map.get(key);
+    const price = Number(log.price) || 0;
+    row.count += 1;
+    row.value += price;
+    row.maxPrice = Math.max(row.maxPrice, price);
+    row.minPrice = row.minPrice === null ? price : Math.min(row.minPrice, price);
+  });
+  return [...map.values()];
+}
+function personReportRows(persons, logs) {
+  const rows = persons.map(person => {
+    const personLogs = logs.filter(log => log.personId === person.id);
+    const stats = calcDetailed(personLogs);
+    return { key: person.name || 'Unbenannt', count: stats.count, value: stats.value, includedCount: stats.includedCount, notIncludedCount: stats.notIncludedCount, unclearCount: stats.unclearCount };
+  });
+  const knownIds = new Set(persons.map(person => person.id));
+  const unknownLogs = logs.filter(log => !knownIds.has(log.personId));
+  if (unknownLogs.length) {
+    const stats = calcDetailed(unknownLogs);
+    rows.push({ key: 'Unbekannte Person', count: stats.count, value: stats.value, includedCount: stats.includedCount, notIncludedCount: stats.notIncludedCount, unclearCount: stats.unclearCount });
+  }
+  return rows.sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key, 'de'));
+}
+function tripReportListHtml(title, subtitle, rows, rowHtml, emptyText = 'Keine Daten vorhanden.') {
+  return `<section class="tripReportPanel"><div class="tripReportPanelHead"><div><h3>${esc(title)}</h3><small>${esc(subtitle)}</small></div></div>${rows.length ? `<div class="tripReportList">${rows.map(rowHtml).join('')}</div>` : `<p class="emptyText">${esc(emptyText)}</p>`}</section>`;
+}
+function tripTravelReportHtml(persons, logs) {
+  const trip = currentTrip();
+  const daily = tripDailyReport(logs, trip);
+  const drinks = drinkReportRows(logs);
+  const frequent = drinks.slice().sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key, 'de')).slice(0, 8);
+  const expensive = drinks.slice().sort((a, b) => b.maxPrice - a.maxPrice || b.count - a.count || a.key.localeCompare(b.key, 'de')).slice(0, 8);
+  const personRows = personReportRows(persons, logs);
+  const categories = categoryDetailedStats(logs).sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key, 'de'));
+  const total = calcDetailed(logs);
+  const strongestText = daily.strongest ? reportDateLabel(daily.strongest.key, trip) : 'Noch kein Konsumtag';
+  const reportState = trip?.archived ? 'Abschlussbericht' : 'Zwischenbericht';
+  const dayRows = daily.rows.map(row => `<div class="tripDayRow ${daily.strongest?.key === row.key ? 'strongest' : ''}"><div><b>${esc(reportDateLabel(row.key, trip))}${daily.strongest?.key === row.key ? ' · stärkster Tag' : ''}</b><small>${row.count} ${row.count === 1 ? 'Getränk' : 'Getränke'} · ${row.includedCount} enthalten · ${row.notIncludedCount} nicht enthalten${row.unclearCount ? ` · ${row.unclearCount} unklar` : ''}</small></div><strong>${eur(row.value)}</strong></div>`).join('');
+  return `<article class="card tripReportCard">
+    <div class="sectionHead"><div><h2>Tages- und Reisebericht</h2><p class="hint">Chronologische Reiseauswertung mit Tageswerten, Spitzenwerten und Vergleichen. Tage ohne Buchungen werden bei vollständig hinterlegtem Reisezeitraum mit 0 berücksichtigt.</p></div><span class="completionState ${trip?.archived ? 'completed' : 'ongoing'}">${esc(reportState)}</span></div>
+    <div class="tripReportSummaryGrid">
+      ${completionMetric('Reisetage', String(daily.days), `${daily.consumptionDays} Tag${daily.consumptionDays === 1 ? '' : 'e'} mit Konsum`)}
+      ${completionMetric('Tagesdurchschnitt', `${daily.averageCount.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Getränke`, eur(daily.averageValue))}
+      ${completionMetric('Stärkster Konsumtag', daily.strongest ? `${daily.strongest.count} Getränke` : '—', daily.strongest ? `${strongestText} · ${eur(daily.strongest.value)}` : strongestText)}
+      ${completionMetric('Reisewert', eur(total.value), `${total.count} Getränke gesamt`)}
+    </div>
+    <section class="tripReportSection"><div class="sectionHead"><div><h3>Auswertung je Reisetag</h3><p class="hint">Sortiert nach dem lokalen Buchungsdatum.</p></div><span class="subtle">${daily.rows.length} Tage</span></div>${dayRows ? `<div class="tripDayList">${dayRows}</div>` : '<p class="emptyText">Keine Reisetage ermittelbar.</p>'}${daily.invalidCount ? `<p class="tripReportWarning">${daily.invalidCount} Buchung${daily.invalidCount === 1 ? '' : 'en'} ohne gültiges Datum konnte${daily.invalidCount === 1 ? '' : 'n'} keinem Tag zugeordnet werden.</p>` : ''}</section>
+    <div class="tripReportColumns">
+      ${tripReportListHtml('Häufigste Getränke', 'Nach Anzahl der Buchungen', frequent, row => `<div class="tripReportRow"><div><b>${esc(row.key)}</b><small>${row.count}× · Gesamtwert ${eur(row.value)}</small></div><strong>${row.count}×</strong></div>`)}
+      ${tripReportListHtml('Teuerste Getränke', 'Höchster gespeicherter Einzelpreis', expensive, row => `<div class="tripReportRow"><div><b>${esc(row.key)}</b><small>${row.count}× konsumiert · Gesamtwert ${eur(row.value)}</small></div><strong>${eur(row.maxPrice)}</strong></div>`)}
+    </div>
+    <div class="tripReportColumns">
+      ${tripReportListHtml('Vergleich der Personen', 'Nach Getränkeanzahl', personRows, row => `<div class="tripReportRow"><div><b>${esc(row.key)}</b><small>${row.count} Getränke · ${row.includedCount} enthalten · ${row.notIncludedCount} nicht enthalten${row.unclearCount ? ` · ${row.unclearCount} unklar` : ''}</small></div><strong>${eur(row.value)}</strong></div>`)}
+      ${tripReportListHtml('Kategorienvergleich', 'Nach Getränkeanzahl', categories, row => `<div class="tripReportRow"><div><b>${esc(row.key)}</b><small>${row.count} Getränke · ${total.count ? Math.round(row.count / total.count * 100) : 0} % der Buchungen</small></div><strong>${eur(row.value)}</strong></div>`)}
+    </div>
+  </article>`;
+}
+
 function categoryDetailedStats(logs) {
   const map = new Map();
   logs.forEach(log => {
@@ -3538,6 +3656,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.2</h2>
+  <ul>
+    <li>Neuer Tages- und Reisebericht mit chronologischer Auswertung aller Reisetage einschließlich Tagen ohne Buchungen.</li>
+    <li>Anzeige von Getränkeanzahl und Barkartenwert je Tag, stärkstem Konsumtag sowie durchschnittlicher Getränkeanzahl und durchschnittlichem Barkartenwert pro Reisetag.</li>
+    <li>Ranglisten für häufigste und teuerste Getränke sowie direkte Vergleiche der Personen und Getränkekategorien.</li>
+    <li>Der Bericht wird bei abgeschlossenen Reisen als Abschlussbericht und bei laufenden Reisen als Zwischenbericht dargestellt.</li>
+    <li>Alle Kennzahlen werden ausschließlich aus den vorhandenen lokalen Buchungen berechnet; Datenmodell, Backup und Geräteabgleich bleiben unverändert.</li>
+  </ul>
   <h2>Version 4.5.1</h2>
   <ul>
     <li>Neue Abschlussauswertung mit Gesamt-Barkartenwert, Gesamtpaketkosten, Kosten außerhalb des Pakets, unklaren Paketstatus und Gesamtbilanz.</li>
