@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.0.1** (Build **5.0.1a**)
+Aktuelle Entwicklungsfassung: **5.0.2** (Build **5.0.2b**)
 
-Version 5.0.1 ergänzt ein gerätebezogenes Theme-System mit Automatik, Ocean, Sunset, Nordic und Hohem Kontrast, eine Option für reduzierte Effekte sowie eine bedienungsorientierte Neuordnung des Home-Bildschirms. Die Reiseintelligenz, Mehrfacherfassung und v5-Migrationssicherung aus Version 5.0.0 bleiben vollständig erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 5.0.2 verdichtet die Erfassungsansicht für das iPhone: Kategorien und Person zuerst, Suche direkt über den Getränken, kompakter Personenwechsel, mehr sichtbare Getränkekacheln und eindeutige Einzelerfassung. Die persönliche Wiederholung bleibt auf Home; die Mehrfachauswahl wurde aus der Hauptbedienung zurückgenommen. Theme-System, Reiseintelligenz und v5-Migrationssicherung bleiben erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v5.0.1 Themes und Home-Priorisierung`.
+4. Commit erstellen, z. B. `CruiseSip v5.0.2 Kompakte Erfassung`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.0.1` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.0.2` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur
@@ -50,9 +50,9 @@ CruiseSip/
 - Assistent für neue Reisen mit wahlweisem Reiseverlauf-Import oder manueller Anlage, anschließender Personeneinrichtung und optionalem Geräteexport
 - Personenverwaltung mit Getränkepaket und optionalem Paketpreis
 - Geräte-ID und Gerätename
-- extrem schnelles Erfassen: eine oder mehrere Personen wählen, Getränk antippen, speichern
-- Personen-Schnellwechsel und optionale Mehrfachauswahl direkt oberhalb der Getränkekacheln
-- „Noch einmal erfassen“ je Person auf Home und in der Erfassungsansicht
+- extrem schnelles Erfassen: Person wählen, Getränk antippen, speichern
+- kompakter Personen-Schnellwechsel direkt oberhalb der Getränkekacheln
+- „Noch einmal erfassen“ je Person auf Home
 - sieben lokale Themes einschließlich Automatik, Ocean, Sunset, Nordic und Hohem Kontrast
 - optionale reduzierte Effekte für eine ruhigere und ressourcenschonendere Darstellung
 - bedienungsorientierter Home-Aufbau mit Schnellzugriff und Wiederholung an erster Stelle

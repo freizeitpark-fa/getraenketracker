@@ -1,3 +1,16 @@
+## Version 5.0.2b Bedienreihenfolge
+
+- Kategorien und Person werden zuerst gewählt.
+- Die Suche steht direkt vor der Getränkeliste.
+- Der kompakte Listenbereich bleibt erhalten.
+
+## Version 5.0.2 Kompakte Erfassungsansicht
+
+- Suche an die erste Position der Erfassungsseite verschoben.
+- Wiederholungsleiste aus der Erfassung entfernt und auf Home konzentriert.
+- Mehrfachauswahl aus der Hauptbedienung zurückgenommen.
+- Personenauswahl und Filter verdichtet, um mehr Getränkekacheln sichtbar zu machen.
+
 ## Version 5.0.1 Themes und Home-Priorisierung
 
 - Theme-System mit Automatisch, Hell, Dunkel, Ocean, Sunset, Nordic und Hohem Kontrast umgesetzt.

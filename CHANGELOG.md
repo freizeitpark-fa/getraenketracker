@@ -1,5 +1,23 @@
 # Changelog
 
+## 5.0.2b – Suche direkt über der Getränkeliste
+
+- Reihenfolge der Erfassungsansicht korrigiert: Kategorien → Person → Suche → Getränke.
+- Die Suche bleibt kompakt und befindet sich unmittelbar vor der Getränkeliste.
+- Mehrfachauswahl und Wiederholungsleiste bleiben aus der Erfassungsansicht entfernt.
+- Service-Worker- und Ressourcen-Build auf `5.0.2b` erhöht.
+
+## 5.0.2 – Kompakte Erfassungsansicht
+
+- Getränkesuche als erstes Bedienelement oberhalb von Kategorien und Personenauswahl angeordnet.
+- „Noch einmal erfassen“ aus der Erfassungsansicht entfernt; die Funktion bleibt auf Home verfügbar.
+- Mehrfachauswahl aus der regulären Erfassung zurückgenommen. Getränkekacheln buchen wieder eindeutig für genau eine ausgewählte Person.
+- Personen-Schnellwechsel verkleinert und nicht notwendige Zähler entfernt.
+- Kategorien, Suchfeld und Sortierleiste kompakter gestaltet.
+- Listenüberschrift und Sortierung zu einer flachen Werkzeugleiste zusammengeführt.
+- Verfügbaren Scrollbereich für Getränkekacheln auf dem iPhone vergrößert.
+- App- und Service-Worker-Build auf `5.0.2a` erhöht.
+
 ## 5.0.1 – Themes und Home-Priorisierung
 
 - Sieben Darstellungen: Automatisch, Hell, Dunkel, Ocean, Sunset, Nordic und Hoher Kontrast.

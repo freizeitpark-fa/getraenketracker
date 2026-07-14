@@ -1387,3 +1387,34 @@ html[data-theme="dark"] .updateDock{background:rgba(10,32,56,.97)}
 .dailyBarChart{display:grid;gap:12px}.dailyBarRow{display:grid;grid-template-columns:minmax(110px,1.25fr) minmax(90px,2fr) auto;gap:10px;align-items:center}.dailyBarLabel{display:grid;min-width:0}.dailyBarLabel span,.dailyBarLabel small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dailyBarLabel span{font-weight:750;font-size:13px}.dailyBarLabel small{color:var(--muted);font-size:11px}.dailyBarTrack{height:11px;border-radius:999px;background:var(--surface);overflow:hidden}.dailyBarTrack i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#30d158))}.dailyBarRow strong{font-size:12px;white-space:nowrap}
 .migrationSnapshotMeta{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.migrationSnapshotMeta span{padding:6px 9px;border-radius:999px;background:var(--surface);font-size:12px;color:var(--muted)}
 @media(max-width:620px){.todayRouteCard{grid-template-columns:auto minmax(0,1fr)}.todayRouteCard>.mini{grid-column:1/-1;width:100%}.todayRouteTop{align-items:flex-start;flex-direction:column;gap:2px}.todayRouteTop small{text-align:left}.dailyBarRow{grid-template-columns:minmax(0,1fr) auto}.dailyBarTrack{grid-column:1/-1;grid-row:2}.personQuickHeading{align-items:flex-start}.personQuickHeadingActions{flex-direction:column;align-items:flex-end}.trackContextBar{align-items:flex-start}.personalRepeatRow{grid-template-columns:auto minmax(0,1fr)}.personalRepeatRow strong{grid-column:2}}
+
+
+/* CruiseSip v5.0.2b - kompakte Erfassungsansicht, Suche direkt vor Getränkeliste */
+html[data-route="track"] .trackStickyHeader{gap:5px!important;padding:0 0 5px!important}
+html[data-route="track"] .searchBoxNative{order:4;height:42px!important;min-height:42px!important;border-radius:14px!important}
+html[data-route="track"] .searchBoxNative input.searchInputNative{height:40px!important;min-height:40px!important;line-height:40px!important}
+html[data-route="track"] #categoryChips{order:1}
+html[data-route="track"] .categoryScroller{gap:6px!important;padding:0 1px 3px!important}
+html[data-route="track"] .categoryScroller .filterChip{min-height:31px!important;padding:5px 10px!important;font-size:11px!important}
+html[data-route="track"] .categoryScroller .filterChip span{min-width:18px;height:18px;padding:0 5px;font-size:9px}
+html[data-route="track"] #personQuickSwitch{order:2}
+html[data-route="track"] .trackStickyHeader>.warningCard{order:3;margin:0!important}
+html[data-route="track"] .personQuickDock{gap:3px!important;padding:0!important}
+html[data-route="track"] .personQuickHeading{align-items:center!important;min-height:16px;padding:0 2px!important}
+html[data-route="track"] .personQuickHeading span{font-size:10px!important}
+html[data-route="track"] .personQuickHeading small{font-size:8px!important;max-width:46%;text-align:right}
+html[data-route="track"] .personQuickScroller{gap:6px!important;padding:0 1px 2px!important}
+html[data-route="track"] .personQuickButton{min-height:36px!important;max-width:150px!important;padding:3px 8px 3px 4px!important;border-radius:13px!important;gap:6px!important}
+html[data-route="track"] .personQuickAvatar{flex-basis:28px!important;width:28px!important;height:28px!important;border-radius:9px!important;font-size:10px!important}
+html[data-route="track"] .personQuickName{max-width:94px!important;font-size:11px!important}
+html[data-route="track"] .trackContextBar,html[data-route="track"] #trackContextActions,html[data-route="track"] .multiPersonToggle{display:none!important}
+html[data-route="track"] #drinkList{min-height:240px!important}
+html[data-route="track"] .trackListSection{gap:7px!important}
+html[data-route="track"] .trackListToolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(132px,46%);gap:8px;align-items:center;padding:1px 1px 2px}
+html[data-route="track"] .trackListToolbar>div{min-width:0}
+html[data-route="track"] .trackListToolbar h2{margin:0;font-size:16px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-route="track"] .trackListToolbar>div>span{display:block;margin-top:2px;color:var(--muted);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-route="track"] .drinkSortControl.compact{display:block!important;padding:0!important}
+html[data-route="track"] .drinkSortControl.compact select{height:34px!important;border-radius:12px!important;padding-left:9px!important;font-size:10px!important}
+.srOnly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@media(max-width:350px){html[data-route="track"] .trackListToolbar{grid-template-columns:minmax(0,1fr) 126px}html[data-route="track"] .personQuickHeading small{display:block!important;max-width:42%}html[data-route="track"] .personQuickButton{max-width:132px!important}html[data-route="track"] .personQuickName{max-width:78px!important}}

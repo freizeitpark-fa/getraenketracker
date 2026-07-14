@@ -41,8 +41,8 @@ Beim ersten Start nach dem Update von v4 auf v5 wird vor der Migration einmalig 
 
 ## Technischer Stand
 
-- App-Version: 5.0.1
-- Build: 5.0.1a
+- App-Version: 5.0.2
+- Build: 5.0.2b
 - IndexedDB-Version: 2
 - Neue Store-Struktur: `snapshots`
 - Bestehende Kern-Stores und IDs bleiben unverändert.
@@ -54,3 +54,13 @@ Beim ersten Start nach dem Update von v4 auf v5 wird vor der Migration einmalig 
 - Die Einstellung `reducedEffects` deaktiviert Animationen, stärkere Schatten, Transparenzen und dekorative Verläufe.
 - Theme und Effekte werden lokal in den Geräteeinstellungen gespeichert und nicht durch Reiseexporte verändert.
 - Home-Reihenfolge: aktive Reise, Schnellzugriff, persönliche Wiederholung, Kennzahlen, Reisetag, Tagesübersicht.
+
+
+## Ergänzung 5.0.2
+
+Die Erfassungsansicht wurde für den praktischen iPhone-Einsatz neu verdichtet. Die Suche steht an erster Stelle, „Noch einmal erfassen“ bleibt ausschließlich auf Home und die Mehrfachauswahl ist in der regulären Erfassung nicht mehr verfügbar. Die technische Mehrfachbuchungslogik älterer Datensätze bleibt im Datenmodell kompatibel; neue normale Getränkekacheln buchen eindeutig für eine Person.
+
+
+## Ergänzung 5.0.2b
+
+Die Suchleiste wurde innerhalb des kompakten Erfassungskopfs hinter Kategorien und Person verschoben. Sie steht damit unmittelbar über der Getränkeliste.

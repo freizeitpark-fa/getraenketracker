@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.0.1';
-const APP_CACHE_NAME = 'cruisesip-v5-0-1-20260714a';
-const APP_BUILD = '5.0.1a';
-const SERVICE_WORKER_URL = './sw.js?v=5.0.1a';
+const APP_VERSION = '5.0.2';
+const APP_CACHE_NAME = 'cruisesip-v5-0-2-20260714b';
+const APP_BUILD = '5.0.2b';
+const SERVICE_WORKER_URL = './sw.js?v=5.0.2b';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -1021,27 +1021,6 @@ async function handleClick(event) {
     return;
   }
   if (action === 'saveTrip') { await runActionOnce('saveTrip', () => saveTripForm($('#tripForm'))); return; }
-  if (action === 'toggleMultiPersonMode') {
-    state.multiPersonMode = !state.multiPersonMode;
-    state.selectedPersonIds = state.multiPersonMode ? [...new Set([state.selectedPersonId].filter(Boolean))] : [state.selectedPersonId].filter(Boolean);
-    renderTrackPersonContext();
-    haptic();
-    return;
-  }
-  if (action === 'toggleMultiPersonSelection') {
-    const person = currentPersons().find(row => row.id === id);
-    if (!person) return;
-    const selected = new Set(state.selectedPersonIds);
-    if (selected.has(id)) {
-      if (selected.size === 1) { toast('Mindestens eine Person muss ausgewählt bleiben'); return; }
-      selected.delete(id);
-    } else selected.add(id);
-    state.selectedPersonIds = [...selected];
-    state.selectedPersonId = state.selectedPersonIds[0] || state.selectedPersonId;
-    renderTrackPersonContext();
-    haptic();
-    return;
-  }
   if (action === 'repeatPersonLast') {
     const last = lastLogForPerson(id);
     if (!last) { toast('Für diese Person gibt es noch keine Erfassung'); return; }
@@ -1200,12 +1179,8 @@ function itineraryContextForTimestamp(timestamp = Date.now(), trip = currentTrip
 }
 function selectedTrackingPersons() {
   const persons = currentPersons();
-  if (!state.multiPersonMode) {
-    const person = persons.find(row => row.id === state.selectedPersonId) || persons[0];
-    return person ? [person] : [];
-  }
-  const selected = new Set(state.selectedPersonIds);
-  return persons.filter(person => selected.has(person.id));
+  const person = persons.find(row => row.id === state.selectedPersonId) || persons[0];
+  return person ? [person] : [];
 }
 function lastLogForPerson(personId) {
   return currentLogs().find(log => log.personId === personId) || null;
@@ -1620,12 +1595,10 @@ function viewTrack() {
   return `
     <section class="screen trackScreen">
       <div class="stickyHeader trackStickyHeader">
-        <div class="trackActionRow"><button class="mini" data-route="devices">Personen verwalten</button></div>
-        ${persons.length ? '' : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
-        <label class="searchBox searchBoxLarge searchBoxNative" for="drinkSearch"><span aria-hidden="true">⌕</span><input id="drinkSearch" class="searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
         <div id="categoryChips">${categoryChipsHtml()}</div>
         <div id="personQuickSwitch">${persons.length ? personQuickSwitchHtml(persons) : ''}</div>
-        <div id="trackContextActions">${persons.length ? trackContextActionsHtml() : ''}</div>
+        ${persons.length ? '' : '<div class="card warningCard"><p>Lege zuerst Personen an.</p><button class="secondary" data-route="devices">Person anlegen</button></div>'}
+        <label class="searchBox searchBoxLarge searchBoxNative" for="drinkSearch"><span aria-hidden="true">⌕</span><input id="drinkSearch" class="searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>
     </section>`;
@@ -1638,28 +1611,11 @@ function personInitials(name = '') {
 function personQuickSwitchHtml(persons = currentPersons()) {
   if (!persons.length) return '';
   const selectedPerson = personById(state.selectedPersonId) || persons[0];
-  const selectedIds = new Set(state.multiPersonMode ? state.selectedPersonIds : [selectedPerson.id]);
-  const selectedPersons = persons.filter(person => selectedIds.has(person.id));
-  const logCounts = new Map();
-  currentLogs().forEach(log => logCounts.set(log.personId, (logCounts.get(log.personId) || 0) + 1));
-  const heading = state.multiPersonMode ? `${selectedPersons.length} Person${selectedPersons.length === 1 ? '' : 'en'} ausgewählt` : `Getränk erfassen für <b>${esc(selectedPerson.name)}</b>`;
-  const packageLabel = state.multiPersonMode ? 'Paketstatus wird je Person gespeichert' : packageName(selectedPerson.packageId);
-  return `<div class="personQuickDock ${state.multiPersonMode ? 'multiMode' : ''}"><div class="personQuickHeading"><span>${heading}</span><span class="personQuickHeadingActions"><small>${esc(packageLabel)}</small>${persons.length > 1 ? `<button class="multiPersonToggle ${state.multiPersonMode ? 'active' : ''}" data-action="toggleMultiPersonMode" aria-pressed="${state.multiPersonMode ? 'true' : 'false'}">${state.multiPersonMode ? 'Fertig' : 'Mehrere'}</button>` : ''}</span></div><div class="personQuickScroller" role="group" aria-label="Person für die Erfassung auswählen">${persons.map((person, index) => {
-    const active = selectedIds.has(person.id);
+  return `<div class="personQuickDock"><div class="personQuickHeading"><span>Erfassen für <b>${esc(selectedPerson.name)}</b></span><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="personQuickScroller" role="group" aria-label="Person für die Erfassung auswählen">${persons.map((person, index) => {
+    const active = person.id === selectedPerson.id;
     const color = person.color || PERSON_COLORS[index % PERSON_COLORS.length];
-    const count = logCounts.get(person.id) || 0;
-    const action = state.multiPersonMode ? 'toggleMultiPersonSelection' : 'selectPerson';
-    return `<button class="personQuickButton ${active ? 'active' : ''}" style="--person:${esc(color)}" data-action="${action}" data-id="${esc(person.id)}" aria-pressed="${active ? 'true' : 'false'}" aria-label="${esc(person.name)} ${state.multiPersonMode ? (active ? 'abwählen' : 'auswählen') : 'auswählen'}, ${count} erfasste Getränke"><span class="personQuickAvatar" aria-hidden="true">${esc(personInitials(person.name))}</span><span class="personQuickName">${esc(person.name)}</span><small>${count}×</small></button>`;
+    return `<button class="personQuickButton ${active ? 'active' : ''}" style="--person:${esc(color)}" data-action="selectPerson" data-id="${esc(person.id)}" aria-pressed="${active ? 'true' : 'false'}" aria-label="${esc(person.name)} auswählen"><span class="personQuickAvatar" aria-hidden="true">${esc(personInitials(person.name))}</span><span class="personQuickName">${esc(person.name)}</span></button>`;
   }).join('')}</div></div>`;
-}
-function trackContextActionsHtml() {
-  const persons = selectedTrackingPersons();
-  if (!persons.length) return `<div class="trackContextBar warning"><span>Mindestens eine Person auswählen.</span></div>`;
-  if (persons.length > 1) return `<div class="trackContextBar multi"><span>Eine Getränkekachel speichert je einen Eintrag für <b>${persons.length} Personen</b>.</span></div>`;
-  const person = persons[0];
-  const last = lastLogForPerson(person.id);
-  if (!last) return '';
-  return `<div class="trackContextBar"><span>Zuletzt für <b>${esc(person.name)}</b>: ${esc(last.drinkName || 'Getränk')}</span><button class="mini" data-action="repeatPersonLast" data-id="${esc(person.id)}">Noch einmal</button></div>`;
 }
 function categoryChipsHtml() {
   const favoriteCount = favoriteIds().length;
@@ -1717,8 +1673,6 @@ function renderTrackList({ preserveScroll = false } = {}) {
 function renderTrackPersonContext() {
   const quickSwitch = $('#personQuickSwitch');
   if (quickSwitch) quickSwitch.innerHTML = personQuickSwitchHtml();
-  const contextActions = $('#trackContextActions');
-  if (contextActions) contextActions.innerHTML = trackContextActionsHtml();
   renderTrackList({ preserveScroll: true });
   renderCategoryChips();
   requestAnimationFrame(() => centerActivePersonQuickSwitch(quickSwitch || document));
@@ -1820,13 +1774,12 @@ function drinkListHtml() {
   const persons = currentPersons();
   const person = personById(state.selectedPersonId);
   const fav = new Set(favoriteIds());
-  const trackingPersons = selectedTrackingPersons();
-  const usage = drinkUsageMap(state.multiPersonMode ? null : (state.selectedPersonId || null));
+  const usage = drinkUsageMap(state.selectedPersonId || null);
   const drinks = filteredDrinks();
   if (!persons.length) return '';
   if (!drinks.length) return '<div class="card emptyText">Keine passenden Getränke gefunden.</div>';
   const listTitle = state.query ? 'Suchergebnisse' : state.category === 'Alle' ? 'Alle Getränke' : state.category;
-  return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Getränk antippen und direkt für ${esc(selectedPersonLabel())} speichern.</p></div><span class="subtle">${drinks.length}</span></div><label class="drinkSortControl" for="drinkSort"><span>Sortieren</span><select id="drinkSort" aria-label="Getränkekacheln sortieren">${drinkSortOptionsHtml()}</select></label><div class="drinkGrid">${drinks.map(d => {
+  return `<div class="trackContent"><section class="trackListSection"><div class="trackListToolbar"><div><h2>${esc(listTitle)}</h2><span>${drinks.length} · ${esc(selectedPersonLabel())}</span></div><label class="drinkSortControl compact" for="drinkSort"><span class="srOnly">Sortieren</span><select id="drinkSort" aria-label="Getränkekacheln sortieren">${drinkSortOptionsHtml()}</select></label></div><div class="drinkGrid">${drinks.map(d => {
     const statusInfo = selectedDrinkStatus(d);
     const status = statusInfo.status;
     const count = usage.get(d.id)?.count || 0;
@@ -4893,6 +4846,13 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.0.2</h2>
+  <ul>
+    <li>Erfassungsansicht deutlich kompakter aufgebaut; die Getränkesuche steht nun als erstes Bedienelement über allen Auswahlen.</li>
+    <li>„Noch einmal erfassen“ bleibt auf Home, wurde aber aus der Erfassungsansicht entfernt.</li>
+    <li>Die Mehrfachauswahl wurde aus der regulären Erfassungsansicht zurückgenommen; jede Getränkekachel erfasst wieder eindeutig für eine Person.</li>
+    <li>Personenwechsel, Kategorien und Ergebnisleiste benötigen weniger Höhe, sodass mehr Getränkekacheln gleichzeitig sichtbar sind.</li>
+  </ul>
   <h2>Version 5.0.1</h2>
   <ul>
     <li>Neues Theme-System mit Automatisch, Hell, Dunkel, Ocean, Sunset, Nordic und Hoher Kontrast.</li>

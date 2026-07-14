@@ -1,62 +1,23 @@
-# Testbericht CruiseSip v5.0.1a
+# Testbericht CruiseSip v5.0.2b
 
-## Prüfgegenstand
+## Geprüft
 
-Theme-System, reduzierte Effekte, Neuordnung des Home-Bildschirms sowie unveränderte Kernfunktionen aus v5.0.0.
+- JavaScript-Syntax (`node --check`).
+- Reihenfolge in `viewTrack`: Kategorien → Person → Hinweis bei fehlender Person → Suche → Getränkeliste.
+- CSS-Reihenfolge der kompakten Erfassung.
+- Versions-, Build- und Cachekennungen auf 5.0.2b abgeglichen.
+- Service-Worker-Dateiliste und lokale Ressourcenpfade geprüft.
+- JSON-Stammdaten syntaktisch geprüft.
+- ZIP-Integrität geprüft.
 
-## Automatisierte Strukturprüfungen
+## Unverändert
 
-- JavaScript-Syntax mit Node.js geprüft.
-- Service-Worker-Assetliste gegen vorhandene Dateien geprüft.
-- Versionsstände in `index.html`, `app.js` und `sw.js` abgeglichen.
-- Alle sieben Theme-IDs in Logik, Setup-Oberfläche und CSS geprüft.
-- Home-Reihenfolge statisch geprüft: Schnellzugriff vor Wiederholung, Wiederholung vor Kennzahlen, Tagesübersicht danach.
-- ZIP-Struktur und JSON-Stammdaten geprüft.
+- Einzelerfassung pro ausgewählter Person.
+- Home-Funktion „Noch einmal erfassen“.
+- Themes, Reiseverlauf, Analyse und lokale Datenspeicherung.
 
-## Funktionsumfang der Änderung
+## Noch auf dem iPhone prüfen
 
-- Automatisch folgt ausschließlich der Systemdarstellung Hell/Dunkel.
-- Feste Themes bleiben von späteren Systemwechseln unberührt.
-- Ocean, Sunset, Nordic und Hoher Kontrast verwenden eigenständige Farbvariablen.
-- Reduzierte Effekte werden unabhängig vom Theme gespeichert.
-- Reiseexporte und Zusammenführungsdateien enthalten keine Darstellungsumschaltung.
-
-## Noch auf dem Zielgerät zu prüfen
-
-- Visuelle Wirkung aller Themes auf dem konkret verwendeten iPhone.
-- Statusleistenfarbe nach Theme-Wechsel in der installierten PWA.
-- Lesbarkeit bei aktivierter iOS-Textvergrößerung.
-- Offline-Update von v5.0.0a auf v5.0.1a nach einmaligem Online-Start.
-
-## Vorheriger v5.0.0-Teststand
-
-# Testbericht CruiseSip v5.0.0a
-
-## Durchgeführte Prüfungen
-
-- JavaScript-Syntaxprüfung mit Node.js erfolgreich.
-- JSON-Prüfung für Manifest, Barkarte und Paketdefinitionen erfolgreich.
-- HTML-Grundstruktur geprüft.
-- CSS mit einem CSS-Parser geprüft; keine Syntaxfehler.
-- Alle im Service Worker referenzierten Offline-Dateien sind vorhanden.
-- Keine externen Ressourcen in `index.html`.
-- Rendering-Logik mit Testdaten geprüft:
-  - Reiseverlaufs-Karte,
-  - persönliche Wiederholung,
-  - Einzel- und Mehrfachauswahl,
-  - gemischter Paketstatus,
-  - Kategoriengrafik,
-  - Tageswertgrafik.
-- Mehrfachbuchung mit zwei Personen logisch geprüft:
-  - zwei eigenständige Buchungen,
-  - unterschiedliche Paketstatus,
-  - eindeutige Merge-Keys,
-  - Reiseverlaufs-Kontext,
-  - gemeinsames Rückgängig.
-
-## Noch auf dem Zielgerät zu prüfen
-
-- Update von der installierten v4.5.4d über GitHub Pages.
-- Einmaliger Aufbau der internen v5-Sicherheitskopie in Safari/IndexedDB.
-- Darstellung und Bedienung auf dem konkreten iPhone einschließlich Home-Bildschirm-PWA.
-- Flugmodusstart nach vollständigem Laden des neuen Service-Worker-Caches.
+- Sichtbare Höhe der Getränkeliste im Hochformat.
+- Fokus und Tastaturverhalten der Suche.
+- Offline-Update nach einmaligem Online-Aufruf.
