@@ -1,3 +1,15 @@
+## Version 4.5.4 – Paket-Amortisation und Verbrauchsprognose
+
+- Grafischer Amortisationsgrad je Person mit eindeutig enthaltenem Paketwert, Paketpreis und Restwert bis zum Break-even.
+- Tatsächlicher Break-even-Tag wird aus dem kumulierten Wert der eindeutig enthaltenen Buchungen ermittelt.
+- Durchschnittlicher Paketwert je verstrichenem Reisetag und Hochrechnung bis zum Reiseende.
+- Klare Einstufung in amortisiert, voraussichtlich amortisiert, voraussichtlich nicht amortisiert oder keine belastbare Prognose.
+- Gesamtübersicht mit Paketfortschritt und Vergleich aller Personen.
+- Unklare Paketstatus werden getrennt ausgewiesen und nicht in Fortschritt oder Prognose eingerechnet.
+- HTML- und PDF-Bericht um eine Amortisations- und Prognosetabelle erweitert.
+- Hauptnavigation setzt Home, Tracken, Verlauf, Analyse und Setup beim Öffnen zuverlässig an den Seitenanfang.
+- Keine Änderung an IndexedDB, Reisen, Personen, Buchungen, Backup oder Geräteabgleich.
+
 ## 4.5.3c – Rückkehr aus der Druckansicht
 
 - Die eigenständige PDF-Druckansicht enthält nun einen klaren Button „Zurück zu CruiseSip“.

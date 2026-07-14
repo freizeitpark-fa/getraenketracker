@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 4.5.3**, Build **4.5.3a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 4.5.4**, Build **4.5.4a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -72,3 +72,8 @@ Eine vollständige Anleitung zur Ersteinrichtung, zur korrekten Auswahl von `Vol
 CSV, HTML-Bericht und Druckansicht werden vollständig aus den lokal gespeicherten IndexedDB-Daten erzeugt. Es werden keine externen Bibliotheken, Webdienste oder Cloud-Schnittstellen benötigt. Auf iPhone und iPad verwendet CruiseSip nach Möglichkeit das native Teilen-Menü. Die PDF-Erstellung erfolgt über die lokale iOS-Druckansicht.
 
 Hinweis Build 4.5.3c: Die PDF-Druckansicht wird als eigenständige lokale Berichtseite erzeugt und bleibt vollständig offline.
+
+
+## Paketprognose in Version 4.5.4
+
+Amortisationsgrad, Break-even und Hochrechnung werden vollständig lokal aus den gespeicherten Buchungen berechnet. Die Funktion benötigt keine Internetverbindung und verändert weder den Offline-Cache noch die IndexedDB-Datenstruktur.

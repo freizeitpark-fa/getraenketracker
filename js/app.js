@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '4.5.3';
-const APP_CACHE_NAME = 'cruisesip-v4-5-3-20260714b';
-const APP_BUILD = '4.5.3c';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.3b';
+const APP_VERSION = '4.5.4';
+const APP_CACHE_NAME = 'cruisesip-v4-5-4-20260714a';
+const APP_BUILD = '4.5.4a';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.4a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -95,6 +95,7 @@ const nowIso = () => new Date().toISOString();
 const todayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const yStart = () => todayStart() - 86400000;
 const eur = (value) => (Number(value) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+const percent = (value, digits = 0) => Number(value || 0).toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + ' %';
 const num = (value) => Number(String(value ?? '').replace(',', '.')) || 0;
 const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const short = (value, max = 32) => { const s = String(value || ''); return s.length > max ? `${s.slice(0, max - 1)}…` : s; };
@@ -844,6 +845,7 @@ async function handleClick(event) {
     state.query = '';
     if (state.route !== 'history') { state.editingLogId = null; clearDraft('log'); }
     render();
+    requestAnimationFrame(() => requestAnimationFrame(scrollCurrentRouteToTop));
     haptic();
     return;
   }
@@ -1123,6 +1125,18 @@ function personById(id) { return state.persons.find(p => p.id === id); }
 function drinkById(id) { return state.drinks.find(d => d.id === id); }
 function resolvedLogCategory(log) {
   return String(log?.category || drinkById(log?.drinkId)?.category || '').trim();
+}
+
+function scrollCurrentRouteToTop() {
+  const view = $('#view');
+  const drinkList = $('#drinkList');
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  if (view) view.scrollTop = 0;
+  if (drinkList) drinkList.scrollTop = 0;
+  if (scrollingElement) scrollingElement.scrollTop = 0;
+  if (document.body) document.body.scrollTop = 0;
+  try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); }
+  catch { window.scrollTo(0, 0); }
 }
 
 function render() {
@@ -1664,6 +1678,7 @@ function viewStats() {
       </div>
       ${statusDonutChartHtml(logs)}
       ${isTripView ? overallCompletionSummaryHtml(persons, allTripLogs) : ''}
+      ${isTripView ? packageForecastOverviewHtml(persons, allTripLogs) : ''}
       ${isTripView ? tripTravelReportHtml(persons, allTripLogs) : ''}
       ${isTripView ? personCompletionDashboardHtml(persons, allTripLogs) : ''}
       ${statusBreakdownHtml(logs)}
@@ -1719,9 +1734,10 @@ function tripReportExportModel() {
   const frequent = drinks.slice().sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key, 'de')).slice(0, 10);
   const expensive = drinks.slice().sort((a, b) => b.maxPrice - a.maxPrice || b.count - a.count || a.key.localeCompare(b.key, 'de')).slice(0, 10);
   const categories = categoryDetailedStats(logs).sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key, 'de'));
+  const packageProgress = packageForecastSummary(persons, logs, trip);
   const personRows = persons.map(person => {
     const data = personCompletionStats(person, logs, 'trip');
-    return { person, data, result: resultPresentation(data) };
+    return { person, data, result: resultPresentation(data), progress: personPackageForecast(person, logs, trip) };
   });
   return {
     trip,
@@ -1735,6 +1751,7 @@ function tripReportExportModel() {
     expensive,
     categories,
     personRows,
+    packageProgress,
     itinerary: tripItinerary(trip),
     generatedAt: new Date()
   };
@@ -1815,6 +1832,19 @@ function tripReportDocumentBodyHtml(model = tripReportExportModel(), options = {
     data.packageSelected ? (data.packagePrice ? esc(eur(data.packagePrice)) : 'fehlt') : 'Kein Paket',
     `<b>${esc(result.label)}</b><br><small>${esc(result.value)} · ${esc(result.sub)}</small>`
   ]);
+  const progressRows = model.personRows
+    .filter(({ progress }) => progress.packageSelected)
+    .map(({ person, progress }) => [
+      `<b>${esc(person.name)}</b><br><small>${esc(packageName(person.packageId))}</small>`,
+      esc(eur(progress.stats.included)),
+      progress.packagePrice ? esc(eur(progress.packagePrice)) : 'fehlt',
+      progress.progressPercent === null ? '—' : esc(percent(progress.progressPercent)),
+      progress.remainingValue === null ? '—' : esc(eur(progress.remainingValue)),
+      progress.timeframe.elapsedDays ? esc(eur(progress.averageIncludedPerElapsedDay)) : '—',
+      progress.projectedIncluded === null ? '—' : esc(eur(progress.projectedIncluded)),
+      `<b>${esc(progress.forecastStatus.label)}</b><br><small>${esc(progress.forecastStatus.detail)}</small>`,
+      progress.breakEven ? esc(progress.breakEven.label) : (progress.predictedBreakEvenDay && progress.predictedBreakEvenDay <= progress.timeframe.totalDays ? `voraussichtlich Tag ${progress.predictedBreakEvenDay}` : '—')
+    ]);
   const dailyRows = model.daily.rows.map(row => {
     const itineraryDay = itineraryDayForDate(row.key, model.trip);
     return [
@@ -1872,6 +1902,7 @@ function tripReportDocumentBodyHtml(model = tripReportExportModel(), options = {
       ${reportMetricHtml(model.overallResult.label, model.overallResult.value, model.overallResult.sub)}
     </div>${reportStatusDonutHtml(model.total)}</section>
     <section><h2>Auswertung je Person</h2>${reportTableHtml(['Person', 'Paket', 'Getränke', 'Barkartenwert', 'Enthalten', 'Nicht enthalten', 'Unklar', 'Paketpreis', 'Ergebnis'], personRows, 'Keine Personen vorhanden.')}</section>
+    <section><h2>Paket-Amortisation und Prognose</h2><p class="exportSectionHint">Nur eindeutig enthaltene Getränke zählen als Paketwert. Die Prognose basiert auf allen verstrichenen Reisetagen; unklare Paketstatus bleiben unberücksichtigt.</p>${reportTableHtml(['Person', 'Paketwert', 'Paketpreis', 'Fortschritt', 'Rest', 'Ø je Reisetag', 'Hochrechnung', 'Status', 'Break-even'], progressRows, 'Keine Getränkepakete für eine Prognose hinterlegt.')}</section>
     ${model.itinerary.length ? `<section><h2>Reiseverlauf</h2>${reportTableHtml(['Tag', 'Datum', 'Tagesart', 'Station', 'Liegezeit', 'Hinweise'], itineraryRows)}</section>` : ''}
     <section><h2>Auswertung je Reisetag</h2>${reportTableHtml(['Tag', 'Datum', 'Station', 'Liegezeit', 'Getränke', 'Barkartenwert', 'Enthalten', 'Nicht enthalten', 'Unklar'], dailyRows, 'Keine Reisetage ermittelbar.')}</section>
     <section class="exportTwoColumns"><div><h2>Häufigste Getränke</h2>${reportTableHtml(['Getränk', 'Anzahl', 'Gesamtwert', 'Höchster Einzelpreis'], frequentRows)}</div><div><h2>Teuerste Getränke</h2>${reportTableHtml(['Getränk', 'Einzelpreis', 'Anzahl', 'Gesamtwert'], expensiveRows)}</div></section>
@@ -1881,7 +1912,7 @@ function tripReportDocumentBodyHtml(model = tripReportExportModel(), options = {
   </main>`;
 }
 function reportDocumentCss() {
-  return `:root{color-scheme:only light}html{background:#fff!important;color-scheme:only light}*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;line-height:1.35}.exportToolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 18px;background:#172033;color:#fff}.exportToolbarActions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}.exportToolbar button{border:0;border-radius:12px;padding:11px 16px;background:#fff;color:#172033;font-weight:800;cursor:pointer}.exportToolbar button.secondary{background:#dfeaf5;color:#172033}.exportToolbar span{font-size:13px}.exportReport{width:min(1120px,calc(100% - 28px));margin:20px auto;padding:28px;background:#fff;border-radius:20px;box-shadow:0 16px 50px rgba(15,23,42,.12)}.exportHeader{display:flex;justify-content:space-between;gap:24px;padding-bottom:20px;border-bottom:3px solid #1f73b7}.exportHeader p{margin:0 0 6px;color:#1f73b7;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.exportHeader h1{margin:0;font-size:30px;line-height:1.12}.exportHeader h2{margin:6px 0 0;font-size:18px;color:#526071}.exportHeaderMeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right;font-size:13px}.exportReport section{margin-top:26px;break-inside:auto}.exportReport section>h2,.exportTwoColumns>div>h2{margin:0 0 12px;font-size:19px;color:#172033}.exportNotice{padding:14px 16px;border:1px solid #b9d6ed;border-radius:14px;background:#f2f8fd}.exportNotice p{margin:4px 0 0;font-size:13px}.exportMetricGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.exportMetric{display:flex;flex-direction:column;gap:4px;padding:13px;border:1px solid #dbe3ec;border-radius:12px;background:#f8fafc}.exportMetric span{font-size:12px;color:#5e6b7a}.exportMetric b{font-size:18px}.exportMetric small{font-size:11px;color:#64748b}.exportChart{display:grid;grid-template-columns:180px 1fr;align-items:center;gap:24px;margin-top:16px;padding:14px;border:1px solid #dbe3ec;border-radius:14px}.exportChart svg{width:165px;height:165px}.exportChart circle{fill:none;stroke-width:15}.exportChart .track{stroke:#e8edf3}.exportChart .included{stroke:#2f9e62}.exportChart .outside{stroke:#df5b50}.exportChart .unclear{stroke:#d9a21b}.exportChart .value{font-size:18px;font-weight:800;fill:#172033}.exportChart .label{font-size:7px;fill:#64748b}.exportLegend{display:grid;gap:10px}.exportLegend>div{display:flex;align-items:center;gap:9px}.exportLegend p{display:flex;flex-direction:column;margin:0}.exportLegend small{color:#64748b}.dot{width:11px;height:11px;border-radius:50%}.dot.included{background:#2f9e62}.dot.outside{background:#df5b50}.dot.unclear{background:#d9a21b}.exportTableWrap{width:100%;overflow-x:auto;border:1px solid #dbe3ec;border-radius:12px}.exportTableWrap table{width:100%;border-collapse:collapse;font-size:11px}.exportTableWrap th{background:#edf3f8;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em}.exportTableWrap th,.exportTableWrap td{padding:8px 7px;border-bottom:1px solid #e5eaf0;vertical-align:top}.exportTableWrap tr:last-child td{border-bottom:0}.exportTableWrap tbody tr:nth-child(even){background:#fafbfd}.exportTableWrap small{color:#64748b}.exportTwoColumns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.exportEmpty{margin:0;padding:15px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b}.exportReport footer{margin-top:28px;padding-top:14px;border-top:1px solid #dbe3ec;color:#64748b;font-size:11px;text-align:center}@media(max-width:760px){.exportReport{width:100%;margin:0;padding:18px;border-radius:0}.exportHeader{flex-direction:column}.exportHeaderMeta{align-items:flex-start;text-align:left}.exportMetricGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.exportChart{grid-template-columns:1fr}.exportChart svg{justify-self:center}.exportTwoColumns{grid-template-columns:1fr}.exportToolbar{align-items:flex-start;flex-direction:column}.exportToolbarActions{width:100%;justify-content:flex-start}}@media (prefers-color-scheme:dark){html,body,.exportReport{background:#fff!important;color:#18202a!important}}@media print{@page{size:A4 portrait;margin:10mm}html,body{background:#fff!important;color:#18202a!important;color-scheme:only light}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.exportToolbar{display:none!important}.exportReport{width:auto;margin:0;padding:0;border-radius:0;box-shadow:none}.exportHeader{break-inside:avoid}.exportMetricGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.exportMetric,.exportChart,.exportTableWrap{break-inside:avoid}.exportTableWrap{overflow:visible}.exportTableWrap table{font-size:8.5px}.exportTableWrap th{font-size:8px}.exportTableWrap th,.exportTableWrap td{padding:5px 4px}.exportTwoColumns{grid-template-columns:1fr 1fr}.exportBookings{break-before:page}.exportReport section>h2,.exportTwoColumns>div>h2{font-size:15px}.exportHeader h1{font-size:24px}}`;
+  return `:root{color-scheme:only light}html{background:#fff!important;color-scheme:only light}*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;line-height:1.35}.exportToolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 18px;background:#172033;color:#fff}.exportToolbarActions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}.exportToolbar button{border:0;border-radius:12px;padding:11px 16px;background:#fff;color:#172033;font-weight:800;cursor:pointer}.exportToolbar button.secondary{background:#dfeaf5;color:#172033}.exportToolbar span{font-size:13px}.exportReport{width:min(1120px,calc(100% - 28px));margin:20px auto;padding:28px;background:#fff;border-radius:20px;box-shadow:0 16px 50px rgba(15,23,42,.12)}.exportHeader{display:flex;justify-content:space-between;gap:24px;padding-bottom:20px;border-bottom:3px solid #1f73b7}.exportHeader p{margin:0 0 6px;color:#1f73b7;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.exportHeader h1{margin:0;font-size:30px;line-height:1.12}.exportHeader h2{margin:6px 0 0;font-size:18px;color:#526071}.exportHeaderMeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right;font-size:13px}.exportReport section{margin-top:26px;break-inside:auto}.exportReport section>h2,.exportTwoColumns>div>h2{margin:0 0 12px;font-size:19px;color:#172033}.exportNotice{padding:14px 16px;border:1px solid #b9d6ed;border-radius:14px;background:#f2f8fd}.exportNotice p{margin:4px 0 0;font-size:13px}.exportSectionHint{margin:-4px 0 12px;color:#64748b;font-size:12px}.exportMetricGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.exportMetric{display:flex;flex-direction:column;gap:4px;padding:13px;border:1px solid #dbe3ec;border-radius:12px;background:#f8fafc}.exportMetric span{font-size:12px;color:#5e6b7a}.exportMetric b{font-size:18px}.exportMetric small{font-size:11px;color:#64748b}.exportChart{display:grid;grid-template-columns:180px 1fr;align-items:center;gap:24px;margin-top:16px;padding:14px;border:1px solid #dbe3ec;border-radius:14px}.exportChart svg{width:165px;height:165px}.exportChart circle{fill:none;stroke-width:15}.exportChart .track{stroke:#e8edf3}.exportChart .included{stroke:#2f9e62}.exportChart .outside{stroke:#df5b50}.exportChart .unclear{stroke:#d9a21b}.exportChart .value{font-size:18px;font-weight:800;fill:#172033}.exportChart .label{font-size:7px;fill:#64748b}.exportLegend{display:grid;gap:10px}.exportLegend>div{display:flex;align-items:center;gap:9px}.exportLegend p{display:flex;flex-direction:column;margin:0}.exportLegend small{color:#64748b}.dot{width:11px;height:11px;border-radius:50%}.dot.included{background:#2f9e62}.dot.outside{background:#df5b50}.dot.unclear{background:#d9a21b}.exportTableWrap{width:100%;overflow-x:auto;border:1px solid #dbe3ec;border-radius:12px}.exportTableWrap table{width:100%;border-collapse:collapse;font-size:11px}.exportTableWrap th{background:#edf3f8;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em}.exportTableWrap th,.exportTableWrap td{padding:8px 7px;border-bottom:1px solid #e5eaf0;vertical-align:top}.exportTableWrap tr:last-child td{border-bottom:0}.exportTableWrap tbody tr:nth-child(even){background:#fafbfd}.exportTableWrap small{color:#64748b}.exportTwoColumns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.exportEmpty{margin:0;padding:15px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b}.exportReport footer{margin-top:28px;padding-top:14px;border-top:1px solid #dbe3ec;color:#64748b;font-size:11px;text-align:center}@media(max-width:760px){.exportReport{width:100%;margin:0;padding:18px;border-radius:0}.exportHeader{flex-direction:column}.exportHeaderMeta{align-items:flex-start;text-align:left}.exportMetricGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.exportChart{grid-template-columns:1fr}.exportChart svg{justify-self:center}.exportTwoColumns{grid-template-columns:1fr}.exportToolbar{align-items:flex-start;flex-direction:column}.exportToolbarActions{width:100%;justify-content:flex-start}}@media (prefers-color-scheme:dark){html,body,.exportReport{background:#fff!important;color:#18202a!important}}@media print{@page{size:A4 portrait;margin:10mm}html,body{background:#fff!important;color:#18202a!important;color-scheme:only light}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.exportToolbar{display:none!important}.exportReport{width:auto;margin:0;padding:0;border-radius:0;box-shadow:none}.exportHeader{break-inside:avoid}.exportMetricGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.exportMetric,.exportChart,.exportTableWrap{break-inside:avoid}.exportTableWrap{overflow:visible}.exportTableWrap table{font-size:8.5px}.exportTableWrap th{font-size:8px}.exportTableWrap th,.exportTableWrap td{padding:5px 4px}.exportTwoColumns{grid-template-columns:1fr 1fr}.exportBookings{break-before:page}.exportReport section>h2,.exportTwoColumns>div>h2{font-size:15px}.exportHeader h1{font-size:24px}}`;
 }
 function standaloneTripReportHtml(model = tripReportExportModel(), options = {}) {
   if (!model) return '';
@@ -2050,6 +2081,182 @@ function personCompletionStats(person, logs, filter = 'trip') {
   const dayInfo = statsPeriodDayInfo(filter, filter === 'trip' ? logs : personLogs);
   const averagePerTripDay = dayInfo.days ? stats.value / dayInfo.days : 0;
   return { personLogs, stats, packagePrice, packageSelected, comparable, packageResult, dayInfo, averagePerTripDay };
+}
+function packageForecastTimeframe(logs, trip = currentTrip(), referenceDateKey = localLogDayKey(Date.now())) {
+  const start = isoDateDayNumber(trip?.startDate);
+  const end = isoDateDayNumber(trip?.endDate);
+  if (start === null || end === null || end < start) {
+    return { valid: false, totalDays: 0, elapsedDays: 0, remainingDays: 0, started: false, completed: !!trip?.archived, startDay: start, endDay: end };
+  }
+  const totalDays = end - start + 1;
+  const referenceDay = isoDateDayNumber(referenceDateKey);
+  const bookedDays = logs
+    .map(log => isoDateDayNumber(localLogDayKey(log.ts)))
+    .filter(day => day !== null && day >= start && day <= end);
+  const latestBookedDay = bookedDays.length ? Math.max(...bookedDays) : null;
+  let effectiveDay = referenceDay;
+  if (latestBookedDay !== null && (effectiveDay === null || latestBookedDay > effectiveDay)) effectiveDay = latestBookedDay;
+  let elapsedDays = 0;
+  if (trip?.archived) elapsedDays = totalDays;
+  else if (effectiveDay !== null && effectiveDay >= start) elapsedDays = Math.min(totalDays, effectiveDay - start + 1);
+  return {
+    valid: true,
+    totalDays,
+    elapsedDays,
+    remainingDays: Math.max(0, totalDays - elapsedDays),
+    started: elapsedDays > 0,
+    completed: !!trip?.archived || elapsedDays >= totalDays,
+    startDay: start,
+    endDay: end
+  };
+}
+function packageBreakEvenInfo(personLogs, packagePrice, trip = currentTrip()) {
+  if (!(Number(packagePrice) > 0)) return null;
+  let cumulative = 0;
+  const includedLogs = personLogs
+    .filter(log => log.packageStatus === 'included')
+    .slice()
+    .sort((a, b) => Number(a.ts || 0) - Number(b.ts || 0));
+  for (const log of includedLogs) {
+    cumulative += Math.max(0, Number(log.price) || 0);
+    if (cumulative + 0.0001 >= Number(packagePrice)) {
+      const dateKey = localLogDayKey(log.ts);
+      const start = isoDateDayNumber(trip?.startDate);
+      const day = isoDateDayNumber(dateKey);
+      const dayNumber = start !== null && day !== null && day >= start ? day - start + 1 : null;
+      return { dateKey, dayNumber, cumulative, label: dateKey ? reportDateLabel(dateKey, trip) : 'Datum unbekannt' };
+    }
+  }
+  return null;
+}
+function packageForecastStatus(data, trip = currentTrip()) {
+  if (!data.packageSelected) return { key: 'none', label: 'Kein Paket', tone: 'neutral', detail: 'Für diese Person ist kein Getränkepaket hinterlegt.' };
+  if (data.person?.packageId === 'unclear') return { key: 'unclear', label: 'Paket unklar', tone: 'warning', detail: 'Die Paketzuordnung ist nicht eindeutig und wird nicht prognostiziert.' };
+  if (!(data.packagePrice > 0)) return { key: 'missing', label: 'Paketpreis fehlt', tone: 'warning', detail: 'Für eine Amortisationsberechnung muss der bezahlte Paketpreis hinterlegt sein.' };
+  if (data.amortized) return { key: 'amortized', label: 'Paket amortisiert', tone: 'positive', detail: data.breakEven ? `Break-even erreicht: ${data.breakEven.label}.` : 'Der eindeutig enthaltene Paketwert liegt mindestens auf Höhe des Paketpreises.' };
+  if (trip?.archived || data.timeframe.completed) return { key: 'not_amortized', label: 'Nicht amortisiert', tone: 'negative', detail: `Am Reiseende fehlen ${eur(data.remainingValue)} bis zum Paketpreis.` };
+  if (!data.timeframe.valid || !data.timeframe.started || data.projectedIncluded === null) return { key: 'no_forecast', label: 'Keine belastbare Prognose', tone: 'warning', detail: 'Die Reise hat noch nicht begonnen oder der Reisezeitraum ist nicht vollständig hinterlegt.' };
+  if (data.projectedIncluded + 0.0001 >= data.packagePrice) {
+    const predicted = data.predictedBreakEvenDay && data.predictedBreakEvenDay <= data.timeframe.totalDays
+      ? ` Voraussichtlicher Break-even: Tag ${data.predictedBreakEvenDay}${data.predictedBreakEvenDate ? ` · ${formatDate(data.predictedBreakEvenDate)}` : ''}.`
+      : '';
+    return { key: 'likely', label: 'Voraussichtlich amortisiert', tone: 'positive', detail: `Hochrechnung bis Reiseende: ${eur(data.projectedIncluded)}.${predicted}` };
+  }
+  return { key: 'unlikely', label: 'Voraussichtlich nicht amortisiert', tone: 'negative', detail: `Hochrechnung bis Reiseende: ${eur(data.projectedIncluded)}; voraussichtlich fehlen ${eur(Math.max(0, data.packagePrice - data.projectedIncluded))}.` };
+}
+function personPackageForecast(person, logs, trip = currentTrip(), referenceDateKey = localLogDayKey(Date.now())) {
+  const completion = personCompletionStats(person, logs, 'trip');
+  const timeframe = packageForecastTimeframe(logs, trip, referenceDateKey);
+  const progressPercent = completion.comparable && completion.packagePrice > 0 ? completion.stats.included / completion.packagePrice * 100 : null;
+  const amortized = completion.comparable && completion.stats.included + 0.0001 >= completion.packagePrice;
+  const remainingValue = completion.comparable ? Math.max(0, completion.packagePrice - completion.stats.included) : null;
+  const averageIncludedPerElapsedDay = timeframe.elapsedDays ? completion.stats.included / timeframe.elapsedDays : 0;
+  const projectedIncluded = completion.comparable && timeframe.valid && timeframe.elapsedDays
+    ? (timeframe.completed ? completion.stats.included : averageIncludedPerElapsedDay * timeframe.totalDays)
+    : null;
+  const predictedBreakEvenDay = completion.comparable && !amortized && averageIncludedPerElapsedDay > 0
+    ? Math.ceil(completion.packagePrice / averageIncludedPerElapsedDay)
+    : null;
+  const predictedBreakEvenDate = predictedBreakEvenDay && timeframe.startDay !== null && predictedBreakEvenDay <= timeframe.totalDays
+    ? isoDayKeyFromNumber(timeframe.startDay + predictedBreakEvenDay - 1)
+    : '';
+  const data = {
+    person,
+    ...completion,
+    timeframe,
+    progressPercent,
+    amortized,
+    remainingValue,
+    averageIncludedPerElapsedDay,
+    projectedIncluded,
+    predictedBreakEvenDay,
+    predictedBreakEvenDate,
+    breakEven: amortized ? packageBreakEvenInfo(completion.personLogs, completion.packagePrice, trip) : null
+  };
+  data.forecastStatus = packageForecastStatus(data, trip);
+  return data;
+}
+function packageForecastSummary(persons, logs, trip = currentTrip(), referenceDateKey = localLogDayKey(Date.now())) {
+  const rows = persons.map(person => personPackageForecast(person, logs, trip, referenceDateKey));
+  const comparableRows = rows.filter(row => row.comparable);
+  const packageRows = rows.filter(row => row.packageSelected);
+  const includedTotal = comparableRows.reduce((sum, row) => sum + row.stats.included, 0);
+  const packagePriceTotal = comparableRows.reduce((sum, row) => sum + row.packagePrice, 0);
+  const projectedRows = comparableRows.filter(row => row.projectedIncluded !== null);
+  const projectedTotal = projectedRows.length ? projectedRows.reduce((sum, row) => sum + row.projectedIncluded, 0) : null;
+  return {
+    rows,
+    packageRows,
+    comparableRows,
+    includedTotal,
+    packagePriceTotal,
+    progressPercent: packagePriceTotal > 0 ? includedTotal / packagePriceTotal * 100 : null,
+    remainingValue: Math.max(0, packagePriceTotal - includedTotal),
+    projectedTotal,
+    projectedComplete: projectedRows.length === comparableRows.length && comparableRows.length > 0,
+    amortizedCount: comparableRows.filter(row => row.amortized).length,
+    likelyCount: comparableRows.filter(row => row.forecastStatus.key === 'likely').length,
+    positiveCount: comparableRows.filter(row => ['amortized', 'likely'].includes(row.forecastStatus.key)).length,
+    unlikelyCount: comparableRows.filter(row => ['unlikely', 'not_amortized'].includes(row.forecastStatus.key)).length,
+    openCount: packageRows.filter(row => !row.comparable || row.forecastStatus.key === 'no_forecast').length
+  };
+}
+function packageProgressBarHtml(data, label = 'Amortisationsgrad') {
+  if (data.progressPercent === null) return `<div class="packageProgressUnavailable">${esc(data.forecastStatus.detail)}</div>`;
+  const fill = Math.max(0, Math.min(100, data.progressPercent));
+  return `<div class="packageProgressBlock"><div class="packageProgressLabels"><span>${esc(label)}</span><b>${esc(percent(data.progressPercent))}</b></div><div class="packageProgressTrack" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill.toFixed(1)}"><i class="${esc(data.forecastStatus.tone)}" style="width:${fill.toFixed(1)}%"></i></div><div class="packageProgressValues"><span>${esc(eur(data.stats.included))} Paketwert</span><span>${esc(eur(data.packagePrice))} Paketpreis</span></div></div>`;
+}
+function packageForecastOverviewHtml(persons, logs) {
+  const trip = currentTrip();
+  const summary = packageForecastSummary(persons, logs, trip);
+  if (!persons.length) return '';
+  const packageRows = summary.packageRows;
+  if (!packageRows.length) return `<article class="card packageForecastCard"><div class="sectionHead"><div><h2>Paket-Amortisation & Prognose</h2><p class="hint">Für keine Person ist ein Getränkepaket hinterlegt.</p></div></div></article>`;
+  const totalProgress = summary.progressPercent === null ? '—' : percent(summary.progressPercent);
+  const forecastText = summary.projectedComplete && summary.projectedTotal !== null ? eur(summary.projectedTotal) : 'nicht vollständig';
+  const rows = packageRows.map(data => {
+    const detailParts = [
+      data.remainingValue !== null ? (data.amortized ? `${eur(data.stats.included - data.packagePrice)} über Paketpreis` : `noch ${eur(data.remainingValue)} bis Break-even`) : '',
+      data.timeframe.elapsedDays ? `Ø ${eur(data.averageIncludedPerElapsedDay)} Paketwert je Reisetag` : '',
+      data.stats.unclearCount ? `${data.stats.unclearCount} unklare Buchung${data.stats.unclearCount === 1 ? '' : 'en'} nicht berücksichtigt` : ''
+    ].filter(Boolean);
+    return `<button class="packageForecastPerson" data-action="showStatsPerson" data-id="${esc(data.person.id)}" style="--person:${esc(data.person.color || '#e0f2fe')}">
+      <span class="packageForecastHead"><span><b>${esc(data.person.name)}</b><small>${esc(packageName(data.person.packageId))}</small></span><span class="packageForecastState ${esc(data.forecastStatus.tone)}">${esc(data.forecastStatus.label)}</span></span>
+      ${packageProgressBarHtml(data)}
+      <span class="packageForecastMeta">${esc(detailParts.join(' · ') || data.forecastStatus.detail)}</span>
+      <span class="packageForecastDetail">${esc(data.forecastStatus.detail)}</span>
+    </button>`;
+  }).join('');
+  return `<article class="card packageForecastCard">
+    <div class="sectionHead"><div><h2>Paket-Amortisation & Prognose</h2><p class="hint">Konservativ berechnet: Nur eindeutig im Paket enthaltene Getränke zählen als Paketwert. Die Hochrechnung basiert auf allen bisher verstrichenen Reisetagen – auch Tagen ohne Buchung.</p></div><span class="subtle">${trip?.archived ? 'Endstand' : 'laufende Prognose'}</span></div>
+    <div class="packageForecastSummaryGrid">
+      ${completionMetric('Gesamtfortschritt', totalProgress, `${eur(summary.includedTotal)} von ${eur(summary.packagePriceTotal)}`)}
+      ${completionMetric('Noch bis Break-even', summary.packagePriceTotal ? eur(summary.remainingValue) : '—', `${summary.amortizedCount} von ${summary.comparableRows.length} Paket${summary.comparableRows.length === 1 ? '' : 'en'} amortisiert`, summary.remainingValue <= 0 && summary.packagePriceTotal ? 'positive' : 'neutral')}
+      ${completionMetric('Hochrechnung Reiseende', forecastText, summary.projectedComplete ? 'Summe der belastbaren Einzelprognosen' : 'Für mindestens eine Person fehlen belastbare Prognosedaten')}
+      ${completionMetric('Paketstatus', `${summary.positiveCount} positiv · ${summary.unlikelyCount} negativ`, summary.openCount ? `${summary.openCount} offen oder unvollständig` : 'alle Paketdaten auswertbar')}
+    </div>
+    <div class="packageForecastList">${rows}</div>
+  </article>`;
+}
+function personPackageForecastDetailHtml(person, logs) {
+  const data = personPackageForecast(person, logs, currentTrip());
+  const projection = data.projectedIncluded === null ? '—' : eur(data.projectedIncluded);
+  const breakEven = data.breakEven
+    ? data.breakEven.label
+    : (data.predictedBreakEvenDay && data.predictedBreakEvenDay <= data.timeframe.totalDays ? `voraussichtlich Tag ${data.predictedBreakEvenDay}${data.predictedBreakEvenDate ? ` · ${formatDate(data.predictedBreakEvenDate)}` : ''}` : 'noch nicht absehbar');
+  return `<article class="card packageForecastDetailCard">
+    <div class="sectionHead"><div><h2>Paket-Amortisation</h2><p class="hint">${esc(packageName(person.packageId))}</p></div><span class="packageForecastState ${esc(data.forecastStatus.tone)}">${esc(data.forecastStatus.label)}</span></div>
+    ${packageProgressBarHtml(data)}
+    <div class="personAnalysisGrid packageForecastDetailGrid">
+      ${miniMetric('Eindeutiger Paketwert', eur(data.stats.included), `${data.stats.includedCount} enthaltene Getränke`)}
+      ${miniMetric('Noch bis Break-even', data.remainingValue === null ? '—' : eur(data.remainingValue), data.amortized ? 'Paketpreis bereits erreicht' : 'ohne unklare Buchungen')}
+      ${miniMetric('Ø Paketwert pro Reisetag', data.timeframe.elapsedDays ? eur(data.averageIncludedPerElapsedDay) : '—', data.timeframe.elapsedDays ? `${data.timeframe.elapsedDays} von ${data.timeframe.totalDays} Reisetagen verstrichen` : 'Reise noch nicht begonnen')}
+      ${miniMetric('Hochrechnung Reiseende', projection, data.projectedIncluded === null ? 'keine belastbare Prognose' : `${data.timeframe.totalDays} Reisetage insgesamt`)}
+      ${miniMetric('Break-even', breakEven, data.breakEven ? 'tatsächlich erreicht' : 'auf Basis des bisherigen Tagesdurchschnitts')}
+      ${miniMetric('Unklare Paketstatus', `${data.stats.unclearCount} · ${eur(data.stats.unclear)}`, 'nicht in Fortschritt oder Prognose enthalten')}
+    </div>
+    <p class="personResultExplanation">${esc(data.forecastStatus.detail)}</p>
+  </article>`;
 }
 function resultPresentation(data) {
   if (!data.packageSelected) return { label: 'Kein Paketvergleich', value: '—', tone: 'neutral', sub: 'Kein Getränkepaket hinterlegt.' };
@@ -2340,6 +2547,7 @@ function viewStatsPersonDetail(person, logs, filter = state.statsFilter || 'trip
           ${miniMetric('Ø Getränkewert pro Reisetag', data.dayInfo.days ? eur(data.averagePerTripDay) : '—', data.dayInfo.label)}
         </div>
       </article>
+      ${personPackageForecastDetailHtml(person, currentLogs())}
       ${personCategoryBreakdownHtml(data.personLogs)}
       <div class="card"><div class="sectionHead"><h2>Getränkeverlauf</h2><span class="subtle">${data.personLogs.length} Einträge</span></div>${drinkRows ? `<div class="personDrinkList">${drinkRows}</div>` : '<p class="emptyText">Keine Getränke im gewählten Zeitraum.</p>'}</div>
     </section>`;
@@ -4325,6 +4533,15 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.4</h2>
+  <ul>
+    <li>Paket-Amortisation je Person mit grafischem Fortschrittsbalken, Restwert bis zum Break-even und tatsächlichem Break-even-Tag ergänzt.</li>
+    <li>Verbrauchsprognose bis zum Reiseende auf Basis des eindeutig enthaltenen Paketwerts und aller verstrichenen Reisetage.</li>
+    <li>Klare Statuskennzeichnung: amortisiert, voraussichtlich amortisiert, voraussichtlich nicht amortisiert oder keine belastbare Prognose.</li>
+    <li>Unklare Paketstatus bleiben vollständig getrennt und fließen weder in Fortschritt noch Hochrechnung ein.</li>
+    <li>HTML- und PDF-Bericht enthalten die neue Amortisations- und Prognoseübersicht.</li>
+    <li>Beim Wechsel über Home, Tracken, Verlauf, Analyse oder Setup beginnt die Zielseite immer oben.</li>
+  </ul>
   <h2>Version 4.5.3</h2>
   <ul>
     <li>Vollständiger CSV-Export mit einer Excel-tauglichen Zeile je Getränkebuchung ergänzt.</li>

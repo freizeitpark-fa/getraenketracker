@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.5.3** (Build **4.5.3a**)
+Aktuelle Entwicklungsfassung: **4.5.4** (Build **4.5.4a**)
 
-Version 4.5.3 ergänzt den vollständig offline nutzbaren Berichtsexport als Excel-CSV, eigenständige HTML-Auswertung und Druckansicht für die PDF-Erstellung. Das responsive Layout und die Datenlogik bleiben unverändert. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.5.4 ergänzt die Analyse um Paket-Amortisation, tatsächlichen Break-even und eine konservative Hochrechnung bis zum Reiseende. Die Hauptnavigation öffnet jede Zielseite wieder am Seitenanfang. Berichtsexport, responsives Layout und lokale Datenhaltung bleiben vollständig erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.5.3 Berichtsexport`.
+4. Commit erstellen, z. B. `CruiseSip v4.5.4 Paketprognose`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v4.5.3` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v4.5.4` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur

@@ -1,3 +1,14 @@
+## Version 4.5.4 Paket-Amortisation und Verbrauchsprognose abgeschlossen
+
+- Paketfortschritt und Break-even je Person
+- tatsächlicher Amortisationstag
+- durchschnittlicher Paketwert je verstrichenem Reisetag
+- Hochrechnung bis zum Reiseende
+- grafische Fortschrittsbalken und Personenvergleich
+- konservative Behandlung unklarer Paketstatus
+- Aufnahme in HTML- und PDF-Bericht
+- automatischer Sprung an den Seitenanfang beim Wechsel über die Hauptnavigation
+
 ## Version 4.5.3 Berichtsexport abgeschlossen
 
 - CSV, HTML und Druck/PDF vollständig offline umgesetzt.
