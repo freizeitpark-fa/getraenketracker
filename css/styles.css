@@ -1512,3 +1512,22 @@ html[data-route="track"] .drinkSortControl.compact select{height:34px!important;
 /* v5.4.0 Reiseabschluss und Archivintegritaet */
 .archiveIntegrityCard{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:flex-start;border:1px solid color-mix(in srgb,var(--ok) 35%,var(--line));background:color-mix(in srgb,var(--ok) 7%,var(--cardSolid))}.archiveIntegrityCard.bad{border-color:color-mix(in srgb,var(--bad) 50%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--cardSolid))}.archiveIntegrityCard.warn,.archiveIntegrityCard.legacy{border-color:color-mix(in srgb,var(--warn) 50%,var(--line));background:color-mix(in srgb,var(--warn) 7%,var(--cardSolid))}.archiveIntegrityIcon{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:var(--ok);color:#fff;font-size:22px;font-weight:900}.archiveIntegrityCard.bad .archiveIntegrityIcon{background:var(--bad)}.archiveIntegrityCard.warn .archiveIntegrityIcon,.archiveIntegrityCard.legacy .archiveIntegrityIcon{background:var(--warn);color:#241a00}.archiveIntegrityContent{min-width:0}.archiveIntegrityContent>.sectionHead{margin-bottom:8px}.archiveIntegrityContent>p{margin:0;color:var(--muted)}.archiveIntegrityBadge{display:inline-flex;align-items:center;min-height:28px;padding:5px 9px;border-radius:999px;background:color-mix(in srgb,var(--ok) 16%,var(--cardSolid));color:var(--ok);font-size:12px;font-weight:800;white-space:nowrap}.archiveIntegrityBadge.bad{background:color-mix(in srgb,var(--bad) 15%,var(--cardSolid));color:var(--bad)}.archiveIntegrityBadge.warn,.archiveIntegrityBadge.legacy{background:color-mix(in srgb,var(--warn) 18%,var(--cardSolid));color:var(--text)}.archiveSnapshotFacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.archiveSnapshotFacts span{display:inline-flex;gap:4px;align-items:center;padding:7px 9px;border:1px solid var(--line);border-radius:10px;background:var(--cardSolid);font-size:12px}.archiveIntegrityNote{margin-top:12px!important;font-size:12px}.finalReportExport{border-color:color-mix(in srgb,var(--ok) 36%,var(--line))}.completedTripCard .tripStateBadge.completed{box-shadow:0 0 0 1px color-mix(in srgb,var(--ok) 30%,transparent)}
 @media(max-width:520px){.archiveIntegrityCard{grid-template-columns:1fr}.archiveIntegrityIcon{width:36px;height:36px;border-radius:12px}.archiveIntegrityContent>.sectionHead{align-items:flex-start}.archiveIntegrityBadge{white-space:normal;text-align:center}}
+
+/* CruiseSip 5.4.1 - Reiseverlauf lokal bearbeiten */
+.itinerarySourceMeta{margin:5px 0 0;color:var(--subtle);font-size:10px;line-height:1.35}
+.itineraryDayRow.editable{grid-template-columns:minmax(82px,.72fr) minmax(0,1.55fr) auto;gap:10px}
+.itineraryRowActions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.itineraryRowActions .mini{min-height:34px;padding:6px 9px}
+.itineraryDayEditor{display:grid;gap:12px;margin:14px 0 4px;border:1px solid color-mix(in srgb,var(--brand) 32%,var(--line));border-radius:18px;background:color-mix(in srgb,var(--brand) 5%,var(--cardSolid));padding:12px}
+.itineraryDayEditor .sectionHead{align-items:flex-start}
+.itineraryDayEditor h3{margin:2px 0 4px;font-size:17px}
+.itineraryDayEditor textarea{resize:vertical;min-height:68px}
+.itineraryEditHint{margin:0;border-radius:12px;background:color-mix(in srgb,var(--warn) 8%,var(--cardSolid));padding:9px;color:var(--muted);font-size:10px;line-height:1.45}
+.itineraryEditorActions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.itineraryManagementActions{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media(max-width:560px){
+  .itineraryDayRow.editable{grid-template-columns:80px minmax(0,1fr)}
+  .itineraryDayRow.editable .itineraryRowActions{grid-column:1/-1;justify-content:flex-start;padding-bottom:4px}
+  .itineraryEditorActions,.itineraryManagementActions{grid-template-columns:1fr}
+}
+

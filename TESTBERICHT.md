@@ -1,4 +1,4 @@
-# Testbericht CruiseSip v5.4.0a
+# Testbericht CruiseSip v5.4.1a
 
 ## Automatisierte Prüfungen
 
@@ -6,20 +6,24 @@
 - JSON-Syntax von Manifest, Barkarte und Paketen
 - Service-Worker-Dateiliste und Versionsreferenzen
 - ZIP-Integrität
-- Logiktest mit synthetischer Reise: SHA-256-Abschlussprüfung erkennt unveränderte und nachträglich veränderte Buchungsdaten
-- Logiktest mit synthetischem Geräteexport: neue Buchung für eine lokal abgeschlossene Reise wird blockiert
-- statische Prüfung der Abschlussmetadaten und Archivintegritätsfunktionen
-- statische Prüfung des Archivschutzes im Geräteimport
-- statische Prüfung der Abschlussbericht-Dateinamen und Exportfelder
+- statische Prüfung der neuen Reiseverlauf-Aktionen und des Formular-Submit
+- Logiktest für Sortierung und fortlaufende Nummerierung von Reisetagen
+- Logiktest für Zeitnormalisierung im Format `HH:MM`
+- statische Prüfung der Datums-, Dubletten- und Archivschutz-Validierung
+- statische Prüfung der Wiederherstellungspunkte vor Ergänzen, Bearbeiten und Löschen
+- Prüfung, dass der Geräteabgleich den eigentlichen Reiseverlauf als Reisekonflikt berücksichtigt
 
 ## Manuell auf dem iPhone prüfen
 
-1. Laufende Testreise abschließen.
-2. Prüfen, dass direkt die Analyse mit „Archivierter Abschlussstand“ geöffnet wird.
-3. Abschlussbericht als HTML und über Drucken/PDF öffnen.
-4. Reise reaktivieren, eine Testbuchung ergänzen und erneut abschließen.
-5. Geräteexport mit zusätzlicher Buchung in eine lokal abgeschlossene Reise importieren; die Buchung muss blockiert werden.
-6. Flugmodus aktivieren und Abschlussbericht erneut öffnen.
+1. Aktive Reise unter **Setup → Reisen** öffnen.
+2. Einen vorhandenen Hafentag bearbeiten und Liegezeit oder Hafen ändern.
+3. Einen neuen Seetag ergänzen; Reihenfolge und Tagesnummer prüfen.
+4. Einen Testtag löschen und den Wiederherstellungspunkt im Setup kontrollieren.
+5. Ein doppeltes oder außerhalb des Reisezeitraums liegendes Datum testen; Speichern muss blockiert werden.
+6. Reise abschließen; Bearbeitung muss gesperrt sein.
+7. Reise reaktivieren und Bearbeitung erneut prüfen.
+8. Geänderten Reiseexport auf einem zweiten Gerät importieren; der abweichende Reiseverlauf muss als Reisekonflikt erscheinen.
+9. Flugmodus aktivieren und Editor erneut öffnen.
 
 ## Hinweis
 

@@ -1,5 +1,18 @@
 # CruiseSip Changelog
 
+## 5.4.1 – Reiseverlauf bearbeiten
+
+- Reiseverlauf unter „Reisen“ als lokale, bearbeitbare Tagesliste erweitert.
+- Reisetage können einzeln ergänzt, bearbeitet und gelöscht werden.
+- Änderbar sind Datum, Tagesart, Hafen/Station, Land, Ankunft, Abfahrt und Hinweise.
+- Nach jeder Änderung sortiert CruiseSip automatisch nach Datum und nummeriert die Reisetage neu.
+- Vor Ergänzen, Bearbeiten, Löschen oder vollständigem Entfernen wird ein interner Wiederherstellungspunkt erstellt.
+- Buchungszeitpunkte, Preise und Paketstatus bleiben unverändert; Auswertungen verwenden den korrigierten Verlauf.
+- Abgeschlossene Reisen bleiben schreibgeschützt und müssen vor Änderungen reaktiviert werden.
+- Abweichende Reiseverläufe werden beim Geräteabgleich als Reisekonflikt erkannt und können kontrolliert übernommen werden.
+- App- und Service-Worker-Build auf `5.4.1a` erhöht.
+- Dokumentation `docs/REISEVERLAUF_BEARBEITEN_V541.md` ergänzt.
+
 ## 5.4.0 – Reiseabschluss und Archivmodus
 
 - Vor jedem Reiseabschluss wird automatisch ein interner Wiederherstellungspunkt erstellt.

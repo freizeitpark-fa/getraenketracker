@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 5.4.0**, Build **5.4.0a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 5.4.1**, Build **5.4.1a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -102,3 +102,8 @@ Alle gespeicherten Referenzversionen liegen lokal in IndexedDB. Neue JSON- oder 
 ## Archivierte Reisen ab Version 5.4
 
 Die Integritätsprüfung des Abschlussstands erfolgt vollständig lokal und benötigt keine Internetverbindung. Die Prüfsumme wird beim Abschluss auf dem Gerät erzeugt. Geräteimporte verändern eine lokal abgeschlossene Reise nicht; für fehlende Buchungen muss die Reise bewusst reaktiviert werden.
+
+
+## Reiseverlauf offline korrigieren ab Version 5.4.1
+
+Unter **Reisen → Reiseverlauf** können importierte oder manuell angelegte Reisetage vollständig offline ergänzt, bearbeitet und gelöscht werden. CruiseSip sortiert nach Datum und nummeriert die Tage automatisch neu. Vor jeder Änderung wird ein interner Wiederherstellungspunkt erstellt. Abgeschlossene Reisen müssen vor einer Änderung bewusst reaktiviert werden.

@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.4.0';
-const APP_CACHE_NAME = 'cruisesip-v5-4-0-20260714a';
-const APP_BUILD = '5.4.0a';
-const SERVICE_WORKER_URL = './sw.js?v=5.4.0a';
+const APP_VERSION = '5.4.1';
+const APP_CACHE_NAME = 'cruisesip-v5-4-1-20260714a';
+const APP_BUILD = '5.4.1a';
+const SERVICE_WORKER_URL = './sw.js?v=5.4.1a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -92,6 +92,7 @@ let state = {
   pendingTripClosure: null,
   pendingTripVersionChange: null,
   pendingItineraryImport: null,
+  editingItineraryDayDate: null,
   pendingBarkarteImport: null,
   tripSetupWizard: { step: null, tripId: null, exported: false },
   multiPersonMode: false,
@@ -1109,6 +1110,7 @@ function clearDraft(section) {
 function resetTripSetupWizard() {
   state.tripSetupWizard = { step: null, tripId: null, exported: false };
   state.pendingItineraryImport = null;
+  state.editingItineraryDayDate = null;
 }
 function startTripSetupWizard(step = 'choice') {
   state.editingTripId = null;
@@ -1133,6 +1135,7 @@ async function handleClick(event) {
       state.selectedPersonIds = state.selectedPersonId ? [state.selectedPersonId] : [];
     }
     if (state.route !== 'history') { state.editingLogId = null; clearDraft('log'); }
+    if (state.route !== 'trips') state.editingItineraryDayDate = null;
     render();
     requestAnimationFrame(() => requestAnimationFrame(scrollCurrentRouteToTop));
     haptic();
@@ -1161,6 +1164,7 @@ async function handleClick(event) {
     state.selectedPersonIds = state.selectedPersonId ? [state.selectedPersonId] : [];
     state.multiPersonMode = false;
     state.editingLogId = null;
+    state.editingItineraryDayDate = null;
     clearDraft('log');
     if (trip.archived) {
       state.statsFilter = 'trip';
@@ -1192,7 +1196,7 @@ async function handleClick(event) {
     resetTripSetupWizard(); state.route = 'dashboard'; render(); toast('Reiseeinrichtung abgeschlossen'); return;
   }
   if (action === 'focusPersonForm') { $('#personForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); $('#personNameInput')?.focus(); return; }
-  if (action === 'editTrip') { resetTripSetupWizard(); fillTripForm(id); return; }
+  if (action === 'editTrip') { resetTripSetupWizard(); state.editingItineraryDayDate = null; fillTripForm(id); return; }
   if (action === 'archiveTrip') { const trip = tripById(id); if (trip?.archived) await reactivateTrip(id); else prepareTripClosure(id); return; }
   if (action === 'cancelTripClosure') { state.pendingTripClosure = null; render(); return; }
   if (action === 'cancelTripVersionChange') { state.pendingTripVersionChange = null; render(); return; }
@@ -1203,6 +1207,10 @@ async function handleClick(event) {
   if (action === 'importItinerary') { startTripSetupWizard('import'); openFile('itinerary'); return; }
   if (action === 'cancelItineraryImport') { state.pendingItineraryImport = null; state.tripSetupWizard = { step: 'choice', tripId: null, exported: false }; render(); return; }
   if (action === 'applyItineraryImport') { await runActionOnce('applyItineraryImport', applyPreparedItineraryImport); return; }
+  if (action === 'addItineraryDay') { openItineraryDayEditor(null); return; }
+  if (action === 'editItineraryDay') { openItineraryDayEditor(id); return; }
+  if (action === 'cancelItineraryDayEdit') { state.editingItineraryDayDate = null; render(); return; }
+  if (action === 'deleteItineraryDay') { await runActionOnce(`deleteItineraryDay:${id}`, () => deleteItineraryDay(id)); return; }
   if (action === 'clearItinerary') { await clearCurrentItinerary(); return; }
   if (action === 'resetTripForm') {
     state.pendingTripVersionChange = null;
@@ -1287,6 +1295,7 @@ async function handleSubmit(event) {
   if (formId === 'deviceForm') await runActionOnce('saveDevice', () => saveDeviceForm(form));
   if (formId === 'articleForm') await runActionOnce('saveArticle', () => saveDrinkArticleForm(form));
   if (formId === 'logEditForm') await runActionOnce('saveLog', () => saveLogForm(form));
+  if (formId === 'itineraryDayForm') await runActionOnce('saveItineraryDay', () => saveItineraryDayForm(form));
   if (formId === 'onboardingTripForm') await saveOnboardingTrip(form);
 }
 
@@ -3245,11 +3254,156 @@ async function prepareItineraryImport(text, fileName) {
   requestAnimationFrame(() => $('#itineraryImportPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   toast('Reisedatei geprüft – neue Reise noch nicht angelegt');
 }
-function itineraryDayRowHtml(day) {
+function itineraryDayRowHtml(day, options = {}) {
   const location = itineraryLocationLabel(day);
   const time = itineraryTimeLabel(day);
   const details = [itineraryTypeLabel(day.type), time, day.notes].filter(Boolean).join(' · ');
-  return `<div class="itineraryDayRow"><div class="itineraryDate"><b>${esc(formatDate(day.date))}</b><small>Tag ${esc(day.dayNumber || '')}</small></div><div class="itineraryLocation"><b>${esc(location || itineraryTypeLabel(day.type))}</b><small>${esc(details)}</small></div></div>`;
+  const actions = options.editable
+    ? `<div class="itineraryRowActions"><button class="mini" data-action="editItineraryDay" data-id="${esc(day.date)}">Bearbeiten</button><button class="mini dangerText" data-action="deleteItineraryDay" data-id="${esc(day.date)}">Löschen</button></div>`
+    : '';
+  return `<div class="itineraryDayRow ${options.editable ? 'editable' : ''}"><div class="itineraryDate"><b>${esc(formatDate(day.date))}</b><small>Tag ${esc(day.dayNumber || '')}</small></div><div class="itineraryLocation"><b>${esc(location || itineraryTypeLabel(day.type))}</b><small>${esc(details)}</small></div>${actions}</div>`;
+}
+function itineraryTypeOptionsHtml(selected = 'port') {
+  const options = [
+    ['embarkation', 'Einschiffung'],
+    ['port', 'Hafentag'],
+    ['sea', 'Seetag'],
+    ['overnight', 'Übernacht im Hafen'],
+    ['disembarkation', 'Ausschiffung'],
+    ['unknown', 'Reisetag / unklar']
+  ];
+  return options.map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
+}
+function renumberItineraryDays(days = []) {
+  return days
+    .map((day, index) => normalizeItineraryDay(day, index))
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .map((day, index) => ({ ...day, dayNumber: index + 1, overnight: day.type === 'overnight' }));
+}
+function itineraryDayEditorHtml(trip, days) {
+  const editKey = state.editingItineraryDayDate;
+  if (editKey === null || editKey === undefined || trip?.archived) return '';
+  const existing = editKey === '__new__' ? null : days.find(day => day.date === editKey) || null;
+  const fallbackDate = (() => {
+    if (existing?.date) return existing.date;
+    const lastDate = days[days.length - 1]?.date || trip?.startDate || '';
+    if (!validItineraryDate(lastDate)) return '';
+    const [year, month, day] = lastDate.split('-').map(Number);
+    const next = new Date(year, month - 1, day + (days.length ? 1 : 0));
+    return `${next.getFullYear()}-${pad2(next.getMonth() + 1)}-${pad2(next.getDate())}`;
+  })();
+  const selectedType = existing?.type || (days.length ? 'port' : 'embarkation');
+  return `<form id="itineraryDayForm" class="itineraryDayEditor" autocomplete="off">
+    <input type="hidden" name="originalDate" value="${esc(existing?.date || '')}">
+    <div class="sectionHead"><div><p class="eyebrow">Reiseverlauf</p><h3>${existing ? 'Reisetag bearbeiten' : 'Reisetag hinzufügen'}</h3><p class="hint">Die Reihenfolge und Tagesnummer werden nach dem Datum automatisch aktualisiert.</p></div><button type="button" class="mini" data-action="cancelItineraryDayEdit">Schließen</button></div>
+    <div class="twoCols"><div class="formField"><label for="itineraryDateInput">Datum</label><input id="itineraryDateInput" name="date" type="date" required value="${esc(fallbackDate)}"></div><div class="formField"><label for="itineraryTypeInput">Tagesart</label><select id="itineraryTypeInput" name="type">${itineraryTypeOptionsHtml(selectedType)}</select></div></div>
+    <div class="twoCols"><div class="formField"><label for="itineraryPortInput">Hafen / Station</label><input id="itineraryPortInput" name="port" placeholder="z. B. Bergen" value="${esc(existing?.port || '')}"></div><div class="formField"><label for="itineraryCountryInput">Land</label><input id="itineraryCountryInput" name="country" placeholder="z. B. Norwegen" value="${esc(existing?.country || '')}"></div></div>
+    <div class="twoCols"><div class="formField"><label for="itineraryArrivalInput">Ankunft</label><input id="itineraryArrivalInput" name="arrival" inputmode="numeric" placeholder="08:00" value="${esc(existing?.arrival || '')}"></div><div class="formField"><label for="itineraryDepartureInput">Abfahrt</label><input id="itineraryDepartureInput" name="departure" inputmode="numeric" placeholder="17:00" value="${esc(existing?.departure || '')}"></div></div>
+    <div class="formField"><label for="itineraryNotesInput">Hinweise</label><textarea id="itineraryNotesInput" name="notes" rows="2" placeholder="z. B. Tenderhafen oder Übernacht-Aufenthalt">${esc(existing?.notes || '')}</textarea></div>
+    <p class="itineraryEditHint">Buchungszeitpunkte, Getränkepreise und Paketstatus bleiben unverändert. Auswertungen verwenden anschließend den korrigierten Reiseverlauf.</p>
+    <div class="itineraryEditorActions"><button class="primary" type="submit">${existing ? 'Änderungen speichern' : 'Reisetag speichern'}</button><button class="secondary" type="button" data-action="cancelItineraryDayEdit">Abbrechen</button></div>
+  </form>`;
+}
+function openItineraryDayEditor(date = null) {
+  const trip = currentTrip();
+  if (!trip) return;
+  if (trip.archived) { alert('Abgeschlossene Reisen sind schreibgeschützt. Bitte die Reise zuerst reaktivieren.'); return; }
+  if (date && !tripItinerary(trip).some(day => day.date === date)) { alert('Der Reisetag wurde nicht gefunden.'); return; }
+  state.editingItineraryDayDate = date || '__new__';
+  render();
+  requestAnimationFrame(() => $('#itineraryDayForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+function normalizedItineraryTime(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const compact = text.replace(/[.]/g, ':').replace(/\s*(uhr)?\s*$/i, '');
+  const match = /^(\d{1,2}):(\d{2})$/.exec(compact);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return `${pad2(hour)}:${pad2(minute)}`;
+}
+async function saveItineraryDayForm(form) {
+  const trip = currentTrip();
+  if (!trip) throw new Error('Keine Reise ausgewählt.');
+  if (trip.archived) throw new Error('Die abgeschlossene Reise muss vor Änderungen reaktiviert werden.');
+  const data = Object.fromEntries(new FormData(form).entries());
+  const originalDate = String(data.originalDate || '').trim();
+  const date = String(data.date || '').trim();
+  if (!validItineraryDate(date)) { alert('Bitte ein gültiges Datum auswählen.'); $('#itineraryDateInput')?.focus(); return; }
+  if (trip.startDate && date < trip.startDate) { alert(`Der Reisetag liegt vor dem Reisebeginn am ${formatDate(trip.startDate)}.`); $('#itineraryDateInput')?.focus(); return; }
+  if (trip.endDate && date > trip.endDate) { alert(`Der Reisetag liegt nach dem Reiseende am ${formatDate(trip.endDate)}.`); $('#itineraryDateInput')?.focus(); return; }
+  const days = tripItinerary(trip).map(day => ({ ...day }));
+  if (days.some(day => day.date === date && day.date !== originalDate)) { alert(`Für den ${formatDate(date)} ist bereits ein Reisetag vorhanden.`); $('#itineraryDateInput')?.focus(); return; }
+  const arrival = normalizedItineraryTime(data.arrival);
+  const departure = normalizedItineraryTime(data.departure);
+  if (arrival === null) { alert('Die Ankunftszeit muss im Format HH:MM eingegeben werden.'); $('#itineraryArrivalInput')?.focus(); return; }
+  if (departure === null) { alert('Die Abfahrtszeit muss im Format HH:MM eingegeben werden.'); $('#itineraryDepartureInput')?.focus(); return; }
+  const type = normalizeItineraryType(data.type || 'unknown');
+  const nextDay = normalizeItineraryDay({
+    date,
+    type,
+    port: type === 'sea' ? '' : String(data.port || '').trim(),
+    country: type === 'sea' ? '' : String(data.country || '').trim(),
+    arrival,
+    departure,
+    overnight: type === 'overnight',
+    notes: String(data.notes || '').trim()
+  }, 0);
+  const index = originalDate ? days.findIndex(day => day.date === originalDate) : -1;
+  if (originalDate && index < 0) throw new Error('Der zu bearbeitende Reisetag ist nicht mehr vorhanden.');
+  if (index >= 0) days[index] = nextDay;
+  else days.push(nextDay);
+  const normalizedDays = renumberItineraryDays(days);
+  const restorePoint = await createInternalRestorePoint(originalDate ? 'Vor dem Bearbeiten eines Reisetags' : 'Vor dem Ergänzen eines Reisetags', {
+    tripId: trip.id,
+    tripName: trip.name || '',
+    originalDate,
+    date,
+    itineraryDays: normalizedDays.length
+  });
+  const timestamp = nowIso();
+  await put('trips', {
+    ...trip,
+    itinerary: normalizedDays,
+    itineraryEditedAt: timestamp,
+    itineraryEditCount: Number(trip.itineraryEditCount || 0) + 1,
+    itineraryLastRestorePointId: restorePoint?.id || '',
+    updatedAt: timestamp
+  });
+  await put('imports', { id: `import_${uid()}`, kind: originalDate ? 'Reiseverlauf / Reisetag bearbeitet' : 'Reiseverlauf / Reisetag ergänzt', fileName: trip.itinerarySource || 'Lokale Bearbeitung', importedAt: timestamp, added: originalDate ? 0 : 1, duplicates: 0 });
+  state.editingItineraryDayDate = null;
+  await loadState();
+  render();
+  toast(originalDate ? 'Reisetag aktualisiert' : 'Reisetag ergänzt');
+  haptic();
+}
+async function deleteItineraryDay(date) {
+  const trip = currentTrip();
+  if (!trip) return;
+  if (trip.archived) { alert('Abgeschlossene Reisen sind schreibgeschützt. Bitte die Reise zuerst reaktivieren.'); return; }
+  const days = tripItinerary(trip);
+  const day = days.find(row => row.date === date);
+  if (!day) { alert('Der Reisetag wurde nicht gefunden.'); return; }
+  const label = `${formatDate(day.date)} · ${itineraryLocationLabel(day)}`;
+  if (!confirm(`Den Reisetag „${label}“ löschen? Getränkebuchungen bleiben unverändert.`)) return;
+  const restorePoint = await createInternalRestorePoint('Vor dem Löschen eines Reisetags', { tripId: trip.id, tripName: trip.name || '', date: day.date, location: itineraryLocationLabel(day), itineraryDays: days.length });
+  const timestamp = nowIso();
+  const normalizedDays = renumberItineraryDays(days.filter(row => row.date !== date));
+  await put('trips', {
+    ...trip,
+    itinerary: normalizedDays,
+    itineraryEditedAt: timestamp,
+    itineraryEditCount: Number(trip.itineraryEditCount || 0) + 1,
+    itineraryLastRestorePointId: restorePoint?.id || '',
+    updatedAt: timestamp
+  });
+  await put('imports', { id: `import_${uid()}`, kind: 'Reiseverlauf / Reisetag gelöscht', fileName: trip.itinerarySource || 'Lokale Bearbeitung', importedAt: timestamp, added: 0, duplicates: 0 });
+  state.editingItineraryDayDate = null;
+  await loadState();
+  render();
+  toast('Reisetag gelöscht');
 }
 function tripWizardProgressHtml(activeStep = 1) {
   return `<div class="tripWizardProgress" aria-label="Einrichtungsfortschritt"><span class="${activeStep >= 1 ? 'active' : ''}"><b>1</b> Reise</span><span class="${activeStep >= 2 ? 'active' : ''}"><b>2</b> Personen</span><span class="${activeStep >= 3 ? 'active' : ''}"><b>3</b> Export</span></div>`;
@@ -3273,10 +3427,18 @@ function itineraryImportPreviewHtml() {
 }
 function itineraryManagementHtml(trip = currentTrip()) {
   if (!trip) return '';
-  const days = tripItinerary(trip);
+  const days = renumberItineraryDays(tripItinerary(trip));
   const ports = days.filter(day => ['port', 'embarkation', 'disembarkation', 'overnight'].includes(day.type) && day.port).length;
   const seaDays = days.filter(day => day.type === 'sea').length;
-  return `<div class="card itineraryCard"><div class="sectionHead"><div><h2>Reiseverlauf</h2><p class="hint">Der Verlauf gehört zur Reise und dient nur dem späteren Bericht. Neue Reiseverläufe werden über den Assistenten als eigene neue Reise importiert.</p></div><span class="backupFormatBadge">JSON · offline</span></div>${days.length ? `<div class="itinerarySummary"><span><b>${days.length}</b> Reisetage</span><span><b>${ports}</b> Hafentage</span><span><b>${seaDays}</b> Seetage</span></div><details class="itineraryDetails"><summary>Gespeicherten Verlauf anzeigen</summary><div class="itineraryPreviewList">${days.map(itineraryDayRowHtml).join('')}</div></details><div class="buttonStack"><button class="secondary dangerText" data-action="clearItinerary">Verlauf entfernen</button></div>` : '<p class="emptyText">Für diese Reise ist kein importierter Reiseverlauf hinterlegt.</p>'}</div>`;
+  const locked = !!trip.archived;
+  const sourceMeta = [trip.itinerarySource, trip.itineraryEditedAt ? `zuletzt bearbeitet ${formatDateTime(trip.itineraryEditedAt)}` : ''].filter(Boolean).join(' · ');
+  return `<div class="card itineraryCard"><div class="sectionHead"><div><h2>Reiseverlauf</h2><p class="hint">Häfen, Seetage, Länder und Liegezeiten können für diese Reise lokal angepasst werden. Tagesnummern folgen automatisch dem Datum.</p>${sourceMeta ? `<p class="itinerarySourceMeta">${esc(sourceMeta)}</p>` : ''}</div><span class="backupFormatBadge">${locked ? 'Archiviert' : 'Bearbeitbar'}</span></div>
+    ${locked ? '<div class="backupMessages warn"><p>Die abgeschlossene Reise ist schreibgeschützt. Zum Ändern des Reiseverlaufs muss sie zuerst reaktiviert werden.</p></div>' : ''}
+    <div class="itinerarySummary"><span><b>${days.length}</b> Reisetage</span><span><b>${ports}</b> Hafentage</span><span><b>${seaDays}</b> Seetage</span></div>
+    ${itineraryDayEditorHtml(trip, days)}
+    ${days.length ? `<details class="itineraryDetails" ${state.editingItineraryDayDate !== null ? 'open' : ''}><summary>Gespeicherten Verlauf anzeigen</summary><div class="itineraryPreviewList">${days.map(day => itineraryDayRowHtml(day, { editable: !locked })).join('')}</div></details>` : '<p class="emptyText">Für diese Reise ist noch kein Reiseverlauf hinterlegt. Du kannst den ersten Reisetag manuell ergänzen.</p>'}
+    ${locked ? '' : `<div class="buttonStack itineraryManagementActions"><button class="primary" data-action="addItineraryDay">Reisetag hinzufügen</button>${days.length ? '<button class="secondary dangerText" data-action="clearItinerary">Gesamten Verlauf entfernen</button>' : ''}</div>`}
+  </div>`;
 }
 async function applyPreparedItineraryImport() {
   const pending = state.pendingItineraryImport;
@@ -3323,11 +3485,14 @@ async function clearCurrentItinerary() {
   const trip = currentTrip();
   const count = tripItinerary(trip).length;
   if (!trip || !count) return;
+  if (trip.archived) { alert('Abgeschlossene Reisen sind schreibgeschützt. Bitte die Reise zuerst reaktivieren.'); return; }
   if (!confirm(`Den gespeicherten Reiseverlauf mit ${count} Reisetagen entfernen? Getränkebuchungen bleiben unverändert.`)) return;
   await createInternalRestorePoint('Vor dem Entfernen eines Reiseverlaufs', { tripId: trip.id, tripName: trip.name || '', itineraryDays: count });
-  const next = { ...trip, itinerary: [], itineraryImportedAt: '', itinerarySource: '', updatedAt: nowIso() };
+  const timestamp = nowIso();
+  const next = { ...trip, itinerary: [], itineraryImportedAt: '', itinerarySource: '', itineraryEditedAt: timestamp, itineraryEditCount: Number(trip.itineraryEditCount || 0) + 1, updatedAt: timestamp };
   await put('trips', next);
   state.pendingItineraryImport = null;
+  state.editingItineraryDayDate = null;
   await loadState();
   render();
   toast('Reiseverlauf entfernt');
@@ -4563,7 +4728,7 @@ function rowsMeaningfullyEqual(store, left, right) {
 function tripRowForDeviceSync(row) {
   const copy = meaningfulRow('trips', row);
   for (const key of [
-    'archived', 'itinerary', 'itineraryImportedAt', 'itinerarySource',
+    'archived', 'itineraryImportedAt', 'itinerarySource', 'itineraryEditedAt', 'itineraryEditCount', 'itineraryLastRestorePointId',
     'archivedAt', 'archivedByDeviceId', 'archivedByDeviceName', 'closureAppVersion', 'closureBuild',
     'closureSequence', 'closureSnapshot', 'closureValidation', 'closureDigest',
     'reactivatedAt', 'reactivatedByDeviceId', 'reactivatedByDeviceName', 'reactivationRestorePointId'
@@ -5171,8 +5336,8 @@ function tripConflictDetail(type, fileName, payload, localRow, incomingRow, mess
   if (type === 'person' && localRow?.tripId !== incomingRow?.tripId) detail.resolvable = false;
   if (type === 'trip') {
     detail.title = incomingRow?.name || incomingRow?.id || 'Reise';
-    detail.local = `${localRow?.name || 'Unbenannt'} · ${formatDate(localRow?.startDate)} bis ${formatDate(localRow?.endDate)}`;
-    detail.incoming = `${incomingRow?.name || 'Unbenannt'} · ${formatDate(incomingRow?.startDate)} bis ${formatDate(incomingRow?.endDate)}`;
+    detail.local = `${localRow?.name || 'Unbenannt'} · ${formatDate(localRow?.startDate)} bis ${formatDate(localRow?.endDate)} · ${tripItinerary(localRow).length} Routentage`;
+    detail.incoming = `${incomingRow?.name || 'Unbenannt'} · ${formatDate(incomingRow?.startDate)} bis ${formatDate(incomingRow?.endDate)} · ${tripItinerary(incomingRow).length} Routentage`;
   } else if (type === 'person') {
     detail.title = incomingRow?.name || incomingRow?.id || 'Person';
     detail.local = `${localRow?.name || 'Unbenannt'} · ${packageName(localRow?.packageId || 'none')} · ${eur(localRow?.packagePrice)}`;
@@ -5307,7 +5472,7 @@ async function buildTripImportPlan(parsed, local) {
     } else if (!tripRowsEqualForDeviceSync(existingTrip, trip)) {
       summary.conflicts += 1;
       fileSummary.conflicts += 1;
-      const conflict = tripConflictDetail('trip', fileName, payload, existingTrip, trip, 'Reise mit gleicher ID besitzt abweichende Stammdaten.');
+      const conflict = tripConflictDetail('trip', fileName, payload, existingTrip, trip, 'Reise mit gleicher ID besitzt abweichende Stammdaten oder einen abweichenden Reiseverlauf.');
       if (locallyArchived) {
         conflict.resolvable = false;
         conflict.message += ' Die lokal abgeschlossene Reise ist schreibgeschützt und muss vor Änderungen reaktiviert werden.';
@@ -5527,13 +5692,17 @@ function setTripConflictResolution(id, value) {
   haptic();
 }
 function deviceSyncCardHtml() {
-  return `<div class="card deviceSyncCard"><div class="sectionHead"><div><h2>Geräteabgleich</h2><p class="hint">Reisedaten mehrerer Geräte manuell über JSON-Dateien zusammenführen.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und prüfen</button></div><p class="hint">Bis zu 20 Reiseexporte können gemeinsam geprüft werden. CruiseSip zeigt neue, geänderte und doppelte Buchungen getrennt an. Bei sicher erkannten Konflikten entscheidest du zwischen lokaler und importierter Version.</p>${tripImportPreviewHtml()}</div>`;
+  return `<div class="card deviceSyncCard"><div class="sectionHead"><div><h2>Geräteabgleich</h2><p class="hint">Reisedaten mehrerer Geräte manuell über JSON-Dateien zusammenführen.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und prüfen</button></div><p class="hint">Bis zu 20 Reiseexporte können gemeinsam geprüft werden. CruiseSip zeigt neue, geänderte und doppelte Buchungen getrennt an. Abweichende Reisedaten oder Reiseverläufe erscheinen als Reisekonflikt; du entscheidest zwischen lokaler und importierter Version.</p>${tripImportPreviewHtml()}</div>`;
 }
 function incomingTripConflictRow(conflict) {
   const local = cloneRow(conflict.localRow || {});
   const incoming = cloneRow(conflict.incomingRow || {});
   const row = { ...local, ...incoming, id: local.id || incoming.id, updatedAt: nowIso() };
-  for (const key of ['archived', 'itinerary', 'itineraryImportedAt', 'itinerarySource']) {
+  for (const key of [
+    'archived', 'archivedAt', 'archivedByDeviceId', 'archivedByDeviceName', 'closureAppVersion', 'closureBuild',
+    'closureSequence', 'closureSnapshot', 'closureValidation', 'closureDigest',
+    'reactivatedAt', 'reactivatedByDeviceId', 'reactivatedByDeviceName', 'reactivationRestorePointId'
+  ]) {
     if (Object.prototype.hasOwnProperty.call(local, key)) row[key] = local[key];
     else delete row[key];
   }
@@ -5898,6 +6067,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.4.1</h2>
+  <ul>
+    <li>Reisetage können unter Reisen einzeln ergänzt, bearbeitet und gelöscht werden.</li>
+    <li>Datum, Tagesart, Hafen, Land, Ankunft, Abfahrt und Hinweise sind direkt änderbar.</li>
+    <li>Nach jeder Änderung wird der Verlauf automatisch nach Datum sortiert und neu nummeriert.</li>
+    <li>Vor dem Speichern oder Löschen wird automatisch ein interner Wiederherstellungspunkt erstellt.</li>
+    <li>Abgeschlossene Reisen bleiben schreibgeschützt; geänderte Reiseverläufe können über den sicheren Geräteabgleich übertragen werden.</li>
+  </ul>
   <h2>Version 5.4.0</h2>
   <ul>
     <li>Reiseabschluss speichert Abschlusszeitpunkt, abschließendes Gerät, App-Build und kompakte Abschlusskennzahlen.</li>

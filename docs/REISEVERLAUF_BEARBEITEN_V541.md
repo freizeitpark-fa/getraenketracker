@@ -31,3 +31,8 @@ Ein geänderter Reiseverlauf ist im Reiseexport enthalten. Weicht der Verlauf au
 ## Vollständiges Entfernen
 
 Über **Gesamten Verlauf entfernen** kann der gesamte Verlauf gelöscht werden. Auch davor wird ein Wiederherstellungspunkt erstellt. Personen und Getränkebuchungen bleiben erhalten.
+
+
+## Korrektur Build 5.4.1b
+
+Der Bereich „Gespeicherten Verlauf anzeigen“ wird über eine eigene Schaltfläche gesteuert. Der sichtbare Pfeil klappt den Inhalt zuverlässig auf und zu. Nach dem Öffnen stehen je Reisetag die Aktionen „Bearbeiten“ und „Löschen“ bereit.

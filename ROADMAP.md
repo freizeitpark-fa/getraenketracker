@@ -288,3 +288,13 @@ Mögliche spätere Punkte:
 - direkter Einstieg in den Abschlussbericht
 - Archivschutz auch beim Geräteabgleich
 - Abschlussbericht als CSV, HTML und Druck/PDF mit Abschlusskennzeichnung
+
+
+## Erledigt mit Version 5.4.1
+
+- Reisetage direkt in der Reiseverwaltung ergänzen, bearbeiten und löschen
+- Datum, Tagesart, Hafen, Land, Liegezeiten und Hinweise korrigieren
+- automatische Sortierung und fortlaufende Tagesnummerierung
+- Wiederherstellungspunkt vor jeder Änderung
+- Schreibschutz für abgeschlossene Reisen
+- kontrollierte Übernahme abweichender Reiseverläufe im Geräteabgleich

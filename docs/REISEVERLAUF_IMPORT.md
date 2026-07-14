@@ -83,3 +83,8 @@ Der Reiseexport enthält:
 - vorhandene Buchungen und Favoriten.
 
 Auf dem zweiten Gerät wird die Datei unter `Setup` → `Geräteabgleich` importiert. Wird die Reise dort erstmals angelegt, werden Reiseverlauf und Personen gemeinsam übernommen. Danach können beide Geräte mit identischen Reise- und Personen-IDs Getränke erfassen.
+
+
+## Nachträgliche Korrektur ab Version 5.4.1
+
+Nach dem Import kann der Verlauf unter **Reisen → Reiseverlauf** direkt bearbeitet werden. Einzelne Tage lassen sich ergänzen, korrigieren oder löschen. Vor jeder Änderung erstellt CruiseSip automatisch einen internen Wiederherstellungspunkt.
