@@ -1,3 +1,11 @@
+## Version 4.5.3b – iOS-PDF-Druckansicht
+
+- Schwarze PDF-Druckvorschau auf iPhone und iPad behoben.
+- Druckbericht wird nicht mehr innerhalb der laufenden PWA erzeugt, sondern in einer eigenständigen, ausdrücklich hellen Berichtseite.
+- Die neue Druckseite verwendet den bereits bewährten HTML-Bericht und öffnet den iOS-Druckdialog automatisch.
+- Falls der automatische Dialog ausbleibt, steht in der Druckseite weiterhin der Button „Drucken / als PDF sichern“ bereit.
+- CSV- und HTML-Export, IndexedDB, Reisen, Personen, Buchungen, Backup und Geräteabgleich bleiben unverändert.
+
 ## Version 4.5.3 – Berichtsexport
 
 - CSV-Export für Excel mit einer strukturierten Zeile je Getränkebuchung.

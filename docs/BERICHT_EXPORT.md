@@ -18,3 +18,7 @@ Der HTML-Bericht ist eine eigenständige Datei mit eingebettetem CSS. Er enthäl
 4. Über **Teilen** die PDF-Datei in der Dateien-App sichern oder weitergeben.
 
 Alle Exporte werden ausschließlich aus den lokal gespeicherten Daten der aktuell geöffneten Reise erzeugt.
+
+## iOS-Druckansicht ab Build 4.5.3b
+
+Die PDF-Funktion öffnet eine eigenständige helle Berichtseite und startet von dort den Druckdialog. Dadurch wird der dunkle Hintergrund der installierten PWA nicht mehr in die PDF-Vorschau übernommen. Falls der Dialog nicht automatisch erscheint, kann in der geöffneten Berichtseite der Button **Drucken / als PDF sichern** verwendet werden.
