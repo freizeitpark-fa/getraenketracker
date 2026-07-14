@@ -1,6 +1,13 @@
 # Roadmap CruiseSip
 
-## Version 4.5.2e Assistent zur Reiseeinrichtung
+## Version 4.5.2f Home ohne Direktbuchungen
+
+- Favoriten und zuletzt getrunkene Getränke von Home entfernen
+- Getränkebuchungen nur in der Tracken-Ansicht mit sichtbarer Personenauswahl zulassen
+- Favoriten und Zuletzt-Filter auf der Tracken-Seite unverändert erhalten
+- Schnellzugriffe auf Tracken, Verlauf und Analyse beibehalten
+
+## Version 4.5.2e Kompakte Reiseanzeige
 
 - neue Reise über einen geführten Ablauf anlegen
 - wahlweise Reiseverlaufsdatei importieren oder Reise manuell erfassen

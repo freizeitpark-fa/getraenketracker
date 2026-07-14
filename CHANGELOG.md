@@ -1,5 +1,13 @@
 # CruiseSip – Änderungsprotokoll
 
+## Version 4.5.2f – Home ohne Direktbuchungen
+
+- Favoriten und „Zuletzt getrunken“ von der Home-Seite entfernt.
+- Getränke werden nur noch über die Tracken-Seite gebucht, auf der die Person sichtbar ausgewählt werden kann.
+- Favoritenfunktion, Favoritenfilter und Zuletzt-Filter bleiben auf der Tracken-Seite vollständig erhalten.
+- Schnellzugriffe auf Tracken, Verlauf und Auswertung bleiben auf Home bestehen.
+- Keine Änderung an Reisen, Personen, Buchungen, IndexedDB, Backup oder Geräteabgleich.
+
 ## Version 4.5.2e – Kompakte Reiseanzeige auf Home
 
 - Karte der aktuellen Reise auf der Home-Seite deutlich kompakter gestaltet.

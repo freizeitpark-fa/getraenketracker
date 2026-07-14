@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '4.5.2';
-const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714d';
-const APP_BUILD = '4.5.2e';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.2d';
+const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714f';
+const APP_BUILD = '4.5.2f';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.2f';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -1259,8 +1259,6 @@ function viewDashboard() {
   const trip = currentTrip();
   const today = calc(logsByFilter('today'));
   const total = calc(currentLogs());
-  const favorites = favoriteIds().map(id => drinkById(id)).filter(Boolean).slice(0, 6);
-  const recent = recentDrinkIds().map(id => drinkById(id)).filter(Boolean).slice(0, 6);
   return `
     <section class="screen">
       <div class="heroCard dashboardHero dashboardTripCard ${trip?.archived ? 'completed' : ''}">
@@ -1282,7 +1280,7 @@ function viewDashboard() {
         ${kpi('Zu zahlen', eur(total.paid), 'nicht enthalten/unklar')}
       </div>
       ${dailyOverviewHtml()}
-      <div id="dashboardQuick">${dashboardQuickHtml(favorites, recent)}</div>
+      <div id="dashboardQuick">${dashboardQuickHtml()}</div>
       ${setupWarningsHtml()}
     </section>`;
 }
@@ -1323,7 +1321,7 @@ function setupWarningsHtml() {
   return `<div class="card warningCard"><h2>Noch offen</h2><p>${missing.map(esc).join(' · ')}</p><button class="secondary" data-route="settings">Einrichtung öffnen</button></div>`;
 }
 
-function dashboardQuickHtml(favorites, recent) {
+function dashboardQuickHtml() {
   const locked = isTripCompleted();
   return `
     <div class="card quickCard">
@@ -1334,17 +1332,9 @@ function dashboardQuickHtml(favorites, recent) {
         <button class="quickAction" data-route="stats"><b>∑</b><span>Auswertung</span></button>
         ${locked ? '<button class="quickAction" data-route="trips"><b>✓</b><span>Reise verwalten</span></button>' : ''}
       </div>
-    </div>
-    <div class="card">
-      <div class="sectionHead"><h2>Favoriten</h2><span class="subtle">${favorites.length || 0}</span></div>
-      ${favorites.length ? quickDrinkList(favorites, locked) : '<p class="emptyText">Noch keine Favoriten. Im Tracking Stern antippen.</p>'}
-    </div>
-    <div class="card">
-      <div class="sectionHead"><h2>Zuletzt getrunken</h2><span class="subtle">${recent.length || 0}</span></div>
-      ${recent.length ? quickDrinkList(recent, locked) : '<p class="emptyText">Noch kein Verlauf vorhanden.</p>'}
     </div>`;
 }
-function renderDashboardQuick() { const holder = $('#dashboardQuick'); if (holder) holder.innerHTML = dashboardQuickHtml(favoriteIds().map(id => drinkById(id)).filter(Boolean).slice(0, 6), recentDrinkIds().map(id => drinkById(id)).filter(Boolean).slice(0, 6)); }
+function renderDashboardQuick() { const holder = $('#dashboardQuick'); if (holder) holder.innerHTML = dashboardQuickHtml(); }
 function quickDrinkList(drinks, readOnly = false) { return `<div class="compactList">${drinks.map(d => readOnly ? `<div class="compactDrink readOnly"><span>${esc(d.name)}</span><b>${eur(d.price)}</b></div>` : `<button class="compactDrink" data-action="trackDrink" data-id="${esc(d.id)}"><span>${esc(d.name)}</span><b>${eur(d.price)}</b></button>`).join('')}</div>`; }
 function kpi(label, value, sub) { return `<article class="kpi"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(sub)}</small></article>`; }
 
@@ -3991,6 +3981,17 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.2f</h2>
+  <ul>
+    <li>Favoriten und zuletzt getrunkene Getränke wurden von der Home-Seite entfernt.</li>
+    <li>Direkte Getränkebuchungen erfolgen damit nur noch auf der Tracken-Seite mit sichtbarer Personenauswahl.</li>
+    <li>Favoriten, Zuletzt-Filter und individuelle Sortierung bleiben in der Tracken-Ansicht vollständig erhalten.</li>
+  </ul>
+  <h2>Version 4.5.2e</h2>
+  <ul>
+    <li>Die Karte der aktuellen Reise auf Home wurde kompakter gestaltet.</li>
+    <li>Schiff, Reisestatus, Reisename, Zeitraum und Reisetage bleiben klar erkennbar.</li>
+  </ul>
   <h2>Version 4.5.2d</h2>
   <ul>
     <li>Neuer Assistent für die Reiseeinrichtung: Reise importieren oder manuell anlegen, Personen erfassen und optional für ein zweites Gerät exportieren.</li>
