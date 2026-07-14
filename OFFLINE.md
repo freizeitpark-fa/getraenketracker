@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 5.0.2**, Build **5.0.2b**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 5.1.0**, Build **5.1.0a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -77,3 +77,8 @@ Hinweis Build 4.5.3c: Die PDF-Druckansicht wird als eigenständige lokale Berich
 ## Paketprognose in Version 4.5.4
 
 Amortisationsgrad, Break-even und Hochrechnung werden vollständig lokal aus den gespeicherten Buchungen berechnet. Die Funktion benötigt keine Internetverbindung und verändert weder den Offline-Cache noch die IndexedDB-Datenstruktur.
+
+
+## Interne Wiederherstellungspunkte ab 5.1.0
+
+Die lokalen Sicherungspunkte liegen im IndexedDB-Store `snapshots` und funktionieren vollständig offline. Sie bleiben ausschließlich auf dem Gerät und ersetzen kein externes Vollbackup.

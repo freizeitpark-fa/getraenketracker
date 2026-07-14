@@ -1418,3 +1418,15 @@ html[data-route="track"] .drinkSortControl.compact{display:block!important;paddi
 html[data-route="track"] .drinkSortControl.compact select{height:34px!important;border-radius:12px!important;padding-left:9px!important;font-size:10px!important}
 .srOnly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 @media(max-width:350px){html[data-route="track"] .trackListToolbar{grid-template-columns:minmax(0,1fr) 126px}html[data-route="track"] .personQuickHeading small{display:block!important;max-width:42%}html[data-route="track"] .personQuickButton{max-width:132px!important}html[data-route="track"] .personQuickName{max-width:78px!important}}
+
+/* CruiseSip v5.1.0a - interne Wiederherstellungspunkte */
+.internalRestoreCard{display:grid;gap:12px}
+.restorePointList{display:grid;gap:9px}
+.restorePointRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px;border:1px solid var(--line);border-radius:15px;background:var(--cardSolid)}
+.restorePointCopy{display:grid;gap:3px;min-width:0}
+.restorePointCopy b,.restorePointCopy small,.restorePointCopy span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.restorePointCopy b{font-size:14px;white-space:nowrap}
+.restorePointCopy small{font-size:11px;color:var(--muted);white-space:nowrap}
+.restorePointCopy span{font-size:10px;color:var(--muted);white-space:nowrap}
+.restorePointActions{display:flex;gap:7px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+@media(max-width:560px){.restorePointRow{grid-template-columns:1fr}.restorePointActions{justify-content:stretch}.restorePointActions .mini{flex:1}}

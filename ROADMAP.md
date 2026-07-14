@@ -1,3 +1,11 @@
+## Version 5.1.0 Interne Wiederherstellungspunkte
+
+- bis zu fünf gerätebezogene Sicherungsstände
+- automatische Sicherung vor kritischen Datenänderungen
+- manueller Sicherungspunkt im Setup
+- kontrollierte Wiederherstellung mit zusätzlicher Rückfallsicherung
+- keine Änderung an Reiseexport- und Vollbackupformaten
+
 ## Version 5.0.2b Bedienreihenfolge
 
 - Kategorien und Person werden zuerst gewählt.

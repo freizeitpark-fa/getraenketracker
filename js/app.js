@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.0.2';
-const APP_CACHE_NAME = 'cruisesip-v5-0-2-20260714b';
-const APP_BUILD = '5.0.2b';
-const SERVICE_WORKER_URL = './sw.js?v=5.0.2b';
+const APP_VERSION = '5.1.0';
+const APP_CACHE_NAME = 'cruisesip-v5-1-0-20260714a';
+const APP_BUILD = '5.1.0a';
+const SERVICE_WORKER_URL = './sw.js?v=5.1.0a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -25,6 +25,9 @@ const STORE_NAMES = ['settings', 'trips', 'persons', 'drinks', 'logs', 'imports'
 const SNAPSHOT_STORE = 'snapshots';
 const ALL_DB_STORES = [...STORE_NAMES, SNAPSHOT_STORE];
 const V5_MIGRATION_SNAPSHOT_ID = 'migration-v5.0.0';
+const INTERNAL_SNAPSHOT_TYPE = 'CruiseSipInternalRestorePoint';
+const INTERNAL_SNAPSHOT_PREFIX = 'restore_';
+const INTERNAL_SNAPSHOT_LIMIT = 5;
 const PERSON_COLORS = ['#e0f2fe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#ccfbf1', '#f1f5f9'];
 const QUICK_TERMS = ['kaffee', 'cappuccino', 'latte', 'espresso', 'kakao', 'tee', 'cola', 'fanta', 'sprite', 'wasser', 'apfelsaft', 'orangensaft', 'aida iced tea', 'aida lemonade', 'dodo', 'milchshake', 'radeberger', 'aperol', 'hugo', 'sprizz'];
 const DRINK_SORT_OPTIONS = [
@@ -91,7 +94,8 @@ let state = {
   multiPersonMode: false,
   selectedPersonIds: [],
   undoLogs: [],
-  migrationSnapshot: null
+  migrationSnapshot: null,
+  restorePoints: []
 };
 
 const actionLocks = Object.create(null);
@@ -396,6 +400,68 @@ async function ensureV5MigrationSnapshot() {
   });
 }
 
+function internalRestorePointRows(rows = []) {
+  return (rows || [])
+    .filter(row => row?.type === INTERNAL_SNAPSHOT_TYPE && String(row.id || '').startsWith(INTERNAL_SNAPSHOT_PREFIX))
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+}
+async function pruneInternalRestorePoints() {
+  if (!db.objectStoreNames.contains(SNAPSHOT_STORE)) return;
+  const rows = internalRestorePointRows(await all(SNAPSHOT_STORE));
+  for (const row of rows.slice(INTERNAL_SNAPSHOT_LIMIT)) await del(SNAPSHOT_STORE, row.id);
+}
+async function createInternalRestorePoint(reason, details = {}) {
+  if (!db.objectStoreNames.contains(SNAPSHOT_STORE)) return null;
+  const snapshot = await readAllStoresSnapshot();
+  const createdAt = nowIso();
+  const restorePoint = {
+    id: `${INTERNAL_SNAPSHOT_PREFIX}${Date.now()}_${uid()}`,
+    type: INTERNAL_SNAPSHOT_TYPE,
+    appVersion: APP_VERSION,
+    build: APP_BUILD,
+    reason: String(reason || 'Manueller Sicherungspunkt'),
+    details: isPlainRecord(details) ? details : {},
+    createdAt,
+    counts: Object.fromEntries(STORE_NAMES.map(store => [store, (snapshot[store] || []).length])),
+    data: snapshot
+  };
+  await put(SNAPSHOT_STORE, restorePoint);
+  await pruneInternalRestorePoints();
+  return restorePoint;
+}
+async function createManualRestorePoint() {
+  await createInternalRestorePoint('Manuell erstellt');
+  await loadState();
+  render();
+  toast('Interner Wiederherstellungspunkt erstellt');
+}
+async function restoreInternalRestorePoint(id) {
+  const restorePoint = state.restorePoints.find(row => row.id === id) || await get(SNAPSHOT_STORE, id);
+  if (!restorePoint?.data) {
+    alert('Der gewählte Wiederherstellungspunkt ist nicht mehr vorhanden.');
+    return;
+  }
+  const confirmation = prompt(`Lokale CruiseSip-Daten auf den Stand vom ${formatDateTime(restorePoint.createdAt)} zurücksetzen?\n\nZur Bestätigung WIEDERHERSTELLEN eingeben.`);
+  if (confirmation !== 'WIEDERHERSTELLEN') return;
+  await createInternalRestorePoint('Vor Wiederherstellung eines Sicherungspunkts', { restoredPointId: restorePoint.id });
+  await replaceAllStoresAtomic(restorePoint.data);
+  await putSetting('appVersion', APP_VERSION);
+  await putSetting('lastInternalRestoreAt', nowIso());
+  await loadState();
+  state.route = 'settings';
+  render();
+  alert('Der lokale Datenbestand wurde wiederhergestellt. Die aktuelle App-Version bleibt installiert.');
+}
+async function deleteInternalRestorePoint(id) {
+  const restorePoint = state.restorePoints.find(row => row.id === id);
+  if (!restorePoint) return;
+  if (!confirm(`Wiederherstellungspunkt vom ${formatDateTime(restorePoint.createdAt)} dauerhaft löschen?`)) return;
+  await del(SNAPSHOT_STORE, id);
+  await loadState();
+  render();
+  toast('Wiederherstellungspunkt gelöscht');
+}
+
 async function restoreV5MigrationSnapshot() {
   const snapshot = await get(SNAPSHOT_STORE, V5_MIGRATION_SNAPSHOT_ID);
   if (!snapshot?.data) {
@@ -404,6 +470,7 @@ async function restoreV5MigrationSnapshot() {
   }
   const confirmation = prompt('Die lokalen Kerndaten werden auf den Stand vor dem v5-Update zurückgesetzt. Gib zur Bestätigung WIEDERHERSTELLEN ein.');
   if (confirmation !== 'WIEDERHERSTELLEN') return;
+  await createInternalRestorePoint('Vor Wiederherstellung des v5-Migrationsstands');
   await replaceAllStoresAtomic(snapshot.data);
   await putSetting('appVersion', APP_VERSION);
   await putSetting('v5MigrationRestoredAt', nowIso());
@@ -493,7 +560,9 @@ async function loadState() {
   state.logs = (await all('logs')).sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0));
   state.imports = (await all('imports')).sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
   state.barkarten = await all('barkarten');
-  state.migrationSnapshot = db.objectStoreNames.contains(SNAPSHOT_STORE) ? await get(SNAPSHOT_STORE, V5_MIGRATION_SNAPSHOT_ID) : null;
+  const snapshotRows = db.objectStoreNames.contains(SNAPSHOT_STORE) ? await all(SNAPSHOT_STORE) : [];
+  state.migrationSnapshot = snapshotRows.find(row => row.id === V5_MIGRATION_SNAPSHOT_ID) || null;
+  state.restorePoints = internalRestorePointRows(snapshotRows);
   state.currentTripId = state.settings.currentTripId || state.trips.find(t => !t.archived)?.id || state.trips[0]?.id || null;
   if (!state.trips.find(t => t.id === state.currentTripId) && state.trips[0]) state.currentTripId = state.trips[0].id;
   if (state.currentTripId && state.settings.currentTripId !== state.currentTripId) {
@@ -1069,6 +1138,9 @@ async function handleClick(event) {
   if (action === 'replaceFullBackup') { await runActionOnce('replaceFullBackup', replaceFullBackup); return; }
   if (action === 'backupTest') { await runActionOnce('backupTest', backupTest); return; }
   if (action === 'restoreV5MigrationSnapshot') { await runActionOnce('restoreV5MigrationSnapshot', restoreV5MigrationSnapshot); return; }
+  if (action === 'createInternalRestorePoint') { await runActionOnce('createInternalRestorePoint', createManualRestorePoint); return; }
+  if (action === 'restoreInternalRestorePoint') { await runActionOnce(`restoreInternalRestorePoint:${id}`, () => restoreInternalRestorePoint(id)); return; }
+  if (action === 'deleteInternalRestorePoint') { await deleteInternalRestorePoint(id); return; }
   if (action === 'importTrip') { openFile('trip'); return; }
   if (action === 'cancelTripImport') { state.pendingTripImport = null; render(); return; }
   if (action === 'applyTripImport') { await runActionOnce('applyTripImport', applyPreparedTripImport); return; }
@@ -3017,6 +3089,7 @@ async function clearCurrentItinerary() {
   const count = tripItinerary(trip).length;
   if (!trip || !count) return;
   if (!confirm(`Den gespeicherten Reiseverlauf mit ${count} Reisetagen entfernen? Getränkebuchungen bleiben unverändert.`)) return;
+  await createInternalRestorePoint('Vor dem Entfernen eines Reiseverlaufs', { tripId: trip.id, tripName: trip.name || '', itineraryDays: count });
   const next = { ...trip, itinerary: [], itineraryImportedAt: '', itinerarySource: '', updatedAt: nowIso() };
   await put('trips', next);
   state.pendingItineraryImport = null;
@@ -3404,6 +3477,7 @@ async function saveDrinkArticleForm(form) {
   const applyLogs = !!form.elements.namedItem('applyLogs')?.checked;
   const activeId = activeTripId();
   if (applyLogs && activeId && !ensureTripWritable(activeId, 'Die Aktualisierung bestehender Buchungen')) return;
+  if (applyLogs) await createInternalRestorePoint('Vor einer Barkartenänderung mit Aktualisierung bestehender Buchungen', { drinkId: id, drinkName: drink.name || '' });
   const updated = {
     ...drink,
     price,
@@ -3456,6 +3530,16 @@ function migrationSnapshotCardHtml() {
   return `<div class="card migrationSnapshotCard"><div class="sectionHead"><div><h2>v5-Sicherheitskopie</h2><p class="hint">Vor der ersten v5-Datenmigration automatisch lokal erstellt. Sie wird nicht mit der normalen App-Nutzung verändert.</p></div><span class="diagnosticSummary ok">vorhanden</span></div><div class="migrationSnapshotMeta"><span>${esc(snapshot.fromVersion || 'v4')} → ${esc(snapshot.toVersion || APP_VERSION)}</span><span>${esc(formatDateTime(snapshot.createdAt))}</span><span>${Number(counts.logs || 0)} Buchungen · ${Number(counts.persons || 0)} Personen</span></div><button class="secondary dangerText" data-action="restoreV5MigrationSnapshot">Stand vor v5 wiederherstellen</button></div>`;
 }
 
+function internalRestorePointsCardHtml() {
+  const rows = state.restorePoints || [];
+  const list = rows.length ? `<div class="restorePointList">${rows.map(row => {
+    const counts = row.counts || {};
+    const detail = row.details?.tripName || row.details?.fileName || '';
+    return `<article class="restorePointRow"><div class="restorePointCopy"><b>${esc(row.reason || 'Sicherungspunkt')}</b><small>${esc(formatDateTime(row.createdAt))}${detail ? ` · ${esc(detail)}` : ''}</small><span>${Number(counts.trips || 0)} Reisen · ${Number(counts.persons || 0)} Personen · ${Number(counts.logs || 0)} Buchungen</span></div><div class="restorePointActions"><button class="mini" data-action="restoreInternalRestorePoint" data-id="${esc(row.id)}">Wiederherstellen</button><button class="mini dangerText" data-action="deleteInternalRestorePoint" data-id="${esc(row.id)}">Löschen</button></div></article>`;
+  }).join('')}</div>` : '<p class="emptyText">Noch keine internen Wiederherstellungspunkte vorhanden.</p>';
+  return `<div class="card internalRestoreCard"><div class="sectionHead"><div><h2>Interne Wiederherstellungspunkte</h2><p class="hint">CruiseSip erstellt vor kritischen Änderungen automatisch eine lokale Sicherung. Zusätzlich kann jederzeit manuell gesichert werden.</p></div><span class="diagnosticSummary ${rows.length ? 'ok' : 'neutral'}">${rows.length} / ${INTERNAL_SNAPSHOT_LIMIT}</span></div>${list}<button class="secondary" data-action="createInternalRestorePoint">Jetzt Sicherungspunkt erstellen</button><p class="hint">Gespeichert werden höchstens ${INTERNAL_SNAPSHOT_LIMIT} Stände auf diesem Gerät. Sie werden nicht exportiert und ersetzen kein externes Vollbackup.</p></div>`;
+}
+
 function viewSettings() {
   const b = activeBarkarteVersion();
   return `
@@ -3478,6 +3562,7 @@ function viewSettings() {
         <p class="hint">Die Diagnose löscht oder verändert keine Reisen und Buchungen. Für den endgültigen Praxistest CruiseSip einmal im Flugmodus vollständig neu öffnen.</p>
       </div>
       ${migrationSnapshotCardHtml()}
+      ${internalRestorePointsCardHtml()}
       ${fullBackupCardHtml()}
       ${deviceSyncCardHtml()}
       <div class="card themeCard"><div class="sectionHead"><div><h2>Darstellung</h2><p class="hint">Theme sofort als Live-Vorschau auf diesem Gerät anwenden.</p></div><span class="subtle">${esc(themeLabel())}</span></div>
@@ -3783,6 +3868,7 @@ async function deleteTrip(id) {
   const trip = state.trips.find(t => t.id === id); if (!trip) return;
   const answer = prompt(`Reise „${trip.name}“ mit allen Einträgen löschen?\nZum Bestätigen bitte LÖSCHEN eingeben.`);
   if (answer !== 'LÖSCHEN') return;
+  await createInternalRestorePoint('Vor dem Löschen einer Reise', { tripId: id, tripName: trip.name || '' });
   for (const p of state.persons.filter(p => p.tripId === id)) await del('persons', p.id);
   for (const l of state.logs.filter(l => l.tripId === id)) await del('logs', l.id);
   await del('trips', id);
@@ -4160,6 +4246,7 @@ async function mergeFullBackup() {
     conflicts: pending.preview?.totalConflicts || 0,
     details: addedCounts
   });
+  if (totalAdded > 0) await createInternalRestorePoint('Vor dem Ergänzen eines Vollbackups', { fileName: pending.fileName, additions: totalAdded });
   await putRowsAtomic(rows);
   state.pendingBackup = null;
   await loadState();
@@ -4224,6 +4311,7 @@ async function replaceFullBackup() {
   if (!confirm('Alle derzeit lokalen CruiseSip-Daten werden durch dieses Backup ersetzt. Fortfahren?')) return;
   const restoreDeviceIdentity = !!$('#restoreBackupDeviceIdentity')?.checked;
   const rows = prepareReplacementRows(pending.payload, restoreDeviceIdentity);
+  await createInternalRestorePoint('Vor dem vollständigen Ersetzen durch ein Backup', { fileName: pending.fileName });
   await replaceAllStoresAtomic(rows);
   state.pendingBackup = null;
   await loadState();
@@ -4737,6 +4825,8 @@ async function applyPreparedTripImport() {
       conflicts: fileSummary.conflicts
     });
   }
+  const tripImportAdditions = Number(plan.summary.trips || 0) + Number(plan.summary.persons || 0) + Number(plan.summary.logs || 0);
+  if (tripImportAdditions > 0) await createInternalRestorePoint('Vor dem Zusammenführen von Geräteexporten', { files: plan.summary.files, additions: tripImportAdditions });
   await putRowsAtomic(plan.rows);
   state.pendingTripImport = null;
   await loadState();
@@ -4790,6 +4880,7 @@ async function importBarkarte(text, fileName) {
   comparison.fileName = fileName;
   await putSetting('lastBarkarteComparison', comparison);
   if (applied) {
+    await createInternalRestorePoint('Vor dem Ersetzen der Barkarte', { fileName, incomingVersion: data.version || fileName, incomingCount: incoming.length });
     await clearStore('drinks');
     for (const drink of incoming) await put('drinks', drink);
     await put('barkarten', { id: data.version || `barkarte_${uid()}`, version: data.version || fileName, source: data.source || fileName, importedAt: nowIso(), count: incoming.length, isDefault: false });
@@ -4834,7 +4925,7 @@ function localDateInputValue(ts) { const d = new Date(Number(ts)); return Number
 function localTimeInputValue(ts) { const d = new Date(Number(ts)); return Number.isNaN(d.getTime()) ? '' : `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
 function localDateTimeToTimestamp(date, time) { const match = String(time || '').match(/^(\d{2}):(\d{2})$/); if (!date || !match) return NaN; const [year, month, day] = String(date).split('-').map(Number); const hour = Number(match[1]), minute = Number(match[2]); if (![year, month, day, hour, minute].every(Number.isFinite) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return NaN; const d = new Date(year, month - 1, day, hour, minute, 0, 0); return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day && d.getHours() === hour && d.getMinutes() === minute ? d.getTime() : NaN; }
 function formatDate(value) { if (!value) return 'offen'; const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }); }
-function formatDateTime(ts) { const d = new Date(Number(ts)); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+function formatDateTime(ts) { const numeric = Number(ts); const value = String(ts ?? '').trim() && Number.isFinite(numeric) ? numeric : ts; const d = new Date(value); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
 function formatDateKey(ts) { const d = new Date(Number(ts)); return Number.isNaN(d.getTime()) ? 'Unbekannt' : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }); }
 function toast(message) {
   const el = $('#toast');
@@ -4846,6 +4937,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.1.0</h2>
+  <ul>
+    <li>Bis zu fünf vollständige lokale Wiederherstellungspunkte im getrennten Snapshot-Speicher.</li>
+    <li>Automatische Sicherung vor kritischen Änderungen wie Reise-Löschung, Barkartenwechsel, Vollbackup-Wiederherstellung und Geräteimport.</li>
+    <li>Manuelle Sicherung, übersichtliche Verwaltung und kontrollierte Wiederherstellung direkt im Setup.</li>
+    <li>Vor jeder Wiederherstellung wird der aktuelle Stand nochmals gesichert; die installierte App-Version bleibt erhalten.</li>
+    <li>Interne Sicherungspunkte bleiben auf dem Gerät und verändern Reiseexporte sowie Vollbackupformate nicht.</li>
+  </ul>
   <h2>Version 5.0.2</h2>
   <ul>
     <li>Erfassungsansicht deutlich kompakter aufgebaut; die Getränkesuche steht nun als erstes Bedienelement über allen Auswahlen.</li>

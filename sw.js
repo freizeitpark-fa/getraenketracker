@@ -1,10 +1,10 @@
-const CACHE_NAME = 'cruisesip-v5-0-2-20260714b';
+const CACHE_NAME = 'cruisesip-v5-1-0-20260714a';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json?v=5.0.2b',
-  './css/styles.css?v=5.0.2b',
-  './js/app.js?v=5.0.2b',
+  './manifest.json?v=5.1.0a',
+  './css/styles.css?v=5.1.0a',
+  './js/app.js?v=5.1.0a',
   './data/barkarte.json',
   './data/pakete.json',
   './icons/icon-192.png',
@@ -26,6 +26,7 @@ const ASSETS = [
   './docs/BERICHT_EXPORT.md',
   './docs/PAKET_PROGNOSE.md',
   './docs/V5_UMSETZUNG.md',
+  './docs/WIEDERHERSTELLUNGSPUNKTE.md',
   './TESTBERICHT.md'
 ];
 

@@ -68,3 +68,18 @@ Der bestehende boolesche Wert `trips.archived` dient als Abschluss- und Schreibs
 - Vor der ersten v5-Migration wird einmalig eine interne Sicherheitskopie der Kern-Stores angelegt. Sie ist nicht Bestandteil normaler Vollbackups und kann im Setup kontrolliert wiederhergestellt werden.
 - Neue Buchungen können zusätzlich den Reiseverlaufs-Kontext (`itineraryDate`, `itineraryType`, `itineraryLocation`, Hafen/Land und Liegezeiten) enthalten. Die finanzielle Berechnung bleibt davon unabhängig.
 - Bei Mehrfacherfassung entsteht je Person ein eigenständiger Buchungssatz mit eigener ID, eigenem Paketstatus und eigenem Merge-Key.
+
+## Interne Wiederherstellungspunkte ab 5.1.0
+
+Der bestehende Store `snapshots` enthält neben der einmaligen v5-Migrationssicherung reguläre Wiederherstellungspunkte vom Typ `CruiseSipInternalRestorePoint`.
+
+Jeder Wiederherstellungspunkt enthält:
+
+- stabile Snapshot-ID
+- App-Version und Build
+- Anlass und optionale Kontextdaten
+- Erstellungszeitpunkt
+- Anzahl der Datensätze je Kern-Store
+- vollständige Kopie der sieben Kern-Stores
+
+Es werden höchstens fünf reguläre Wiederherstellungspunkte aufbewahrt. Die v5-Migrationssicherung wird separat behandelt. Der Store `snapshots` bleibt weiterhin außerhalb von Vollbackup und Reiseexport, damit Sicherungen nicht rekursiv vervielfacht werden.

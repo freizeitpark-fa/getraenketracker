@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.1.0 – Interne Wiederherstellungspunkte
+
+- Bis zu fünf vollständige lokale Sicherungsstände im getrennten Snapshot-Store.
+- Automatische Sicherung vor dem Löschen einer Reise, dem Ersetzen der Barkarte, kritischen Backup- und Geräteimporten sowie Massenänderungen bestehender Buchungen.
+- Manueller Sicherungspunkt jederzeit unter Setup.
+- Übersicht mit Anlass, Zeitpunkt und Anzahl von Reisen, Personen und Buchungen.
+- Kontrollierte Wiederherstellung mit Texteingabe; vor dem Zurücksetzen wird der aktuelle Stand nochmals gesichert.
+- Interne Sicherungen bleiben gerätebezogen und werden nicht in Backups oder Reiseexporte aufgenommen.
+- App- und Service-Worker-Build auf `5.1.0a` erhöht.
+
 ## 5.0.2b – Suche direkt über der Getränkeliste
 
 - Reihenfolge der Erfassungsansicht korrigiert: Kategorien → Person → Suche → Getränke.

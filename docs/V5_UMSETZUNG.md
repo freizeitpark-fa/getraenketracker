@@ -41,8 +41,8 @@ Beim ersten Start nach dem Update von v4 auf v5 wird vor der Migration einmalig 
 
 ## Technischer Stand
 
-- App-Version: 5.0.2
-- Build: 5.0.2b
+- App-Version: 5.1.0
+- Build: 5.1.0a
 - IndexedDB-Version: 2
 - Neue Store-Struktur: `snapshots`
 - Bestehende Kern-Stores und IDs bleiben unverändert.
@@ -64,3 +64,8 @@ Die Erfassungsansicht wurde für den praktischen iPhone-Einsatz neu verdichtet. 
 ## Ergänzung 5.0.2b
 
 Die Suchleiste wurde innerhalb des kompakten Erfassungskopfs hinter Kategorien und Person verschoben. Sie steht damit unmittelbar über der Getränkeliste.
+
+
+## Ergänzung 5.1.0
+
+Der bereits vorhandene Snapshot-Store wird für bis zu fünf reguläre interne Wiederherstellungspunkte erweitert. CruiseSip sichert vor kritischen Änderungen automatisch den vollständigen lokalen Kernbestand. Wiederherstellungspunkte können im Setup manuell erstellt, kontrolliert wiederhergestellt und einzeln gelöscht werden. Die v5-Migrationssicherung bleibt getrennt bestehen.

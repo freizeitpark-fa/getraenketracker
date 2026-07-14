@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.0.2** (Build **5.0.2b**)
+Aktuelle Entwicklungsfassung: **5.1.0** (Build **5.1.0a**)
 
-Version 5.0.2 verdichtet die Erfassungsansicht für das iPhone: Kategorien und Person zuerst, Suche direkt über den Getränken, kompakter Personenwechsel, mehr sichtbare Getränkekacheln und eindeutige Einzelerfassung. Die persönliche Wiederholung bleibt auf Home; die Mehrfachauswahl wurde aus der Hauptbedienung zurückgenommen. Theme-System, Reiseintelligenz und v5-Migrationssicherung bleiben erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 5.1.0 ergänzt bis zu fünf interne Wiederherstellungspunkte. Vor kritischen Änderungen wie Reise-Löschung, Barkartenwechsel, Vollbackup-Wiederherstellung und Geräteimport wird automatisch lokal gesichert. Manuelle Sicherungen und kontrollierte Wiederherstellung stehen im Setup bereit. Die kompakte Erfassungsansicht, Themes, Reiseintelligenz und bestehende Backupformate bleiben unverändert. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v5.0.2 Kompakte Erfassung`.
+4. Commit erstellen, z. B. `CruiseSip v5.1.0 Interne Wiederherstellungspunkte`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.0.2` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.1.0` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur
@@ -73,6 +73,7 @@ CruiseSip/
 - Offline-Onboarding und Backup-Test
 - Offline-Sicherheitsstatus mit Prüfung von Installation, Service Worker, App-Cache und IndexedDB
 - Berichtsexport als Excel-CSV, eigenständige HTML-Datei und druckfreundliche PDF-Ansicht
+- bis zu fünf lokale Wiederherstellungspunkte vor kritischen Änderungen
 - lokal gespeicherter Wechsler zwischen heller und dunkler Ansicht
 
 ## Technische Hinweise
