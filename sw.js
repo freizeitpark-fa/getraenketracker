@@ -1,10 +1,10 @@
-const CACHE_NAME = 'cruisesip-v4-5-2-20260714h';
+const CACHE_NAME = 'cruisesip-v4-5-3-20260714a';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json?v=4.5.2h',
-  './css/styles.css?v=4.5.2h',
-  './js/app.js?v=4.5.2h',
+  './manifest.json?v=4.5.3a',
+  './css/styles.css?v=4.5.3a',
+  './js/app.js?v=4.5.3a',
   './data/barkarte.json',
   './data/pakete.json',
   './icons/icon-192.png',
@@ -22,7 +22,8 @@ const ASSETS = [
   './docs/DATENMODELL.md',
   './docs/GITHUB_PAGES.md',
   './docs/ZWEITES_GERAET.md',
-  './docs/REISEVERLAUF_IMPORT.md'
+  './docs/REISEVERLAUF_IMPORT.md',
+  './docs/BERICHT_EXPORT.md'
 ];
 
 self.addEventListener('install', event => {

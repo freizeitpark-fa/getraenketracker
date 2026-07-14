@@ -1260,3 +1260,62 @@ html[data-theme="dark"] .updateDock{background:rgba(10,32,56,.97)}
 @media (min-width:1024px) and (prefers-color-scheme:dark){
   html:not([data-theme="light"]) body{background:linear-gradient(145deg,#02050a 0%,#0b111b 48%,#05070b 100%);}
 }
+
+
+/* Version 4.5.3: Berichtsexport */
+.reportExportCard{display:grid;gap:14px;min-width:0;}
+.reportExportButtons{display:grid;grid-template-columns:1fr;gap:10px;}
+.reportExportButtons button{display:flex;min-width:0;min-height:64px;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;text-align:left;}
+.reportExportButtons button span{font-weight:800;}
+.reportExportButtons button small{font-size:11px;font-weight:600;opacity:.72;}
+.reportExportHint{margin:0;color:var(--muted);font-size:12px;line-height:1.45;}
+.printReportRoot{display:none;}
+@media (min-width:640px){.reportExportButtons{grid-template-columns:repeat(3,minmax(0,1fr));}.reportExportButtons button{height:100%;}}
+@media print{
+  body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;background:#fff!important;}
+  body>*:not(#printReportRoot){display:none!important;}
+  #printReportRoot{display:block!important;position:static!important;width:100%!important;background:#fff!important;color:#18202a!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif!important;line-height:1.35!important;}
+  #printReportRoot *{box-sizing:border-box!important;}
+  #printReportRoot .exportReport{width:auto!important;margin:0!important;padding:0!important;background:#fff!important;color:#18202a!important;box-shadow:none!important;}
+  #printReportRoot .exportHeader{display:flex!important;justify-content:space-between!important;gap:20px!important;padding-bottom:16px!important;border-bottom:3px solid #1f73b7!important;}
+  #printReportRoot .exportHeader p{margin:0 0 5px!important;color:#1f73b7!important;font-weight:800!important;text-transform:uppercase!important;letter-spacing:.08em!important;font-size:10px!important;}
+  #printReportRoot .exportHeader h1{margin:0!important;font-size:24px!important;line-height:1.12!important;}
+  #printReportRoot .exportHeader h2{margin:5px 0 0!important;font-size:15px!important;color:#526071!important;}
+  #printReportRoot .exportHeaderMeta{display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:4px!important;text-align:right!important;font-size:10px!important;}
+  #printReportRoot section{margin-top:20px!important;}
+  #printReportRoot section>h2,#printReportRoot .exportTwoColumns>div>h2{margin:0 0 9px!important;font-size:15px!important;color:#172033!important;}
+  #printReportRoot .exportNotice{padding:10px 12px!important;border:1px solid #b9d6ed!important;border-radius:10px!important;background:#f2f8fd!important;}
+  #printReportRoot .exportNotice p{margin:3px 0 0!important;font-size:10px!important;}
+  #printReportRoot .exportMetricGrid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;}
+  #printReportRoot .exportMetric{display:flex!important;flex-direction:column!important;gap:3px!important;padding:9px!important;border:1px solid #dbe3ec!important;border-radius:9px!important;background:#f8fafc!important;break-inside:avoid!important;}
+  #printReportRoot .exportMetric span{font-size:9px!important;color:#5e6b7a!important;}
+  #printReportRoot .exportMetric b{font-size:14px!important;}
+  #printReportRoot .exportMetric small{font-size:8px!important;color:#64748b!important;}
+  #printReportRoot .exportChart{display:grid!important;grid-template-columns:130px 1fr!important;align-items:center!important;gap:18px!important;margin-top:11px!important;padding:10px!important;border:1px solid #dbe3ec!important;border-radius:10px!important;break-inside:avoid!important;}
+  #printReportRoot .exportChart svg{width:120px!important;height:120px!important;}
+  #printReportRoot .exportChart circle{fill:none!important;stroke-width:15!important;}
+  #printReportRoot .exportChart .track{stroke:#e8edf3!important;}
+  #printReportRoot .exportChart .included{stroke:#2f9e62!important;}
+  #printReportRoot .exportChart .outside{stroke:#df5b50!important;}
+  #printReportRoot .exportChart .unclear{stroke:#d9a21b!important;}
+  #printReportRoot .exportChart .value{font-size:18px!important;font-weight:800!important;fill:#172033!important;}
+  #printReportRoot .exportChart .label{font-size:7px!important;fill:#64748b!important;}
+  #printReportRoot .exportLegend{display:grid!important;gap:7px!important;}
+  #printReportRoot .exportLegend>div{display:flex!important;align-items:center!important;gap:7px!important;}
+  #printReportRoot .exportLegend p{display:flex!important;flex-direction:column!important;margin:0!important;font-size:10px!important;}
+  #printReportRoot .exportLegend small{color:#64748b!important;font-size:8px!important;}
+  #printReportRoot .dot{display:block!important;width:9px!important;height:9px!important;border-radius:50%!important;}
+  #printReportRoot .dot.included{background:#2f9e62!important;}#printReportRoot .dot.outside{background:#df5b50!important;}#printReportRoot .dot.unclear{background:#d9a21b!important;}
+  #printReportRoot .exportTableWrap{width:100%!important;overflow:visible!important;border:1px solid #dbe3ec!important;border-radius:8px!important;break-inside:avoid!important;}
+  #printReportRoot .exportTableWrap table{width:100%!important;border-collapse:collapse!important;font-size:8.5px!important;}
+  #printReportRoot .exportTableWrap th{background:#edf3f8!important;text-align:left!important;font-size:7.5px!important;text-transform:uppercase!important;letter-spacing:.02em!important;}
+  #printReportRoot .exportTableWrap th,#printReportRoot .exportTableWrap td{padding:5px 4px!important;border-bottom:1px solid #e5eaf0!important;vertical-align:top!important;}
+  #printReportRoot .exportTableWrap tr:last-child td{border-bottom:0!important;}
+  #printReportRoot .exportTableWrap tbody tr:nth-child(even){background:#fafbfd!important;}
+  #printReportRoot .exportTableWrap small{color:#64748b!important;}
+  #printReportRoot .exportTwoColumns{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;}
+  #printReportRoot .exportEmpty{margin:0!important;padding:10px!important;border:1px dashed #cbd5e1!important;border-radius:8px!important;color:#64748b!important;}
+  #printReportRoot .exportBookings{break-before:page!important;}
+  #printReportRoot footer{margin-top:22px!important;padding-top:10px!important;border-top:1px solid #dbe3ec!important;color:#64748b!important;font-size:8px!important;text-align:center!important;}
+  @page{size:A4 portrait;margin:10mm;}
+}

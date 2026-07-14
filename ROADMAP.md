@@ -1,3 +1,8 @@
+## Version 4.5.3 Berichtsexport abgeschlossen
+
+- CSV, HTML und Druck/PDF vollständig offline umgesetzt.
+- Nächste größere Entwicklungsversion noch festzulegen.
+
 ## Version 4.5.2h Responsives Design
 
 - Responsive Darstellung für Smartphone, Tablet und Desktop umgesetzt.
@@ -182,3 +187,12 @@ Mögliche spätere Punkte:
 - geführter Importassistent für Barkarten-CSV
 - besserer Druck-/PDF-Report aus den Auswertungen
 
+
+
+## Erledigt mit Version 4.5.3
+
+- CSV-Export für Excel
+- druckfreundliche, eigenständige HTML-Auswertung
+- Export über das iOS-Teilen-Menü und Speichern in der Dateien-App
+- PDF-Erstellung über die iOS-Druckfunktion
+- vollständig offline und ohne externe Bibliotheken

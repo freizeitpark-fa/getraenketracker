@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '4.5.2';
-const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714h';
-const APP_BUILD = '4.5.2h';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.2h';
+const APP_VERSION = '4.5.3';
+const APP_CACHE_NAME = 'cruisesip-v4-5-3-20260714a';
+const APP_BUILD = '4.5.3a';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.3a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -941,6 +941,9 @@ async function handleClick(event) {
   if (action === 'saveLog') { await runActionOnce('saveLog', () => saveLogForm($('#logEditForm'))); return; }
   if (action === 'deleteLog') { await deleteLog(id); return; }
   if (action === 'exportTrip') { await runActionOnce('exportTrip', exportTrip); return; }
+  if (action === 'exportReportCsv') { await runActionOnce('exportReportCsv', exportTripReportCsv); return; }
+  if (action === 'exportReportHtml') { await runActionOnce('exportReportHtml', exportTripReportHtml); return; }
+  if (action === 'printTripReport') { printTripReport(); return; }
   if (action === 'exportFullBackup') { await runActionOnce('exportFullBackup', exportFullBackup); return; }
   if (action === 'importFullBackup') { openFile('fullBackup'); return; }
   if (action === 'cancelFullBackupImport') { state.pendingBackup = null; render(); return; }
@@ -1652,6 +1655,7 @@ function viewStats() {
       <div class="sectionHead statsTitleRow"><h1>Auswertungen</h1><span class="subtle statsTripName" title="${esc(currentTrip()?.name || '')}">${esc(currentTrip()?.name || '')}</span></div>
       ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
+      ${isTripView ? reportExportActionsHtml() : ''}
       <div class="kpiGrid">
         ${kpi('Konsumwert', eur(total.value), `${total.count} Getränke`)}
         ${kpi('Im Paket', eur(total.included), `${total.includedCount} eindeutig enthalten`)}
@@ -1675,6 +1679,251 @@ function statsFilterHtml() {
   const filter = state.statsFilter || 'trip';
   return `<div class="segmented"><button class="${filter === 'today' ? 'active' : ''}" data-action="setStatsFilter" data-id="today">Heute</button><button class="${filter === 'yesterday' ? 'active' : ''}" data-action="setStatsFilter" data-id="yesterday">Gestern</button><button class="${filter === 'trip' ? 'active' : ''}" data-action="setStatsFilter" data-id="trip">Reise</button></div>`;
 }
+function reportExportActionsHtml() {
+  const trip = currentTrip();
+  if (!trip) return '';
+  return `<article class="card reportExportCard">
+    <div class="sectionHead"><div><h2>Bericht exportieren</h2><p class="hint">Erstellt den vollständigen Reisebericht aus den lokal gespeicherten Daten. Die CSV enthält eine Zeile je Buchung; HTML und Druckansicht enthalten zusätzlich Zusammenfassungen, Tageswerte und Personenvergleiche.</p></div><span class="backupFormatBadge">offline</span></div>
+    <div class="reportExportButtons">
+      <button class="secondary" data-action="exportReportCsv"><span>CSV für Excel</span><small>Buchungsdaten strukturiert exportieren</small></button>
+      <button class="secondary" data-action="exportReportHtml"><span>HTML-Bericht</span><small>Speichern oder über iOS teilen</small></button>
+      <button class="primary" data-action="printTripReport"><span>Drucken / PDF</span><small>iOS-Druckansicht öffnen</small></button>
+    </div>
+    <p class="reportExportHint">PDF auf dem iPhone: „Drucken / PDF“ öffnen, die Vorschau vergrößern und anschließend über Teilen in der Dateien-App sichern.</p>
+  </article>`;
+}
+function csvSafeCell(value) {
+  let text = String(value ?? '').replace(/\r?\n/g, ' ').trim();
+  if (/^[=+@]/.test(text) || /^-[^0-9]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+function csvNumber(value) {
+  return (Number(value) || 0).toLocaleString('de-DE', { useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function reportDayNumber(dateKey, trip = currentTrip(), itineraryDay = itineraryDayForDate(dateKey, trip)) {
+  if (Number.isFinite(Number(itineraryDay?.dayNumber)) && Number(itineraryDay.dayNumber) > 0) return Number(itineraryDay.dayNumber);
+  const start = isoDateDayNumber(trip?.startDate);
+  const current = isoDateDayNumber(dateKey);
+  return start !== null && current !== null && current >= start ? current - start + 1 : '';
+}
+function tripReportExportModel() {
+  const trip = currentTrip();
+  if (!trip) return null;
+  const persons = currentPersons().slice();
+  const logs = currentLogs().slice().sort((a, b) => Number(a.ts || 0) - Number(b.ts || 0));
+  const total = calcDetailed(logs);
+  const completion = completionTotals(persons, logs);
+  const overallResult = overallResultPresentation(completion);
+  const daily = tripDailyReport(logs, trip);
+  const drinks = drinkReportRows(logs);
+  const frequent = drinks.slice().sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key, 'de')).slice(0, 10);
+  const expensive = drinks.slice().sort((a, b) => b.maxPrice - a.maxPrice || b.count - a.count || a.key.localeCompare(b.key, 'de')).slice(0, 10);
+  const categories = categoryDetailedStats(logs).sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key, 'de'));
+  const personRows = persons.map(person => {
+    const data = personCompletionStats(person, logs, 'trip');
+    return { person, data, result: resultPresentation(data) };
+  });
+  return {
+    trip,
+    persons,
+    logs,
+    total,
+    completion,
+    overallResult,
+    daily,
+    frequent,
+    expensive,
+    categories,
+    personRows,
+    itinerary: tripItinerary(trip),
+    generatedAt: new Date()
+  };
+}
+function tripReportCsvText(model = tripReportExportModel()) {
+  if (!model) return '';
+  const headers = [
+    'Reise', 'Schiff', 'Reisestatus', 'Reisebeginn', 'Reiseende', 'Reisetag', 'Datum', 'Uhrzeit',
+    'Station', 'Land', 'Tagesart', 'Ankunft', 'Abfahrt', 'Person', 'Getränkepaket', 'Paketpreis EUR',
+    'Getränk', 'Kategorie', 'Paketstatus', 'Preis EUR', 'Erfasst auf', 'Buchungs-ID'
+  ];
+  const rows = model.logs.map(log => {
+    const person = model.persons.find(row => row.id === log.personId);
+    const dateKey = localLogDayKey(log.ts);
+    const itineraryDay = itineraryDayForDate(dateKey, model.trip);
+    return [
+      model.trip.name || '',
+      model.trip.ship || '',
+      model.trip.archived ? 'Abgeschlossen' : 'Laufend',
+      model.trip.startDate || '',
+      model.trip.endDate || '',
+      reportDayNumber(dateKey, model.trip, itineraryDay),
+      dateKey,
+      localTimeInputValue(log.ts),
+      itineraryDay ? itineraryLocationLabel(itineraryDay) : '',
+      itineraryDay?.country || '',
+      itineraryDay ? itineraryTypeLabel(itineraryDay.type) : '',
+      itineraryDay?.arrival || '',
+      itineraryDay?.departure || '',
+      person?.name || log.personName || 'Unbekannt',
+      packageName(person?.packageId || ''),
+      csvNumber(person?.packagePrice),
+      log.drinkName || drinkById(log.drinkId)?.name || 'Unbekannt',
+      resolvedLogCategory(log) || 'Ohne Kategorie',
+      statusLabel(log.packageStatus),
+      csvNumber(log.price),
+      logOriginInfo(log).deviceName,
+      log.id || ''
+    ];
+  });
+  return `\uFEFFsep=;\r\n${[headers, ...rows].map(row => row.map(csvSafeCell).join(';')).join('\r\n')}\r\n`;
+}
+function reportMetricHtml(label, value, sub = '') {
+  return `<div class="exportMetric"><span>${esc(label)}</span><b>${esc(value)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
+}
+function reportTableHtml(headers, rows, emptyText = 'Keine Daten vorhanden.') {
+  if (!rows.length) return `<p class="exportEmpty">${esc(emptyText)}</p>`;
+  return `<div class="exportTableWrap"><table><thead><tr>${headers.map(header => `<th>${esc(header)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function reportStatusDonutHtml(total) {
+  const rows = [
+    { key: 'included', label: 'Im Paket enthalten', count: total.includedCount, value: total.included },
+    { key: 'outside', label: 'Nicht enthalten', count: total.notIncludedCount, value: total.notIncluded },
+    { key: 'unclear', label: 'Unklar', count: total.unclearCount, value: total.unclear }
+  ];
+  let offset = 0;
+  const circles = rows.filter(row => row.count > 0).map(row => {
+    const percentage = total.count ? row.count / total.count * 100 : 0;
+    const html = `<circle class="${row.key}" cx="50" cy="50" r="38" pathLength="100" stroke-dasharray="${percentage.toFixed(3)} ${(100 - percentage).toFixed(3)}" stroke-dashoffset="${(-offset).toFixed(3)}"></circle>`;
+    offset += percentage;
+    return html;
+  }).join('');
+  return `<div class="exportChart"><svg viewBox="0 0 100 100" role="img" aria-label="${esc(total.count)} Getränke nach Paketstatus"><g transform="rotate(-90 50 50)"><circle class="track" cx="50" cy="50" r="38"></circle>${circles}</g><text class="value" x="50" y="48" text-anchor="middle">${total.count}</text><text class="label" x="50" y="59" text-anchor="middle">Getränke</text></svg><div class="exportLegend">${rows.map(row => `<div><span class="dot ${row.key}"></span><p><b>${esc(row.label)}</b><small>${row.count} · ${total.count ? Math.round(row.count / total.count * 100) : 0} % · ${esc(eur(row.value))}</small></p></div>`).join('')}</div></div>`;
+}
+function tripReportDocumentBodyHtml(model = tripReportExportModel(), options = {}) {
+  if (!model) return '';
+  const status = model.trip.archived ? 'Abschlussbericht' : 'Zwischenbericht';
+  const dayInfo = tripDayInfo(model.logs, model.trip);
+  const period = `${formatDate(model.trip.startDate)} – ${formatDate(model.trip.endDate)}`;
+  const personRows = model.personRows.map(({ person, data, result }) => [
+    `<b>${esc(person.name)}</b>`,
+    esc(packageName(person.packageId)),
+    String(data.stats.count),
+    esc(eur(data.stats.value)),
+    `${data.stats.includedCount} · ${esc(eur(data.stats.included))}`,
+    `${data.stats.notIncludedCount} · ${esc(eur(data.stats.notIncluded))}`,
+    `${data.stats.unclearCount} · ${esc(eur(data.stats.unclear))}`,
+    data.packageSelected ? (data.packagePrice ? esc(eur(data.packagePrice)) : 'fehlt') : 'Kein Paket',
+    `<b>${esc(result.label)}</b><br><small>${esc(result.value)} · ${esc(result.sub)}</small>`
+  ]);
+  const dailyRows = model.daily.rows.map(row => {
+    const itineraryDay = itineraryDayForDate(row.key, model.trip);
+    return [
+      esc(String(reportDayNumber(row.key, model.trip, itineraryDay) || '—')),
+      esc(row.key),
+      esc(itineraryDay ? itineraryLocationLabel(itineraryDay) : '—'),
+      esc(itineraryDay ? itineraryTimeLabel(itineraryDay) || '—' : '—'),
+      String(row.count),
+      esc(eur(row.value)),
+      String(row.includedCount),
+      String(row.notIncludedCount),
+      String(row.unclearCount)
+    ];
+  });
+  const categoryRows = model.categories.map(row => [esc(row.key), String(row.count), esc(eur(row.value)), String(row.includedCount), String(row.notIncludedCount), String(row.unclearCount)]);
+  const frequentRows = model.frequent.map(row => [esc(row.key), String(row.count), esc(eur(row.value)), esc(eur(row.maxPrice))]);
+  const expensiveRows = model.expensive.map(row => [esc(row.key), esc(eur(row.maxPrice)), String(row.count), esc(eur(row.value))]);
+  const bookingRows = model.logs.map(log => {
+    const person = model.persons.find(row => row.id === log.personId);
+    const dateKey = localLogDayKey(log.ts);
+    const itineraryDay = itineraryDayForDate(dateKey, model.trip);
+    return [
+      esc(dateKey || '—'),
+      esc(localTimeInputValue(log.ts) || '—'),
+      esc(itineraryDay ? itineraryLocationLabel(itineraryDay) : '—'),
+      esc(person?.name || log.personName || 'Unbekannt'),
+      esc(log.drinkName || drinkById(log.drinkId)?.name || 'Unbekannt'),
+      esc(resolvedLogCategory(log) || 'Ohne Kategorie'),
+      esc(statusLabel(log.packageStatus)),
+      esc(eur(log.price)),
+      esc(logOriginInfo(log).deviceName)
+    ];
+  });
+  const itineraryRows = model.itinerary.map(day => [
+    esc(String(day.dayNumber || reportDayNumber(day.date, model.trip, day) || '—')),
+    esc(day.date || '—'),
+    esc(itineraryTypeLabel(day.type)),
+    esc(itineraryLocationLabel(day)),
+    esc(itineraryTimeLabel(day) || '—'),
+    esc(day.notes || '')
+  ]);
+  const toolbar = options.toolbar === false ? '' : `<div class="exportToolbar"><button type="button" onclick="window.print()">Drucken / als PDF sichern</button><span>Der Bericht enthält ausschließlich lokal exportierte CruiseSip-Daten.</span></div>`;
+  return `${toolbar}<main class="exportReport">
+    <header class="exportHeader"><div><p>CruiseSip · ${esc(status)}</p><h1>${esc(model.trip.name || 'Kreuzfahrt')}</h1><h2>${esc(model.trip.ship || 'Schiff nicht hinterlegt')}</h2></div><div class="exportHeaderMeta"><b>${esc(period)}</b><span>${esc(dayInfo.label)}</span><span>Erstellt am ${esc(model.generatedAt.toLocaleString('de-DE'))}</span></div></header>
+    <section class="exportNotice"><b>Berechnungsgrundlage</b><p>Die Paketbilanz ist konservativ. Nur eindeutig enthaltene Getränke werden dem Paketpreis gegenübergestellt. Nicht enthaltene Getränke und unklare Paketstatus bleiben getrennt ausgewiesen.</p></section>
+    <section><h2>Gesamtübersicht</h2><div class="exportMetricGrid">
+      ${reportMetricHtml('Getränke gesamt', String(model.total.count), eur(model.total.value))}
+      ${reportMetricHtml('Barkartenwert', eur(model.total.value), dayInfo.label)}
+      ${reportMetricHtml('Gesamtpaketkosten', eur(model.completion.packagePriceTotal), `${model.completion.packagePersons} Personen mit Paket`)}
+      ${reportMetricHtml('Kosten außerhalb Paket', eur(model.total.notIncluded), `${model.total.notIncludedCount} Getränke`)}
+      ${reportMetricHtml('Unklare Paketstatus', String(model.total.unclearCount), eur(model.total.unclear))}
+      ${reportMetricHtml(model.overallResult.label, model.overallResult.value, model.overallResult.sub)}
+    </div>${reportStatusDonutHtml(model.total)}</section>
+    <section><h2>Auswertung je Person</h2>${reportTableHtml(['Person', 'Paket', 'Getränke', 'Barkartenwert', 'Enthalten', 'Nicht enthalten', 'Unklar', 'Paketpreis', 'Ergebnis'], personRows, 'Keine Personen vorhanden.')}</section>
+    ${model.itinerary.length ? `<section><h2>Reiseverlauf</h2>${reportTableHtml(['Tag', 'Datum', 'Tagesart', 'Station', 'Liegezeit', 'Hinweise'], itineraryRows)}</section>` : ''}
+    <section><h2>Auswertung je Reisetag</h2>${reportTableHtml(['Tag', 'Datum', 'Station', 'Liegezeit', 'Getränke', 'Barkartenwert', 'Enthalten', 'Nicht enthalten', 'Unklar'], dailyRows, 'Keine Reisetage ermittelbar.')}</section>
+    <section class="exportTwoColumns"><div><h2>Häufigste Getränke</h2>${reportTableHtml(['Getränk', 'Anzahl', 'Gesamtwert', 'Höchster Einzelpreis'], frequentRows)}</div><div><h2>Teuerste Getränke</h2>${reportTableHtml(['Getränk', 'Einzelpreis', 'Anzahl', 'Gesamtwert'], expensiveRows)}</div></section>
+    <section><h2>Kategorienvergleich</h2>${reportTableHtml(['Kategorie', 'Getränke', 'Barkartenwert', 'Enthalten', 'Nicht enthalten', 'Unklar'], categoryRows)}</section>
+    <section class="exportBookings"><h2>Einzelbuchungen</h2>${reportTableHtml(['Datum', 'Uhrzeit', 'Station', 'Person', 'Getränk', 'Kategorie', 'Paketstatus', 'Preis', 'Gerät'], bookingRows, 'Keine Getränkebuchungen vorhanden.')}</section>
+    <footer>Erstellt mit CruiseSip ${esc(APP_VERSION)} · Build ${esc(APP_BUILD)} · vollständig offline</footer>
+  </main>`;
+}
+function reportDocumentCss() {
+  return `:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;line-height:1.35}.exportToolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 18px;background:#172033;color:#fff}.exportToolbar button{border:0;border-radius:12px;padding:11px 16px;background:#fff;color:#172033;font-weight:800;cursor:pointer}.exportToolbar span{font-size:13px}.exportReport{width:min(1120px,calc(100% - 28px));margin:20px auto;padding:28px;background:#fff;border-radius:20px;box-shadow:0 16px 50px rgba(15,23,42,.12)}.exportHeader{display:flex;justify-content:space-between;gap:24px;padding-bottom:20px;border-bottom:3px solid #1f73b7}.exportHeader p{margin:0 0 6px;color:#1f73b7;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.exportHeader h1{margin:0;font-size:30px;line-height:1.12}.exportHeader h2{margin:6px 0 0;font-size:18px;color:#526071}.exportHeaderMeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right;font-size:13px}.exportReport section{margin-top:26px;break-inside:auto}.exportReport section>h2,.exportTwoColumns>div>h2{margin:0 0 12px;font-size:19px;color:#172033}.exportNotice{padding:14px 16px;border:1px solid #b9d6ed;border-radius:14px;background:#f2f8fd}.exportNotice p{margin:4px 0 0;font-size:13px}.exportMetricGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.exportMetric{display:flex;flex-direction:column;gap:4px;padding:13px;border:1px solid #dbe3ec;border-radius:12px;background:#f8fafc}.exportMetric span{font-size:12px;color:#5e6b7a}.exportMetric b{font-size:18px}.exportMetric small{font-size:11px;color:#64748b}.exportChart{display:grid;grid-template-columns:180px 1fr;align-items:center;gap:24px;margin-top:16px;padding:14px;border:1px solid #dbe3ec;border-radius:14px}.exportChart svg{width:165px;height:165px}.exportChart circle{fill:none;stroke-width:15}.exportChart .track{stroke:#e8edf3}.exportChart .included{stroke:#2f9e62}.exportChart .outside{stroke:#df5b50}.exportChart .unclear{stroke:#d9a21b}.exportChart .value{font-size:18px;font-weight:800;fill:#172033}.exportChart .label{font-size:7px;fill:#64748b}.exportLegend{display:grid;gap:10px}.exportLegend>div{display:flex;align-items:center;gap:9px}.exportLegend p{display:flex;flex-direction:column;margin:0}.exportLegend small{color:#64748b}.dot{width:11px;height:11px;border-radius:50%}.dot.included{background:#2f9e62}.dot.outside{background:#df5b50}.dot.unclear{background:#d9a21b}.exportTableWrap{width:100%;overflow-x:auto;border:1px solid #dbe3ec;border-radius:12px}.exportTableWrap table{width:100%;border-collapse:collapse;font-size:11px}.exportTableWrap th{background:#edf3f8;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em}.exportTableWrap th,.exportTableWrap td{padding:8px 7px;border-bottom:1px solid #e5eaf0;vertical-align:top}.exportTableWrap tr:last-child td{border-bottom:0}.exportTableWrap tbody tr:nth-child(even){background:#fafbfd}.exportTableWrap small{color:#64748b}.exportTwoColumns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.exportEmpty{margin:0;padding:15px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b}.exportReport footer{margin-top:28px;padding-top:14px;border-top:1px solid #dbe3ec;color:#64748b;font-size:11px;text-align:center}@media(max-width:760px){.exportReport{width:100%;margin:0;padding:18px;border-radius:0}.exportHeader{flex-direction:column}.exportHeaderMeta{align-items:flex-start;text-align:left}.exportMetricGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.exportChart{grid-template-columns:1fr}.exportChart svg{justify-self:center}.exportTwoColumns{grid-template-columns:1fr}.exportToolbar{align-items:flex-start;flex-direction:column}}@media print{@page{size:A4 portrait;margin:10mm}body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}.exportToolbar{display:none!important}.exportReport{width:auto;margin:0;padding:0;border-radius:0;box-shadow:none}.exportHeader{break-inside:avoid}.exportMetricGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.exportMetric,.exportChart,.exportTableWrap{break-inside:avoid}.exportTableWrap{overflow:visible}.exportTableWrap table{font-size:8.5px}.exportTableWrap th{font-size:8px}.exportTableWrap th,.exportTableWrap td{padding:5px 4px}.exportTwoColumns{grid-template-columns:1fr 1fr}.exportBookings{break-before:page}.exportReport section>h2,.exportTwoColumns>div>h2{font-size:15px}.exportHeader h1{font-size:24px}}`;
+}
+function standaloneTripReportHtml(model = tripReportExportModel()) {
+  if (!model) return '';
+  const title = `${model.trip.archived ? 'Abschlussbericht' : 'Reisebericht'} – ${model.trip.name || 'CruiseSip'}`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(title)}</title><style>${reportDocumentCss()}</style></head><body>${tripReportDocumentBodyHtml(model)}</body></html>`;
+}
+async function exportTripReportCsv() {
+  const model = tripReportExportModel();
+  if (!model) { alert('Keine Reise ausgewählt.'); return; }
+  const filename = `CruiseSip_Buchungen_${safeFile(model.trip.name)}_${safeFile(model.trip.startDate || localBackupFileStamp())}.csv`;
+  const result = await saveTextFile(filename, tripReportCsvText(model), ['text/csv;charset=utf-8', 'text/plain;charset=utf-8'], { title: `CruiseSip CSV – ${model.trip.name}` });
+  if (result.cancelled) toast('CSV-Export abgebrochen');
+  else toast(result.method === 'share' ? 'CSV zum Speichern bereitgestellt' : 'CSV wurde heruntergeladen');
+  return result;
+}
+async function exportTripReportHtml() {
+  const model = tripReportExportModel();
+  if (!model) { alert('Keine Reise ausgewählt.'); return; }
+  const filename = `CruiseSip_Bericht_${safeFile(model.trip.name)}_${safeFile(model.trip.startDate || localBackupFileStamp())}.html`;
+  const result = await saveTextFile(filename, standaloneTripReportHtml(model), ['text/html;charset=utf-8', 'text/plain;charset=utf-8'], { title: `CruiseSip Bericht – ${model.trip.name}` });
+  if (result.cancelled) toast('HTML-Export abgebrochen');
+  else toast(result.method === 'share' ? 'HTML-Bericht zum Speichern bereitgestellt' : 'HTML-Bericht wurde heruntergeladen');
+  return result;
+}
+function cleanupPrintReport() {
+  $('#printReportRoot')?.remove();
+}
+function printTripReport() {
+  const model = tripReportExportModel();
+  if (!model) { alert('Keine Reise ausgewählt.'); return; }
+  cleanupPrintReport();
+  const root = document.createElement('div');
+  root.id = 'printReportRoot';
+  root.className = 'printReportRoot';
+  root.setAttribute('aria-hidden', 'true');
+  root.innerHTML = tripReportDocumentBodyHtml(model, { toolbar: false });
+  document.body.appendChild(root);
+  const cleanup = () => cleanupPrintReport();
+  window.addEventListener('afterprint', cleanup, { once: true });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    window.print();
+    setTimeout(cleanup, 120000);
+  }));
+}
+
 function calcDetailed(logs = currentLogs()) {
   return logs.reduce((acc, log) => {
     const price = Number(log.price) || 0;
@@ -3591,6 +3840,46 @@ async function saveJsonFile(filename, payload, options = {}) {
   downloadJsonText(filename, jsonText);
   return { method: 'download', cancelled: false };
 }
+function textFileCandidates(filename, text, mimeTypes = ['text/plain;charset=utf-8']) {
+  if (typeof File !== 'function') return [];
+  const options = { lastModified: Date.now() };
+  return mimeTypes.map(type => new File([text], filename, { ...options, type }));
+}
+function downloadTextFile(filename, text, mimeType = 'text/plain;charset=utf-8') {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+async function saveTextFile(filename, text, mimeTypes = ['text/plain;charset=utf-8'], options = {}) {
+  const files = textFileCandidates(filename, text, mimeTypes);
+  if (typeof navigator.share === 'function' && files.length) {
+    let shareFile = null;
+    for (const file of files) {
+      try {
+        if (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] })) { shareFile = file; break; }
+      } catch (_) {}
+    }
+    if (shareFile) {
+      try {
+        const shareData = { files: [shareFile] };
+        if (options.title) shareData.title = options.title;
+        await navigator.share(shareData);
+        return { method: 'share', cancelled: false };
+      } catch (error) {
+        if (error?.name === 'AbortError') return { method: 'share', cancelled: true };
+        console.warn('Dateifreigabe nicht verfügbar, verwende Download-Fallback.', error);
+      }
+    }
+  }
+  downloadTextFile(filename, text, mimeTypes[0]);
+  return { method: 'download', cancelled: false };
+}
 function safeFile(value) { return String(value || 'Reise').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'Reise'; }
 function tripExportPayloadWithoutIntegrity(payload) {
   const copy = { ...payload };
@@ -4024,6 +4313,13 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.3</h2>
+  <ul>
+    <li>Vollständiger CSV-Export mit einer Excel-tauglichen Zeile je Getränkebuchung ergänzt.</li>
+    <li>Eigenständiger, druckfreundlicher HTML-Bericht mit Gesamt-, Personen-, Tages-, Kategorien- und Buchungsauswertung.</li>
+    <li>Native iOS-Dateifreigabe sowie lokale Download-Fallbacks für CSV und HTML.</li>
+    <li>Druckansicht für die PDF-Erstellung über die iOS-Druckfunktion, vollständig offline und ohne externe Bibliotheken.</li>
+  </ul>
   <h2>Version 4.5.2h</h2>
   <ul>
     <li>Responsives Layout für iPhone, schmale Android-Geräte, iPad sowie Desktop- und Notebook-Browser ergänzt.</li>

@@ -1,3 +1,12 @@
+## Version 4.5.3 – Berichtsexport
+
+- CSV-Export für Excel mit einer strukturierten Zeile je Getränkebuchung.
+- CSV enthält Reise, Reisetag, Hafen oder Seetag, Person, Paket, Getränk, Kategorie, Paketstatus, Preis und Geräteherkunft.
+- Eigenständiger, vollständig offline nutzbarer HTML-Bericht mit Gesamtübersicht, Kreisgrafik, Personen-, Tages-, Routen-, Kategorien- und Buchungsauswertung.
+- CSV und HTML werden auf unterstützten iPhones und iPads über das native Teilen-Menü bereitgestellt; Download-Fallback für andere Browser.
+- Druckfreundliche Abschlussansicht mit PDF-Erstellung über die iOS-Druckfunktion.
+- Keine externen Bibliotheken und keine Änderung an IndexedDB, Reisen, Personen, Buchungen, Backup oder Geräteabgleich.
+
 ## Version 4.5.2h – Responsives Design
 
 - Mobile Referenzansicht für das iPhone unverändert beibehalten.

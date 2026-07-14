@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.5.2** (Build **4.5.2h**)
+Aktuelle Entwicklungsfassung: **4.5.3** (Build **4.5.3a**)
 
-Build 4.5.2h ergänzt ein responsives Layout für iPhone, schmale Android-Geräte, iPad und Desktop-Browser. Mobile Bedienung und Datenlogik bleiben unverändert; größere Displays nutzen den zusätzlichen Platz für breitere Raster und eine angepasste Navigation. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.5.3 ergänzt den vollständig offline nutzbaren Berichtsexport als Excel-CSV, eigenständige HTML-Auswertung und Druckansicht für die PDF-Erstellung. Das responsive Layout und die Datenlogik bleiben unverändert. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.5.2h Responsives Design`.
+4. Commit erstellen, z. B. `CruiseSip v4.5.3 Berichtsexport`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v4.5.2` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v4.5.3` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur
@@ -41,7 +41,7 @@ CruiseSip/
 ├── data/
 ├── icons/
 ├── assets/
-└── docs/  (einschließlich REISEVERLAUF_IMPORT.md)
+└── docs/  (einschließlich REISEVERLAUF_IMPORT.md und BERICHT_EXPORT.md)
 ```
 
 ## Kernfunktionen
@@ -67,6 +67,7 @@ CruiseSip/
 - Artikelverwaltung für manuelle Preis- und Paketstatus-Anpassungen je Getränkepaket
 - Offline-Onboarding und Backup-Test
 - Offline-Sicherheitsstatus mit Prüfung von Installation, Service Worker, App-Cache und IndexedDB
+- Berichtsexport als Excel-CSV, eigenständige HTML-Datei und druckfreundliche PDF-Ansicht
 - lokal gespeicherter Wechsler zwischen heller und dunkler Ansicht
 
 ## Technische Hinweise
