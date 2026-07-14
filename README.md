@@ -87,4 +87,4 @@ Die mitgelieferte Barkarte basiert auf den bereits strukturierten Stammdaten aus
 
 Ab Version 4.3.4 prüft CruiseSip beim Online-Start aktiv auf eine neue Version. Ein bereitstehendes Update wird sichtbar angezeigt und erst nach Bestätigung aktiviert. Lokale IndexedDB-Daten bleiben erhalten.
 
-- Build 4.5.3b: PDF-Druckansicht wird auf iOS in einer eigenständigen hellen Berichtseite geöffnet.
+- Build 4.5.3c: PDF-Druckansicht wird auf iOS in einer eigenständigen hellen Berichtseite geöffnet.

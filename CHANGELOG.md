@@ -1,3 +1,10 @@
+## 4.5.3c – Rückkehr aus der Druckansicht
+
+- Die eigenständige PDF-Druckansicht enthält nun einen klaren Button „Zurück zu CruiseSip“.
+- In der PWA wird nach Möglichkeit das Berichtfenster geschlossen und die bereits geöffnete App wieder fokussiert.
+- Falls iOS das Schließen nicht zulässt, führt die Rückfalllogik zuverlässig zur CruiseSip-App zurück.
+- CSV-, HTML- und PDF-Inhalte bleiben unverändert.
+
 ## Version 4.5.3b – iOS-PDF-Druckansicht
 
 - Schwarze PDF-Druckvorschau auf iPhone und iPad behoben.

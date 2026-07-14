@@ -22,3 +22,8 @@ Alle Exporte werden ausschließlich aus den lokal gespeicherten Daten der aktuel
 ## iOS-Druckansicht ab Build 4.5.3b
 
 Die PDF-Funktion öffnet eine eigenständige helle Berichtseite und startet von dort den Druckdialog. Dadurch wird der dunkle Hintergrund der installierten PWA nicht mehr in die PDF-Vorschau übernommen. Falls der Dialog nicht automatisch erscheint, kann in der geöffneten Berichtseite der Button **Drucken / als PDF sichern** verwendet werden.
+
+
+### Rückkehr aus der Druckansicht
+
+Nach dem Drucken oder Speichern als PDF führt der Button **„Zurück zu CruiseSip“** zurück in die App. In der installierten PWA wird das Berichtfenster geschlossen, soweit iOS dies zulässt; andernfalls öffnet die Rückfalllogik die App erneut.

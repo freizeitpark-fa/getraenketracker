@@ -71,4 +71,4 @@ Eine vollständige Anleitung zur Ersteinrichtung, zur korrekten Auswahl von `Vol
 
 CSV, HTML-Bericht und Druckansicht werden vollständig aus den lokal gespeicherten IndexedDB-Daten erzeugt. Es werden keine externen Bibliotheken, Webdienste oder Cloud-Schnittstellen benötigt. Auf iPhone und iPad verwendet CruiseSip nach Möglichkeit das native Teilen-Menü. Die PDF-Erstellung erfolgt über die lokale iOS-Druckansicht.
 
-Hinweis Build 4.5.3b: Die PDF-Druckansicht wird als eigenständige lokale Berichtseite erzeugt und bleibt vollständig offline.
+Hinweis Build 4.5.3c: Die PDF-Druckansicht wird als eigenständige lokale Berichtseite erzeugt und bleibt vollständig offline.
