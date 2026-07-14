@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.5.0c – Hotfix abgeschlossene Reise öffnen
+
+### Behoben
+
+- Der bisherige Button `Öffnen` wirkte bei einer bereits ausgewählten, abgeschlossenen Reise ohne sichtbare Reaktion, weil lediglich die Reise-ID gesetzt und die Reiseverwaltung neu gerendert wurde.
+- Bei abgeschlossenen Reisen heißt die Aktion jetzt `Buchungen ansehen` und öffnet unmittelbar den vollständigen Reiseverlauf.
+- Beim Öffnen wird automatisch der Filter `Gesamte Reise` gesetzt, sodass sämtliche Buchungen der abgeschlossenen Reise sichtbar sind.
+- Aktive Reisen werden über `Öffnen` weiterhin ausgewählt und nun direkt auf der Home-Seite geöffnet.
+- Service-Worker-Cache und Asset-Versionen wurden auf `cruisesip-v4-5-0-20260714c` beziehungsweise `4.5.0c` erhöht.
+
 ## 4.5.0b – Hotfix Kategorienauflösung
 
 ### Behoben

@@ -1,7 +1,7 @@
 'use strict';
 
 const APP_VERSION = '4.5.0';
-const APP_CACHE_NAME = 'cruisesip-v4-5-0-20260714b';
+const APP_CACHE_NAME = 'cruisesip-v4-5-0-20260714c';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -625,8 +625,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.5.0b',
-    './js/app.js?v=4.5.0b',
+    './css/styles.css?v=4.5.0c',
+    './js/app.js?v=4.5.0c',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -833,7 +833,26 @@ async function handleClick(event) {
   if (action === 'runOfflineDiagnostics') { await runOfflineDiagnostics({ silent: false }); return; }
   if (action === 'applyAppUpdate') { await applyAppUpdate(); return; }
   if (action === 'skipOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; render(); return; }
-  if (action === 'setTrip') { await putSetting('currentTripId', id); state.currentTripId = id; state.selectedPersonId = preferredPersonIdForTrip(id); render(); return; }
+  if (action === 'setTrip') {
+    const trip = tripById(id);
+    if (!trip) { alert('Die Reise wurde nicht gefunden.'); return; }
+    await putSetting('currentTripId', id);
+    state.currentTripId = id;
+    state.selectedPersonId = preferredPersonIdForTrip(id);
+    state.editingLogId = null;
+    clearDraft('log');
+    if (trip.archived) {
+      state.historyFilter = 'trip';
+      state.route = 'history';
+      toast(`Buchungen von ${trip.name || 'Reise'} geöffnet`);
+    } else {
+      state.route = 'dashboard';
+      toast(`${trip.name || 'Reise'} geöffnet`);
+    }
+    render();
+    haptic();
+    return;
+  }
   if (action === 'editTrip') { fillTripForm(id); return; }
   if (action === 'archiveTrip') { const trip = tripById(id); if (trip?.archived) await reactivateTrip(id); else prepareTripClosure(id); return; }
   if (action === 'cancelTripClosure') { state.pendingTripClosure = null; render(); return; }
@@ -1725,7 +1744,7 @@ function tripCardHtml(trip) {
   const logs = state.logs.filter(l => l.tripId === trip.id);
   return `<article class="itemCard ${active ? 'selected' : ''} ${trip.archived ? 'completedTripCard' : ''}">
     <div><b>${esc(trip.name)}${trip.archived ? '<span class="tripStateBadge completed">Abgeschlossen</span>' : '<span class="tripStateBadge active">Aktiv</span>'}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${active ? ' · geöffnet' : ''}</small></div>
-    <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">Öffnen</button>${trip.archived ? '' : `<button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button>`}<button class="mini ${trip.archived ? '' : 'completeTripButton'}" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Reise abschließen'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
+    <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Buchungen ansehen' : 'Öffnen'}</button>${trip.archived ? '' : `<button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button>`}<button class="mini ${trip.archived ? '' : 'completeTripButton'}" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Reise abschließen'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
   </article>`;
 }
 function addTripClosureIssue(bucket, code, title, message, detail = '') {
