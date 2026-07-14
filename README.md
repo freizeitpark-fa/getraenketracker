@@ -4,14 +4,14 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.5.4** (Build **4.5.4b**)
+Aktuelle Entwicklungsfassung: **4.5.4** (Build **4.5.4d**)
 
-Version 4.5.4 ergänzt die Analyse um Paket-Amortisation, tatsächlichen Break-even und eine konservative Hochrechnung bis zum Reiseende. Build 4.5.4b ordnet den Berichtsexport am Ende der Analyse ein, damit zunächst sämtliche Kennzahlen sichtbar sind. Die Hauptnavigation öffnet jede Zielseite wieder am Seitenanfang. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.5.4 ergänzt die Analyse um Paket-Amortisation, tatsächlichen Break-even und eine konservative Hochrechnung bis zum Reiseende. Build 4.5.4d kennzeichnet die aktuell geöffnete Reise in Analyse und Einstellungen einheitlich mit einer grünen Reiseleiste. Die Bedienoberfläche verwendet weiterhin „Erfassen“ statt „Tracken“; der Berichtsexport bleibt am Ende der Analyse. Die Hauptnavigation öffnet jede Zielseite wieder am Seitenanfang. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
 
-CruiseSip führt keinen automatischen Cloud-Abgleich durch. Vollbackups und Reiseexporte werden als lokale JSON-Dateien erstellt. Auf iPhone und iPad öffnet CruiseSip dafür das Teilen-Menü. Über „In Dateien sichern“ kann der Zielordner unter „Auf meinem iPhone“, in iCloud Drive oder bei einem eingebundenen Dateidienst ausgewählt werden; alternativ ist die Weitergabe per AirDrop möglich. Während der gesamten Reise bleibt das Tracking unabhängig von einer Internetverbindung funktionsfähig.
+CruiseSip führt keinen automatischen Cloud-Abgleich durch. Vollbackups und Reiseexporte werden als lokale JSON-Dateien erstellt. Auf iPhone und iPad öffnet CruiseSip dafür das Teilen-Menü. Über „In Dateien sichern“ kann der Zielordner unter „Auf meinem iPhone“, in iCloud Drive oder bei einem eingebundenen Dateidienst ausgewählt werden; alternativ ist die Weitergabe per AirDrop möglich. Während der gesamten Reise bleibt die Erfassung unabhängig von einer Internetverbindung funktionsfähig.
 
 Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zweiten Geräts und den späteren Abgleich befindet sich in `docs/ZWEITES_GERAET.md`.
 

@@ -1338,3 +1338,23 @@ html[data-theme="dark"] .updateDock{background:rgba(10,32,56,.97)}
 @media(max-width:380px){.packageForecastSummaryGrid{grid-template-columns:1fr}.packageForecastHead{grid-template-columns:1fr}.packageForecastState{justify-self:start;max-width:100%}.packageProgressValues{display:grid;grid-template-columns:1fr}.packageProgressValues span:last-child{text-align:left}}
 @media(min-width:700px){.packageForecastSummaryGrid{grid-template-columns:repeat(4,minmax(0,1fr))}.packageForecastList{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:1024px){.statsScreen>.packageForecastCard{grid-column:1/-1}.packageForecastDetailGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+/* 4.5.4d – aktive Reise in Analyse und Einstellungen eindeutig hervorheben */
+.activeTripContext{display:grid;grid-template-columns:38px minmax(0,1fr);gap:11px;align-items:center;min-width:0;border:1px solid color-mix(in srgb,var(--ok) 42%,var(--line));border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--ok) 15%,var(--cardSolid)),color-mix(in srgb,var(--ok) 6%,var(--card)));padding:11px 13px;box-shadow:0 10px 26px color-mix(in srgb,var(--ok) 11%,transparent)}
+.activeTripContext.completed{border-color:color-mix(in srgb,var(--ok) 28%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--ok) 9%,var(--cardSolid)),var(--card))}
+.activeTripContext.missing{border-color:color-mix(in srgb,var(--warn) 34%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--card));box-shadow:none}
+.activeTripMarker{display:grid;place-items:center;width:38px;height:38px;border-radius:13px;background:var(--ok);color:#fff;font-size:16px;font-weight:950;line-height:1}
+.activeTripContext.completed .activeTripMarker{background:color-mix(in srgb,var(--ok) 78%,var(--cardSolid))}
+.activeTripContext.missing .activeTripMarker{background:var(--warn)}
+.activeTripCopy{min-width:0}
+.activeTripCopy small,.activeTripCopy b,.activeTripCopy span{display:block;min-width:0}
+.activeTripCopy small{color:var(--ok);font-size:10px;font-weight:950;letter-spacing:.07em;text-transform:uppercase}
+.activeTripContext.missing .activeTripCopy small{color:var(--warn)}
+.activeTripCopy b{margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:1.25}
+.activeTripCopy span{margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:10px;line-height:1.35}
+.tripListCard.activeTripSelection{border-color:color-mix(in srgb,var(--ok) 48%,var(--line));background:linear-gradient(105deg,color-mix(in srgb,var(--ok) 17%,var(--cardSolid)),color-mix(in srgb,var(--ok) 5%,var(--cardSolid)));box-shadow:0 10px 28px color-mix(in srgb,var(--ok) 12%,transparent);outline:3px solid color-mix(in srgb,var(--ok) 14%,transparent)}
+.tripListCard.completedTripCard.activeTripSelection{background:linear-gradient(105deg,color-mix(in srgb,var(--ok) 11%,var(--cardSolid)),var(--cardSolid))}
+.tripStateBadge.active{background:color-mix(in srgb,var(--ok) 14%,var(--cardSolid));color:var(--ok)}
+.tripStateBadge.available{background:color-mix(in srgb,var(--muted) 10%,var(--cardSolid));color:var(--muted)}
+@media(max-width:360px){.activeTripContext{grid-template-columns:34px minmax(0,1fr);padding:10px}.activeTripMarker{width:34px;height:34px;border-radius:12px}.activeTripCopy span{white-space:normal}}

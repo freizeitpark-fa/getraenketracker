@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 4.5.4**, Build **4.5.4b**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 4.5.4**, Build **4.5.4d**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -16,7 +16,7 @@ Aktueller Stand: **CruiseSip 4.5.4**, Build **4.5.4b**. Neue Reisen können voll
 
 ## Nutzung an Bord ohne Internet
 
-- Tracking funktioniert vollständig lokal.
+- Die Erfassung funktioniert vollständig lokal.
 - Verlauf, Reisen, Personen, Favoriten und Auswertungen bleiben lokal gespeichert.
 - Exportdateien können lokal erzeugt und später weitergegeben werden.
 - Neue Barkarten können nur importiert werden, wenn sie als strukturierte JSON- oder CSV-Datei auf dem Gerät verfügbar sind.

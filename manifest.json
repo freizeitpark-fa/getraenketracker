@@ -1,7 +1,7 @@
 {
   "name": "CruiseSip Getränketracker",
   "short_name": "CruiseSip",
-  "description": "Offline nutzbare iPhone-PWA zum Tracken von Getränken, Barkartenpreisen und Getränkepaketen auf Kreuzfahrt.",
+  "description": "Offline nutzbare iPhone-PWA zum Erfassen von Getränken, Barkartenpreisen und Getränkepaketen auf Kreuzfahrt.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

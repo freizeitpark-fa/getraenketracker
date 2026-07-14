@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '4.5.4';
-const APP_CACHE_NAME = 'cruisesip-v4-5-4-20260714b';
-const APP_BUILD = '4.5.4b';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.4b';
+const APP_CACHE_NAME = 'cruisesip-v4-5-4-20260714d';
+const APP_BUILD = '4.5.4d';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.4d';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -1047,6 +1047,14 @@ function itineraryTimeLabel(day) {
   return '';
 }
 function isTripCompleted(trip = currentTrip()) { return !!trip?.archived; }
+function activeTripContextHtml() {
+  const trip = currentTrip();
+  if (!trip) return `<div class="activeTripContext missing" role="status"><span class="activeTripMarker" aria-hidden="true">!</span><div class="activeTripCopy"><small>Keine aktive Reise</small><b>Bitte zuerst eine Reise auswählen</b><span>Die Auswertungen und Einstellungen beziehen sich auf die geöffnete Reise.</span></div></div>`;
+  const completed = isTripCompleted(trip);
+  const dates = trip.startDate || trip.endDate ? `${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}` : 'Zeitraum offen';
+  const details = [trip.ship || 'Ohne Schiff', dates, tripItinerary(trip).length ? `${tripItinerary(trip).length} Reisetage` : ''].filter(Boolean).join(' · ');
+  return `<div class="activeTripContext ${completed ? 'completed' : 'active'}" role="status" aria-label="${completed ? 'Geöffnete abgeschlossene Reise' : 'Aktive Reise'}: ${esc(trip.name || 'Ohne Namen')}"><span class="activeTripMarker" aria-hidden="true">${completed ? '✓' : '●'}</span><div class="activeTripCopy"><small>${completed ? 'Geöffnete Reise · abgeschlossen' : 'Aktive Reise'}</small><b title="${esc(trip.name || 'Ohne Namen')}">${esc(trip.name || 'Ohne Namen')}</b><span>${esc(details)}</span></div></div>`;
+}
 function tripAllowsChanges(tripId = activeTripId()) {
   const trip = tripById(tripId);
   return !!trip && !trip.archived;
@@ -1067,7 +1075,7 @@ function tripStatusNoticeHtml(context = 'general', trip = currentTrip()) {
   if (!trip?.archived) return '';
   const messages = {
     dashboard: 'Die Reise ist abgeschlossen. Neue Getränke können nicht mehr erfasst werden; Verlauf und Auswertungen bleiben verfügbar.',
-    track: 'Für diese abgeschlossene Reise ist das Tracking gesperrt. Reaktiviere sie bewusst, wenn noch Buchungen ergänzt oder korrigiert werden müssen.',
+    track: 'Für diese abgeschlossene Reise ist die Erfassung gesperrt. Reaktiviere sie bewusst, wenn noch Buchungen ergänzt oder korrigiert werden müssen.',
     history: 'Der Verlauf ist schreibgeschützt. Buchungen können erst nach einer bewussten Reaktivierung wieder geändert oder gelöscht werden.',
     stats: 'Die Abschlussdaten sind schreibgeschützt. Die vorhandenen Auswertungen bleiben vollständig verfügbar.',
     persons: 'Personen, Getränkepakete und Paketpreise sind für diese Reise schreibgeschützt.',
@@ -1197,7 +1205,7 @@ async function setTheme(theme) {
 function updateShell() {
   const trip = currentTrip();
   $('#appVersion').textContent = `v${APP_VERSION}`;
-  $('#tripTitle').textContent = state.route === 'track' ? `Tracken${trip ? ' · ' + short(trip.name, 18) : ''}${trip?.archived ? ' · abgeschlossen' : ''}` : (trip ? `${short(trip.name, 24)}${trip.archived ? ' · abgeschlossen' : ''}` : 'Keine Reise');
+  $('#tripTitle').textContent = state.route === 'track' ? `Erfassen${trip ? ' · ' + short(trip.name, 18) : ''}${trip?.archived ? ' · abgeschlossen' : ''}` : (trip ? `${short(trip.name, 24)}${trip.archived ? ' · abgeschlossen' : ''}` : 'Keine Reise');
   $('#onlineDot').textContent = state.online ? 'Online' : 'Offline';
   $$('.navButton').forEach(b => b.classList.toggle('active', b.dataset.route === state.route || (state.route === 'onboarding' && b.dataset.route === 'settings')));
   applyTheme();
@@ -1248,7 +1256,7 @@ function viewOnboarding() {
     <section class="screen onboardingScreen">
       <div class="heroCard appHero">
         <div class="appIconLarge"></div>
-        <div><p class="eyebrow">CruiseSip ${esc(APP_VERSION)}</p><h1>Offline bereit für die Kreuzfahrt.</h1><p>Einmal über GitHub Pages öffnen, zum Home-Bildschirm hinzufügen und danach lokal weiter tracken.</p></div>
+        <div><p class="eyebrow">CruiseSip ${esc(APP_VERSION)}</p><h1>Offline bereit für die Kreuzfahrt.</h1><p>Einmal über GitHub Pages öffnen, zum Home-Bildschirm hinzufügen und danach lokal weiter erfassen.</p></div>
       </div>
       <div class="stepGrid">
         ${onboardingStep('1', 'Offline-Einrichtung', 'Die App speichert Reise, Personen, Getränke und Verlauf lokal in IndexedDB. Keine Cloud, kein Backend, keine externen Skripte.', 'ok')}
@@ -1346,7 +1354,7 @@ function dashboardQuickHtml() {
   const locked = isTripCompleted();
   return `
     <div class="card quickCard">
-      <div class="sectionHead"><h2>Schnellzugriff</h2>${locked ? '<span class="diagnosticSummary ok">Abgeschlossen</span>' : '<button class="mini" data-route="track">Tracken</button>'}</div>
+      <div class="sectionHead"><h2>Schnellzugriff</h2>${locked ? '<span class="diagnosticSummary ok">Abgeschlossen</span>' : '<button class="mini" data-route="track">Erfassen</button>'}</div>
       <div class="quickActions ${locked ? 'readOnlyQuickActions' : ''}">
         ${locked ? '' : '<button class="quickAction primaryAction" data-route="track"><b>＋</b><span>Getränk erfassen</span></button>'}
         <button class="quickAction" data-route="history"><b>↺</b><span>Verlauf</span></button>
@@ -1367,7 +1375,7 @@ function viewTrack() {
       ${tripStatusNoticeHtml('track', trip)}
       <div class="card trackLockedCard">
         <div class="trackLockedSymbol" aria-hidden="true">✓</div>
-        <h1>Tracking gesperrt</h1>
+        <h1>Erfassung gesperrt</h1>
         <p>Die Reise wurde kontrolliert abgeschlossen. Vorhandene Buchungen bleiben unverändert erhalten.</p>
         <div class="buttonStack"><button class="primary" data-route="stats">Auswertung öffnen</button><button class="secondary" data-route="history">Verlauf ansehen</button><button class="secondary" data-route="trips">Reise verwalten</button></div>
       </div>
@@ -1666,7 +1674,8 @@ function viewStats() {
   const isTripView = filter === 'trip';
   return `
     <section class="screen statsScreen">
-      <div class="sectionHead statsTitleRow"><h1>Auswertungen</h1><span class="subtle statsTripName" title="${esc(currentTrip()?.name || '')}">${esc(currentTrip()?.name || '')}</span></div>
+      <div class="sectionHead statsTitleRow"><h1>Auswertungen</h1></div>
+      ${activeTripContextHtml()}
       ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
       <div class="kpiGrid">
@@ -2530,6 +2539,7 @@ function viewStatsPersonDetail(person, logs, filter = state.statsFilter || 'trip
   return `
     <section class="screen statsScreen">
       <div class="sectionHead"><div><h1>${esc(person.name)}</h1><span class="subtle">Abschlussauswertung & Verlauf</span></div><button class="mini" data-action="backStatsDashboard">Zurück</button></div>
+      ${activeTripContextHtml()}
       ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
       <article class="card personDetailCard" style="--person:${esc(person.color || '#e0f2fe')}">
@@ -2795,6 +2805,7 @@ function viewTrips() {
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Reisen</h1><span class="subtle">${state.trips.length}</span></div>
+      ${activeTripContextHtml()}
       ${tripClosurePreviewHtml()}
       ${edit || state.pendingTripClosure ? '' : tripSetupWizardHtml()}
       ${tripFormHtml(edit)}
@@ -2803,10 +2814,15 @@ function viewTrips() {
     </section>`;
 }
 function tripCardHtml(trip) {
-  const active = trip.id === state.currentTripId;
+  const active = trip.id === activeTripId();
   const logs = state.logs.filter(l => l.tripId === trip.id);
-  return `<article class="itemCard ${active ? 'selected' : ''} ${trip.archived ? 'completedTripCard' : ''}">
-    <div><b>${esc(trip.name)}${trip.archived ? '<span class="tripStateBadge completed">Abgeschlossen</span>' : '<span class="tripStateBadge active">Aktiv</span>'}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${tripItinerary(trip).length ? ` · ${tripItinerary(trip).length} Routentage` : ''}${active ? ' · geöffnet' : ''}</small></div>
+  const badge = trip.archived
+    ? '<span class="tripStateBadge completed">Abgeschlossen</span>'
+    : active
+      ? '<span class="tripStateBadge active">Aktive Reise</span>'
+      : '<span class="tripStateBadge available">Weitere Reise</span>';
+  return `<article class="itemCard tripListCard ${active ? 'activeTripSelection' : ''} ${trip.archived ? 'completedTripCard' : ''}">
+    <div><b>${esc(trip.name)}${badge}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${tripItinerary(trip).length ? ` · ${tripItinerary(trip).length} Routentage` : ''}${active ? ' · geöffnet' : ''}</small></div>
     <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Buchungen ansehen' : 'Öffnen'}</button>${trip.archived ? '' : `<button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button>`}<button class="mini ${trip.archived ? '' : 'completeTripButton'}" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Reise abschließen'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
   </article>`;
 }
@@ -2961,7 +2977,7 @@ async function confirmTripClosure(id) {
     return;
   }
   const warningText = result.warningCount ? `\n\nEs bestehen ${result.warningCount} Hinweis${result.warningCount === 1 ? '' : 'e'}, die den Abschluss nicht verhindern.` : '';
-  if (!confirm(`Reise „${trip.name}“ wirklich abschließen?\n\nDanach sind Tracking sowie Änderungen an Buchungen, Personen und Paketpreisen gesperrt. Alle vorhandenen Daten bleiben erhalten. Die Reise kann später wieder reaktiviert werden.${warningText}`)) {
+  if (!confirm(`Reise „${trip.name}“ wirklich abschließen?\n\nDanach sind die Getränkeerfassung sowie Änderungen an Buchungen, Personen und Paketpreisen gesperrt. Alle vorhandenen Daten bleiben erhalten. Die Reise kann später wieder reaktiviert werden.${warningText}`)) {
     render();
     return;
   }
@@ -3002,7 +3018,7 @@ function tripSetupAssistantHtml(trip = currentTrip()) {
   if (!trip || wizard.tripId !== trip.id || !['persons', 'export'].includes(wizard.step)) return '';
   const persons = currentPersons();
   if (wizard.step === 'persons') {
-    return `<div class="card tripSetupWizard" id="tripSetupAssistant">${tripWizardProgressHtml(2)}<p class="eyebrow">Schritt 2 von 3</p><h2>Personen und Getränkepakete</h2><p class="hint">Lege jetzt alle Personen dieser Reise an. Die stabilen Personen-IDs werden anschließend im Reiseexport für das zweite Gerät mitgegeben.</p><div class="tripSetupSummary"><span><b>${esc(trip.name)}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))}</small></span><strong>${persons.length} Personen</strong></div><div class="buttonStack"><button class="secondary" data-action="focusPersonForm">${persons.length ? 'Weitere Person anlegen' : 'Erste Person anlegen'}</button><button class="primary" data-action="tripWizardExport" ${persons.length ? '' : 'disabled'}>Weiter zum Export</button><button class="secondary" data-action="finishTripWizard" ${persons.length ? '' : 'disabled'}>Assistent ohne Export beenden</button></div>${persons.length ? '' : '<p class="tripWizardHint">Für das Tracking muss mindestens eine Person vorhanden sein.</p>'}</div>`;
+    return `<div class="card tripSetupWizard" id="tripSetupAssistant">${tripWizardProgressHtml(2)}<p class="eyebrow">Schritt 2 von 3</p><h2>Personen und Getränkepakete</h2><p class="hint">Lege jetzt alle Personen dieser Reise an. Die stabilen Personen-IDs werden anschließend im Reiseexport für das zweite Gerät mitgegeben.</p><div class="tripSetupSummary"><span><b>${esc(trip.name)}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))}</small></span><strong>${persons.length} Personen</strong></div><div class="buttonStack"><button class="secondary" data-action="focusPersonForm">${persons.length ? 'Weitere Person anlegen' : 'Erste Person anlegen'}</button><button class="primary" data-action="tripWizardExport" ${persons.length ? '' : 'disabled'}>Weiter zum Export</button><button class="secondary" data-action="finishTripWizard" ${persons.length ? '' : 'disabled'}>Assistent ohne Export beenden</button></div>${persons.length ? '' : '<p class="tripWizardHint">Für die Erfassung muss mindestens eine Person vorhanden sein.</p>'}</div>`;
   }
   return `<div class="card tripSetupWizard" id="tripSetupAssistant">${tripWizardProgressHtml(3)}<p class="eyebrow">Schritt 3 von 3</p><h2>Reise für ein zweites Gerät bereitstellen</h2><p class="hint">Der Reiseexport enthält die neue Reise, den importierten Verlauf und alle angelegten Personen mit identischen IDs. Auf dem zweiten Gerät wird die Datei unter Geräteabgleich importiert.</p><div class="tripSetupSummary"><span><b>${esc(trip.name)}</b><small>${currentPersons().length} Personen · ${tripItinerary(trip).length} Routentage</small></span><strong>${wizard.exported ? 'Export erstellt' : 'Bereit'}</strong></div>${wizard.exported ? '<div class="backupMessages ok"><p>Der Reiseexport wurde bereitgestellt. Speichere ihn in der Dateien-App oder übertrage ihn per AirDrop.</p></div>' : ''}<div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="tripWizardBackToPersons">Zurück zu Personen</button><button class="secondary" data-action="finishTripWizard">Einrichtung abschließen</button></div></div>`;
 }
@@ -3014,6 +3030,7 @@ function viewDevices() {
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Geräte & Personen</h1><span class="subtle">${currentPersons().length} Personen</span></div>
+      ${activeTripContextHtml()}
       ${tripStatusNoticeHtml('persons', trip)}
       ${tripSetupAssistantHtml(trip)}
       <form id="deviceForm" class="card formCard">
@@ -3051,6 +3068,7 @@ function viewBarkarte() {
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Barkarte</h1><span class="subtle">${state.drinks.length} Getränke</span></div>
+      ${activeTripContextHtml()}
       ${tripStatusNoticeHtml('barkarte')}
       <div class="card">
         <h2>Aktuelle Barkarte</h2>
@@ -3185,6 +3203,7 @@ function viewSettings() {
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Einstellungen</h1><span class="subtle">${esc(APP_VERSION)}</span></div>
+      ${activeTripContextHtml()}
       <div class="card"><h2>Status</h2>
         ${infoRow('App-Version', APP_VERSION)}
         ${infoRow('Build', APP_BUILD)}
@@ -3928,7 +3947,7 @@ function fullBackupCardHtml() {
     <div class="infoBox"><span>Letztes Vollbackup</span><b>${esc(lastBackup)}</b></div>
     <div class="buttonStack"><button class="primary" data-action="exportFullBackup">Vollständiges Backup exportieren</button><button class="secondary" data-action="importFullBackup">Vollbackup auswählen und prüfen</button></div>
     <p class="hint">CruiseSip öffnet nach der Erstellung das iOS-Teilen-Menü. Wähle „In Dateien sichern“, um den Zielordner unter „Auf meinem iPhone“, iCloud Drive oder einem eingebundenen Dateidienst festzulegen. Es erfolgt kein automatischer Cloud-Abgleich.</p>
-    <div class="backupDeviceHint"><b>Mehrere Geräte vorbereiten</b><p>Das Vollbackup auf dem zweiten Gerät vollständig wiederherstellen und dort die eigene Geräte-ID beibehalten. Dadurch bleiben Reise- und Personen-IDs identisch; anschließend kann jedes Gerät für jede Person tracken.</p></div>
+    <div class="backupDeviceHint"><b>Mehrere Geräte vorbereiten</b><p>Das Vollbackup auf dem zweiten Gerät vollständig wiederherstellen und dort die eigene Geräte-ID beibehalten. Dadurch bleiben Reise- und Personen-IDs identisch; anschließend kann jedes Gerät für jede Person Getränke erfassen.</p></div>
     ${fullBackupPreviewHtml()}
   </div>`;
 }
@@ -4533,6 +4552,17 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Build 4.5.4d</h2>
+  <ul>
+    <li>Die aktuell geöffnete Reise wird in Analyse und Einstellungen durch eine grüne Reiseleiste eindeutig hervorgehoben.</li>
+    <li>In der Reiseverwaltung ist die ausgewählte Reise ebenfalls grün hinterlegt; weitere und abgeschlossene Reisen bleiben klar unterscheidbar.</li>
+    <li>Reiseauswahl, Datenmodell, Buchungen und Auswertungslogik bleiben unverändert.</li>
+  </ul>
+  <h2>Build 4.5.4c</h2>
+  <ul>
+    <li>Die sichtbare Hauptnavigation und sämtliche aktuellen Bedienhinweise verwenden jetzt einheitlich „Erfassen“ statt „Tracken“.</li>
+    <li>Interne Routen, Funktionen, Buchungsdaten und die bestehende Erfassungslogik bleiben technisch unverändert.</li>
+  </ul>
   <h2>Build 4.5.4b</h2>
   <ul>
     <li>Die Exportfunktionen stehen jetzt am Ende der Reiseanalyse, nachdem alle Kennzahlen und Detailauswertungen angezeigt wurden.</li>
@@ -4545,7 +4575,7 @@ const CHANGELOG_HTML = `
     <li>Klare Statuskennzeichnung: amortisiert, voraussichtlich amortisiert, voraussichtlich nicht amortisiert oder keine belastbare Prognose.</li>
     <li>Unklare Paketstatus bleiben vollständig getrennt und fließen weder in Fortschritt noch Hochrechnung ein.</li>
     <li>HTML- und PDF-Bericht enthalten die neue Amortisations- und Prognoseübersicht.</li>
-    <li>Beim Wechsel über Home, Tracken, Verlauf, Analyse oder Setup beginnt die Zielseite immer oben.</li>
+    <li>Beim Wechsel über Home, Erfassen, Verlauf, Analyse oder Setup beginnt die Zielseite immer oben.</li>
   </ul>
   <h2>Version 4.5.3</h2>
   <ul>
@@ -4569,8 +4599,8 @@ const CHANGELOG_HTML = `
   <h2>Version 4.5.2f</h2>
   <ul>
     <li>Favoriten und zuletzt getrunkene Getränke wurden von der Home-Seite entfernt.</li>
-    <li>Direkte Getränkebuchungen erfolgen damit nur noch auf der Tracken-Seite mit sichtbarer Personenauswahl.</li>
-    <li>Favoriten, Zuletzt-Filter und individuelle Sortierung bleiben in der Tracken-Ansicht vollständig erhalten.</li>
+    <li>Direkte Getränkebuchungen erfolgen damit nur noch auf der Seite „Erfassen“ mit sichtbarer Personenauswahl.</li>
+    <li>Favoriten, Zuletzt-Filter und individuelle Sortierung bleiben in der Erfassungsansicht vollständig erhalten.</li>
   </ul>
   <h2>Version 4.5.2e</h2>
   <ul>
@@ -4592,7 +4622,7 @@ const CHANGELOG_HTML = `
   <ul>
     <li>Tatsächlicher Reiseverlauf mit Häfen, Seetagen und optionalen Liegezeiten kann als lokale JSON-Datei importiert werden.</li>
     <li>Eine Importvorschau prüft Format, Datumswerte, doppelte Tage sowie Abweichungen bei Reisezeitraum, Reisename und Schiff.</li>
-    <li>Importierte Routendaten ergänzen den Tages- und Reisebericht; Tracking, Buchungen und Paketberechnungen bleiben unverändert.</li>
+    <li>Importierte Routendaten ergänzen den Tages- und Reisebericht; Erfassung, Buchungen und Paketberechnungen bleiben unverändert.</li>
     <li>Bestehende Reiseverläufe werden nur nach ausdrücklicher Bestätigung ersetzt und können unabhängig von Getränkebuchungen wieder entfernt werden.</li>
   </ul>
   <h2>Version 4.5.2</h2>
@@ -4614,8 +4644,8 @@ const CHANGELOG_HTML = `
   <h2>Version 4.5.0</h2>
   <ul>
     <li>Reisen können nach einer strukturierten Datenprüfung kontrolliert abgeschlossen und bei Bedarf bewusst reaktiviert werden.</li>
-    <li>Abgeschlossene Reisen sind auf Home, Tracken, Verlauf, Auswertung sowie in der Personenverwaltung deutlich gekennzeichnet.</li>
-    <li>Tracking, Rückgängig, Verlaufskorrekturen, Personen- und Paketänderungen sowie die Aktualisierung bestehender Buchungen sind zentral gesperrt.</li>
+    <li>Abgeschlossene Reisen sind auf Home, Erfassen, Verlauf, Auswertung sowie in der Personenverwaltung deutlich gekennzeichnet.</li>
+    <li>Erfassung, Rückgängig, Verlaufskorrekturen, Personen- und Paketänderungen sowie die Aktualisierung bestehender Buchungen sind zentral gesperrt.</li>
     <li>Kritische Identitäts- und Zuordnungsfehler blockieren den Abschluss; unklare Paketstatus, fehlende Paketpreise und weitere Auffälligkeiten bleiben als Hinweise sichtbar.</li>
     <li>Der lokale Abschlussstatus wird beim Geräteabgleich nicht überschrieben. Neue Buchungen für abgeschlossene Reisen werden vor dem Import gesondert bestätigt.</li>
   </ul>
@@ -4671,7 +4701,7 @@ const CHANGELOG_HTML = `
   </ul>
   <h2>Version 4.3.5</h2>
   <ul>
-    <li>Separate Karte „Aktive Person“ aus der Tracken-Ansicht entfernt.</li>
+    <li>Separate Karte „Aktive Person“ aus der Erfassungsansicht entfernt.</li>
     <li>Der Personen-Schnellwechsel ist jetzt die einzige sichtbare Personensteuerung.</li>
     <li>Kompakte Kopfzeile „Getränk erfassen für …“ zeigt zusätzlich das zugeordnete Getränkepaket.</li>
   </ul>
@@ -4705,7 +4735,7 @@ const CHANGELOG_HTML = `
   </ul>
   <h2>Version 4.2.0</h2>
   <ul>
-    <li>Tracken-Ansicht mit großen, zweispaltigen Getränkekacheln für die iPhone-Bedienung optimiert.</li>
+    <li>Erfassungsansicht mit großen, zweispaltigen Getränkekacheln für die iPhone-Bedienung optimiert.</li>
     <li>Getränkesymbol, Name, Kategorie, Paketstatus und Preis sind direkt in jeder Kachel sichtbar.</li>
     <li>Favoritenstern sowie die Filter für Alle, Empfohlen, Favoriten und Zuletzt bleiben dauerhaft erreichbar.</li>
   </ul>
@@ -4724,7 +4754,7 @@ const CHANGELOG_HTML = `
     <li>Projektstruktur vollständig neu aufgebaut: css, js, data, icons, assets und docs.</li>
     <li>Redesign im iPhone-App-Stil mit Bottom Navigation, Cards, Dark Mode, flüssigen Übergängen und einhändiger Bedienung.</li>
     <li>Onboarding für Offline-Einrichtung, Home-Bildschirm-Installation, Geräteprüfung, Barkarte, Backup-Test und Reiseanlage.</li>
-    <li>Tracking neu strukturiert: stabile Suche ohne Fokusverlust, dauerhafter Rückgängig-Dock, Favoriten, Kategorien und zuletzt verwendete Getränke.</li>
+    <li>Erfassung neu strukturiert: stabile Suche ohne Fokusverlust, dauerhafter Rückgängig-Dock, Favoriten, Kategorien und zuletzt verwendete Getränke.</li>
     <li>Verlauf als Timeline mit Personenfarben, Filtern, Bearbeiten und Löschen.</li>
     <li>Reiseverwaltung mit Anlegen, Bearbeiten, Archivieren und Löschen mit Sicherheitsabfrage.</li>
     <li>Geräteverwaltung mit Export je Reise, Zusammenführen, Dublettenerkennung und Importprotokoll.</li>

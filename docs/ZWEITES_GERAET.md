@@ -175,7 +175,7 @@ Vor einem vollständigen Ersetzen immer zuerst den aktuellen lokalen Stand expor
 
 ## Empfohlener Ablauf während der Kreuzfahrt
 
-- Beide Geräte tracken vollständig offline.
+- Beide Geräte erfassen Getränke vollständig offline.
 - Einmal täglich oder bei Bedarf wird auf jedem Gerät die aktuelle Reise exportiert.
 - Das Hauptgerät prüft die Exportdateien in der Importvorschau und führt sie anschließend zusammen.
 - Anschließend kann das Hauptgerät einen neuen Gesamtstand exportieren und auf das zweite Gerät zurückspielen.

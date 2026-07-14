@@ -22,4 +22,4 @@ Alle Berechnungen erfolgen lokal aus den vorhandenen Reise-, Personen- und Buchu
 
 ## Navigation
 
-Beim Wechsel über Home, Tracken, Verlauf, Analyse oder Setup wird die jeweilige Zielseite automatisch am Seitenanfang geöffnet. Auf der Tracken-Seite wird zusätzlich die intern scrollende Getränkeliste auf den Anfang gesetzt.
+Beim Wechsel über Home, Erfassen, Verlauf, Analyse oder Setup wird die jeweilige Zielseite automatisch am Seitenanfang geöffnet. Auf der Seite „Erfassen“ wird zusätzlich die intern scrollende Getränkeliste auf den Anfang gesetzt.

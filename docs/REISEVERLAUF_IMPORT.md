@@ -82,4 +82,4 @@ Der Reiseexport enthält:
 - alle angelegten Personen mit stabilen Personen-IDs,
 - vorhandene Buchungen und Favoriten.
 
-Auf dem zweiten Gerät wird die Datei unter `Setup` → `Geräteabgleich` importiert. Wird die Reise dort erstmals angelegt, werden Reiseverlauf und Personen gemeinsam übernommen. Danach können beide Geräte mit identischen Reise- und Personen-IDs tracken.
+Auf dem zweiten Gerät wird die Datei unter `Setup` → `Geräteabgleich` importiert. Wird die Reise dort erstmals angelegt, werden Reiseverlauf und Personen gemeinsam übernommen. Danach können beide Geräte mit identischen Reise- und Personen-IDs Getränke erfassen.

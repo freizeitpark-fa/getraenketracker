@@ -1,3 +1,17 @@
+## Build 4.5.4d – Aktive Reise grün hervorgehoben
+
+- In Analyse und Einstellungen wird die aktuell geöffnete Reise durch eine kompakte grüne Reiseleiste eindeutig angezeigt.
+- Die Kennzeichnung erscheint auch in den Einstellungsbereichen Reisen, Geräte & Personen sowie Barkarte.
+- In der Reiseverwaltung ist die ausgewählte Reise grün hinterlegt; weitere und abgeschlossene Reisen bleiben optisch unterscheidbar.
+- Reiseauswahl, IndexedDB, Buchungen, Auswertungen, Backup und Geräteabgleich bleiben unverändert.
+- Service-Worker-Cache und Asset-Versionen auf Build `4.5.4d` erhöht.
+
+## Build 4.5.4c – Bezeichnung „Erfassen"
+
+- Hauptnavigation, Seitenkopf, Schnellzugriff und aktuelle Bedienhinweise verwenden jetzt einheitlich „Erfassen" statt „Tracken".
+- Interne Route `track`, Funktionsnamen, IndexedDB, Reisen, Personen und Buchungen bleiben unverändert.
+- Service-Worker-Cache und Asset-Versionen auf Build `4.5.4c` erhöht.
+
 ## Build 4.5.4b – Exportbereich am Ende der Analyse
 
 - Der Bereich „Bericht exportieren“ wurde an das Ende der Reiseanalyse verschoben.

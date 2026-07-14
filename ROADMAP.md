@@ -1,3 +1,9 @@
+## Build 4.5.4d Aktive Reise hervorgehoben
+
+- Grüne Kennzeichnung der aktuell geöffneten Reise in Analyse und Einstellungen
+- Grüne Hervorhebung der ausgewählten Reise in der Reiseverwaltung
+- Keine Änderung an Datenmodell oder Berechnungen
+
 ## Version 4.5.4 Paket-Amortisation und Verbrauchsprognose abgeschlossen
 
 - Paketfortschritt und Break-even je Person
@@ -25,9 +31,9 @@
 ## Version 4.5.2g Analyse-Design und grafische Auswertung
 
 - Favoriten und zuletzt getrunkene Getränke von Home entfernen
-- Getränkebuchungen nur in der Tracken-Ansicht mit sichtbarer Personenauswahl zulassen
-- Favoriten und Zuletzt-Filter auf der Tracken-Seite unverändert erhalten
-- Schnellzugriffe auf Tracken, Verlauf und Analyse beibehalten
+- Getränkebuchungen nur in der Erfassungsansicht mit sichtbarer Personenauswahl zulassen
+- Favoriten und Zuletzt-Filter auf der Seite „Erfassen“ unverändert erhalten
+- Schnellzugriffe auf Erfassen, Verlauf und Analyse beibehalten
 
 ## Version 4.5.2e Kompakte Reiseanzeige
 
@@ -50,7 +56,7 @@
 - Häfen, Länder, Seetage sowie optionale Ankunfts- und Abfahrtszeiten speichern
 - geprüfte Importvorschau vor dem Ersetzen bestehender Routendaten
 - Reiseverlauf in Tages- und Abschlussbericht anzeigen
-- Tracking, Buchungen und Paketberechnungen unverändert lassen
+- Erfassung, Buchungen und Paketberechnungen unverändert lassen
 
 ## Version 4.5.2 Tages- und Reisebericht
 
@@ -75,7 +81,7 @@
 
 - strukturierte Abschlussprüfung mit kritischen Fehlern und nicht blockierenden Hinweisen
 - Sicherheitsabfrage vor Abschluss und Reaktivierung
-- zentraler Schreibschutz für Tracking, Verlauf, Rückgängig, Personen und Paketdaten
+- zentraler Schreibschutz für Erfassung, Verlauf, Rückgängig, Personen und Paketdaten
 - deutlicher Abschlussstatus auf allen relevanten Ansichten
 - lokaler Abschlussstatus bleibt beim Mehrgeräteabgleich geschützt
 
@@ -138,7 +144,7 @@
 - Personen-Schnellwechsel als einzige sichtbare Personensteuerung
 - Kompakte Kopfzeile `Getränk erfassen für …`
 - Paketinformation bleibt sichtbar
-- Keine Änderung an Tracking- oder Speicherlogik
+- Keine Änderung an Erfassungs- oder Speicherlogik
 
 ## Version 4.3.4 PWA-Update-Stabilisierung
 
@@ -171,7 +177,7 @@
 - Paketstatus und Barkartenwert des aktuellen Tages
 - Personenaufteilung und letzte Erfassung
 
-## Version 4.2.0 Tracken-Ansicht
+## Version 4.2.0 Erfassungsansicht
 
 - Große iPhone-taugliche Getränkekacheln
 - Sichtbare Symbole, Preise und Paketstatus
