@@ -1,5 +1,14 @@
 # CruiseSip – Änderungsprotokoll
 
+## Version 4.5.2g – Analyse-Design und grafische Auswertung
+
+- Analyseansicht auf eine einheitliche, bildschirmfüllende Kartenbreite gebracht.
+- Lange Reisenamen in der Kopfzeile werden gekürzt und verursachen kein horizontales Überlaufen mehr.
+- Neue Kreisgrafik zur Verteilung nach Paketstatus: enthalten, nicht enthalten und unklar.
+- Legende zeigt Anzahl, Anteil und Barkartenwert je Status.
+- Grafik reagiert auf die Filter Heute, Gestern und Reise.
+- Keine externen Bibliotheken; vollständig offline und ohne Änderung am Datenmodell.
+
 ## Version 4.5.2f – Home ohne Direktbuchungen
 
 - Favoriten und „Zuletzt getrunken“ von der Home-Seite entfernt.

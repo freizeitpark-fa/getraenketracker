@@ -1,6 +1,6 @@
 # Roadmap CruiseSip
 
-## Version 4.5.2f Home ohne Direktbuchungen
+## Version 4.5.2g Analyse-Design und grafische Auswertung
 
 - Favoriten und zuletzt getrunkene Getränke von Home entfernen
 - Getränkebuchungen nur in der Tracken-Ansicht mit sichtbarer Personenauswahl zulassen

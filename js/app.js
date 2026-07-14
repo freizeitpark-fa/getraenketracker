@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '4.5.2';
-const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714f';
-const APP_BUILD = '4.5.2f';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.2f';
+const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714g';
+const APP_BUILD = '4.5.2g';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.2g';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -1644,8 +1644,8 @@ function viewStats() {
   const total = calcDetailed(logs);
   const isTripView = filter === 'trip';
   return `
-    <section class="screen">
-      <div class="sectionHead"><h1>Auswertungen</h1><span class="subtle">${esc(currentTrip()?.name || '')}</span></div>
+    <section class="screen statsScreen">
+      <div class="sectionHead statsTitleRow"><h1>Auswertungen</h1><span class="subtle statsTripName" title="${esc(currentTrip()?.name || '')}">${esc(currentTrip()?.name || '')}</span></div>
       ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
       <div class="kpiGrid">
@@ -1654,6 +1654,7 @@ function viewStats() {
         ${kpi('Außerhalb Paket', eur(total.notIncluded), `${total.notIncludedCount} eindeutig nicht enthalten`)}
         ${kpi('Unklar', eur(total.unclear), `${total.unclearCount} an Bord prüfen`)}
       </div>
+      ${statusDonutChartHtml(logs)}
       ${isTripView ? overallCompletionSummaryHtml(persons, allTripLogs) : ''}
       ${isTripView ? tripTravelReportHtml(persons, allTripLogs) : ''}
       ${isTripView ? personCompletionDashboardHtml(persons, allTripLogs) : ''}
@@ -1680,6 +1681,44 @@ function calcDetailed(logs = currentLogs()) {
     else { acc.unclear += price; acc.unclearCount += 1; }
     return acc;
   }, { count: 0, value: 0, included: 0, notIncluded: 0, unclear: 0, includedCount: 0, notIncludedCount: 0, unclearCount: 0 });
+}
+function statusDonutChartHtml(logs) {
+  const total = calcDetailed(logs);
+  const rows = [
+    { key: 'included', label: 'Im Paket enthalten', count: total.includedCount, value: total.included },
+    { key: 'outside', label: 'Nicht enthalten', count: total.notIncludedCount, value: total.notIncluded },
+    { key: 'unclear', label: 'Unklar', count: total.unclearCount, value: total.unclear }
+  ];
+  let offset = 0;
+  const circles = rows.filter(row => row.count > 0).map(row => {
+    const percentage = total.count ? row.count / total.count * 100 : 0;
+    const circle = `<circle class="donutSegment ${row.key}" cx="50" cy="50" r="38" pathLength="100" stroke-dasharray="${percentage.toFixed(3)} ${(100 - percentage).toFixed(3)}" stroke-dashoffset="${(-offset).toFixed(3)}"></circle>`;
+    offset += percentage;
+    return circle;
+  }).join('');
+  const legend = rows.map(row => {
+    const percentage = total.count ? row.count / total.count * 100 : 0;
+    const percentageLabel = percentage.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+    const countLabel = `${row.count} Getränk${row.count === 1 ? '' : 'e'}`;
+    return `<div class="chartLegendRow"><span class="chartLegendDot ${row.key}"></span><div><b>${esc(row.label)}</b><small>${countLabel} · ${percentageLabel} % · ${eur(row.value)}</small></div></div>`;
+  }).join('');
+  const chartLabel = total.count ? `${total.count} Getränke nach Paketstatus` : 'Noch keine Getränke im gewählten Zeitraum';
+  return `<article class="card analysisChartCard">
+    <div class="sectionHead"><div><h2>Grafische Verteilung</h2><p class="hint">Anteil der Getränke nach Paketstatus im gewählten Zeitraum.</p></div><span class="subtle">nach Anzahl</span></div>
+    <div class="analysisChartLayout">
+      <div class="donutChartWrap">
+        <svg class="donutChart" viewBox="0 0 100 100" role="img" aria-label="${esc(chartLabel)}">
+          <g transform="rotate(-90 50 50)">
+            <circle class="donutTrack" cx="50" cy="50" r="38"></circle>
+            ${circles}
+          </g>
+          <text class="donutValue" x="50" y="48" text-anchor="middle">${total.count}</text>
+          <text class="donutLabel" x="50" y="59" text-anchor="middle">Getränke</text>
+        </svg>
+      </div>
+      <div class="chartLegend">${legend}</div>
+    </div>
+  </article>`;
 }
 function groupStats(logs, keyFn) {
   const map = new Map();
@@ -2017,7 +2056,7 @@ function viewStatsPersonDetail(person, logs, filter = state.statsFilter || 'trip
     .map(log => `<div class="personDrinkRow"><div><b>${statusDot(log.packageStatus)}${esc(log.drinkName || 'Unbekannt')}</b><small>${esc(formatDateTime(log.ts))}${resolvedLogCategory(log) ? ` · ${esc(resolvedLogCategory(log))}` : ''} · ${esc(statusLabel(log.packageStatus))}</small><span class="personDrinkOrigin">${logOriginHtml(log, true)}</span></div><strong>${esc(eur(log.price))}</strong></div>`)
     .join('');
   return `
-    <section class="screen">
+    <section class="screen statsScreen">
       <div class="sectionHead"><div><h1>${esc(person.name)}</h1><span class="subtle">Abschlussauswertung & Verlauf</span></div><button class="mini" data-action="backStatsDashboard">Zurück</button></div>
       ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
@@ -3981,6 +4020,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.2g</h2>
+  <ul>
+    <li>Die Analyseansicht nutzt jetzt über alle Kacheln dieselbe verfügbare Breite wie Verlauf und die übrigen Bereiche.</li>
+    <li>Lange Reisenamen werden in der Analyse-Kopfzeile gekürzt, ohne die Kartenbreite zu vergrößern.</li>
+    <li>Neue offlinefähige Kreisgrafik zeigt die Verteilung der Getränke auf enthalten, nicht enthalten und unklar.</li>
+  </ul>
   <h2>Version 4.5.2f</h2>
   <ul>
     <li>Favoriten und zuletzt getrunkene Getränke wurden von der Home-Seite entfernt.</li>

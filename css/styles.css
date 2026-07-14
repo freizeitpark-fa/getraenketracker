@@ -1015,3 +1015,38 @@ html[data-theme="dark"] .updateDock{background:rgba(10,32,56,.97)}
 .dashboardTripMeta{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:rgba(255,255,255,.78);font-size:11px;font-weight:700}
 .dashboardTripMeta span:last-child:not(:first-child){border-left:1px solid rgba(255,255,255,.2);padding-left:8px}
 @media(max-width:390px){.dashboardTripCard{padding:14px}.dashboardTripCard h1{font-size:22px}.dashboardTripMeta{font-size:10px}}
+
+
+/* CruiseSip 4.5.2g - einheitliche Analysebreite und grafische Auswertung */
+.statsScreen{width:100%;max-width:100%;min-width:0;box-sizing:border-box;overflow-x:hidden}
+.statsScreen>*{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+.statsTitleRow{min-width:0}
+.statsTitleRow h1{flex:0 1 auto;min-width:0}
+.statsTripName{display:block;flex:0 1 56%;min-width:0;max-width:56%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.statsScreen .card,.statsScreen .kpiGrid,.statsScreen .segmented{justify-self:stretch}
+.statsScreen .sectionHead>div{min-width:0}
+.analysisChartCard{display:grid;gap:13px}
+.analysisChartCard>.sectionHead{align-items:flex-start}
+.analysisChartLayout{display:grid;grid-template-columns:minmax(118px,0.85fr) minmax(0,1.35fr);gap:16px;align-items:center;min-width:0}
+.donutChartWrap{display:grid;place-items:center;min-width:0}
+.donutChart{display:block;width:min(154px,100%);height:auto;overflow:visible}
+.donutTrack,.donutSegment{fill:none;stroke-width:15}
+.donutTrack{stroke:color-mix(in srgb,var(--muted) 14%,transparent)}
+.donutSegment{transition:stroke-dasharray .25s ease,stroke-dashoffset .25s ease}
+.donutSegment.included{stroke:var(--ok)}
+.donutSegment.outside{stroke:var(--bad)}
+.donutSegment.unclear{stroke:var(--warn)}
+.donutValue,.donutLabel{fill:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+.donutValue{font-size:18px;font-weight:950}
+.donutLabel{fill:var(--muted);font-size:7px;font-weight:800}
+.chartLegend{display:grid;gap:8px;min-width:0}
+.chartLegendRow{display:grid;grid-template-columns:10px minmax(0,1fr);gap:9px;align-items:start;min-width:0;border-bottom:1px solid var(--line);padding-bottom:8px}
+.chartLegendRow:last-child{border-bottom:0;padding-bottom:0}
+.chartLegendDot{display:block;width:10px;height:10px;border-radius:999px;margin-top:3px}
+.chartLegendDot.included{background:var(--ok)}
+.chartLegendDot.outside{background:var(--bad)}
+.chartLegendDot.unclear{background:var(--warn)}
+.chartLegendRow b,.chartLegendRow small{display:block;min-width:0}
+.chartLegendRow b{font-size:12px;line-height:1.3}
+.chartLegendRow small{margin-top:2px;color:var(--muted);font-size:10px;line-height:1.35}
+@media(max-width:380px){.analysisChartLayout{grid-template-columns:1fr}.donutChart{width:142px}.statsTripName{max-width:48%;flex-basis:48%}}
