@@ -2,7 +2,7 @@
 
 const APP_VERSION = '4.5.2';
 const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714d';
-const APP_BUILD = '4.5.2d';
+const APP_BUILD = '4.5.2e';
 const SERVICE_WORKER_URL = './sw.js?v=4.5.2d';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
@@ -1263,10 +1263,16 @@ function viewDashboard() {
   const recent = recentDrinkIds().map(id => drinkById(id)).filter(Boolean).slice(0, 6);
   return `
     <section class="screen">
-      <div class="heroCard dashboardHero ${trip?.archived ? 'completed' : ''}">
-        <p class="eyebrow">${esc(trip?.archived ? 'Abgeschlossene Reise' : (trip?.ship || 'Aktive Reise'))}</p>
-        <h1>${esc(trip?.name || 'CruiseSip')}</h1>
-        <p>${trip?.startDate || trip?.endDate ? `${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))}` : 'Schnelles Getränketracking für iPhone und Offline-Nutzung.'}</p>
+      <div class="heroCard dashboardHero dashboardTripCard ${trip?.archived ? 'completed' : ''}">
+        <div class="dashboardTripTop">
+          <p class="eyebrow">${esc(trip?.ship || (trip?.archived ? 'Abgeschlossene Reise' : 'Aktive Reise'))}</p>
+          <span class="dashboardTripState">${trip?.archived ? 'Abgeschlossen' : 'Aktuelle Reise'}</span>
+        </div>
+        <h1 title="${esc(trip?.name || 'CruiseSip')}">${esc(trip?.name || 'CruiseSip')}</h1>
+        <div class="dashboardTripMeta">
+          <span>${trip?.startDate || trip?.endDate ? `${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))}` : 'Zeitraum noch nicht festgelegt'}</span>
+          ${tripItinerary(trip).length ? `<span>${tripItinerary(trip).length} Reisetage</span>` : ''}
+        </div>
       </div>
       ${tripStatusNoticeHtml('dashboard', trip)}
       <div class="kpiGrid">

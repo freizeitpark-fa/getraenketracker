@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.5.2** (Build **4.5.2d**)
+Aktuelle Entwicklungsfassung: **4.5.2** (Build **4.5.2e**)
 
-Build 4.5.2d ergänzt einen dreistufigen Assistenten für neue Reisen. Reiseverlaufsdateien erzeugen nun immer eine neue Reise; anschließend werden Personen eingerichtet und die Reise kann direkt für ein zweites Gerät exportiert werden. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Build 4.5.2e hält den Reiseeinrichtungs-Assistenten bei und zeigt die aktuelle Reise auf der Home-Seite kompakter an. Reiseverlaufsdateien erzeugen nun immer eine neue Reise; anschließend werden Personen eingerichtet und die Reise kann direkt für ein zweites Gerät exportiert werden. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,7 +20,7 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.5.2d Reiseeinrichtungs-Assistent`.
+4. Commit erstellen, z. B. `CruiseSip v4.5.2e Reiseeinrichtungs-Assistent`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen und prüfen, ob oben `v4.5.2` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.

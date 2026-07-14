@@ -1,6 +1,6 @@
 # Roadmap CruiseSip
 
-## Version 4.5.2d Assistent zur Reiseeinrichtung
+## Version 4.5.2e Assistent zur Reiseeinrichtung
 
 - neue Reise über einen geführten Ablauf anlegen
 - wahlweise Reiseverlaufsdatei importieren oder Reise manuell erfassen

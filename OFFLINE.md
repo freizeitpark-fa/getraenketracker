@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 4.5.2**, Build **4.5.2d**. Neue Reisen können vollständig offline über einen Assistenten aus einer Reiseverlaufsdatei oder manuell angelegt werden. Danach werden Personen lokal eingerichtet und die Reise kann als JSON-Datei für ein zweites Gerät bereitgestellt werden. Tracking, Berichte und sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 4.5.2**, Build **4.5.2e**. Neue Reisen können vollständig offline über einen Assistenten aus einer Reiseverlaufsdatei oder manuell angelegt werden. Danach werden Personen lokal eingerichtet und die Reise kann als JSON-Datei für ein zweites Gerät bereitgestellt werden. Tracking, Berichte und sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 

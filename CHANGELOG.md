@@ -1,5 +1,13 @@
 # CruiseSip – Änderungsprotokoll
 
+## Version 4.5.2e – Kompakte Reiseanzeige auf Home
+
+- Karte der aktuellen Reise auf der Home-Seite deutlich kompakter gestaltet.
+- Schiff, Status, Reisename und Zeitraum bleiben vollständig erkennbar.
+- Lange Reisenamen werden auf höchstens zwei Zeilen begrenzt.
+- Anzahl der Reisetage wird platzsparend neben dem Zeitraum angezeigt.
+- Keine Änderung an Reisen, Buchungen, Reiseverlauf oder Auswertungslogik.
+
 ## Version 4.5.2d – Assistent zur Reiseeinrichtung
 
 - Neue Reisen werden über einen dreistufigen Assistenten eingerichtet: Reise anlegen, Personen erfassen, optionaler Export für ein zweites Gerät.
