@@ -4,7 +4,7 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.4.1** (Build **5.4.1a**)
+Aktuelle Entwicklungsfassung: **5.4.1** (Build **5.4.1c**)
 
 Version 5.4.1 macht den Reiseverlauf direkt in der Reiseverwaltung bearbeitbar. Einzelne Tage können ergänzt, korrigiert oder gelöscht werden; vor jeder Änderung entsteht automatisch ein lokaler Wiederherstellungspunkt.
 

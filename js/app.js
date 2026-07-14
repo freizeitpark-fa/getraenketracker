@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '5.4.1';
-const APP_CACHE_NAME = 'cruisesip-v5-4-1-20260714a';
-const APP_BUILD = '5.4.1a';
-const SERVICE_WORKER_URL = './sw.js?v=5.4.1a';
+const APP_CACHE_NAME = 'cruisesip-v5-4-1-20260714c';
+const APP_BUILD = '5.4.1c';
+const SERVICE_WORKER_URL = './sw.js?v=5.4.1c';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -93,6 +93,7 @@ let state = {
   pendingTripVersionChange: null,
   pendingItineraryImport: null,
   editingItineraryDayDate: null,
+  expandedItineraryTripId: null,
   pendingBarkarteImport: null,
   tripSetupWizard: { step: null, tripId: null, exported: false },
   multiPersonMode: false,
@@ -1165,6 +1166,7 @@ async function handleClick(event) {
     state.multiPersonMode = false;
     state.editingLogId = null;
     state.editingItineraryDayDate = null;
+    state.expandedItineraryTripId = null;
     clearDraft('log');
     if (trip.archived) {
       state.statsFilter = 'trip';
@@ -1207,6 +1209,14 @@ async function handleClick(event) {
   if (action === 'importItinerary') { startTripSetupWizard('import'); openFile('itinerary'); return; }
   if (action === 'cancelItineraryImport') { state.pendingItineraryImport = null; state.tripSetupWizard = { step: 'choice', tripId: null, exported: false }; render(); return; }
   if (action === 'applyItineraryImport') { await runActionOnce('applyItineraryImport', applyPreparedItineraryImport); return; }
+  if (action === 'toggleItineraryDetails') {
+    const disclosure = $('#itinerarySavedDisclosure');
+    if (disclosure) {
+      disclosure.checked = !disclosure.checked;
+      disclosure.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    return;
+  }
   if (action === 'addItineraryDay') { openItineraryDayEditor(null); return; }
   if (action === 'editItineraryDay') { openItineraryDayEditor(id); return; }
   if (action === 'cancelItineraryDayEdit') { state.editingItineraryDayDate = null; render(); return; }
@@ -1674,6 +1684,20 @@ function bindRenderedControls() {
   bindDirectAction('#personSaveButton', 'savePerson', () => savePersonForm($('#personForm')));
   bindDirectAction('#deviceSaveButton', 'saveDevice', () => saveDeviceForm($('#deviceForm')));
   bindDirectAction('#logSaveButton', 'saveLog', () => saveLogForm($('#logEditForm')));
+  const itineraryDisclosure = $('#itinerarySavedDisclosure');
+  if (itineraryDisclosure && itineraryDisclosure.dataset.directBound !== '1') {
+    itineraryDisclosure.dataset.directBound = '1';
+    itineraryDisclosure.addEventListener('change', () => {
+      const trip = currentTrip();
+      const open = itineraryDisclosure.checked;
+      state.expandedItineraryTripId = open && trip ? trip.id : null;
+      const label = $('#itinerarySavedToggle');
+      const content = $('#itinerarySavedContent');
+      label?.setAttribute('aria-expanded', open ? 'true' : 'false');
+      content?.setAttribute('aria-hidden', open ? 'false' : 'true');
+      haptic();
+    });
+  }
 }
 
 function bindInputs() {
@@ -3259,7 +3283,7 @@ function itineraryDayRowHtml(day, options = {}) {
   const time = itineraryTimeLabel(day);
   const details = [itineraryTypeLabel(day.type), time, day.notes].filter(Boolean).join(' · ');
   const actions = options.editable
-    ? `<div class="itineraryRowActions"><button class="mini" data-action="editItineraryDay" data-id="${esc(day.date)}">Bearbeiten</button><button class="mini dangerText" data-action="deleteItineraryDay" data-id="${esc(day.date)}">Löschen</button></div>`
+    ? `<div class="itineraryRowActions"><button type="button" class="mini" data-action="editItineraryDay" data-id="${esc(day.date)}">Bearbeiten</button><button type="button" class="mini dangerText" data-action="deleteItineraryDay" data-id="${esc(day.date)}">Löschen</button></div>`
     : '';
   return `<div class="itineraryDayRow ${options.editable ? 'editable' : ''}"><div class="itineraryDate"><b>${esc(formatDate(day.date))}</b><small>Tag ${esc(day.dayNumber || '')}</small></div><div class="itineraryLocation"><b>${esc(location || itineraryTypeLabel(day.type))}</b><small>${esc(details)}</small></div>${actions}</div>`;
 }
@@ -3310,6 +3334,7 @@ function openItineraryDayEditor(date = null) {
   if (trip.archived) { alert('Abgeschlossene Reisen sind schreibgeschützt. Bitte die Reise zuerst reaktivieren.'); return; }
   if (date && !tripItinerary(trip).some(day => day.date === date)) { alert('Der Reisetag wurde nicht gefunden.'); return; }
   state.editingItineraryDayDate = date || '__new__';
+  state.expandedItineraryTripId = trip.id;
   render();
   requestAnimationFrame(() => $('#itineraryDayForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
@@ -3436,8 +3461,18 @@ function itineraryManagementHtml(trip = currentTrip()) {
     ${locked ? '<div class="backupMessages warn"><p>Die abgeschlossene Reise ist schreibgeschützt. Zum Ändern des Reiseverlaufs muss sie zuerst reaktiviert werden.</p></div>' : ''}
     <div class="itinerarySummary"><span><b>${days.length}</b> Reisetage</span><span><b>${ports}</b> Hafentage</span><span><b>${seaDays}</b> Seetage</span></div>
     ${itineraryDayEditorHtml(trip, days)}
-    ${days.length ? `<details class="itineraryDetails" ${state.editingItineraryDayDate !== null ? 'open' : ''}><summary>Gespeicherten Verlauf anzeigen</summary><div class="itineraryPreviewList">${days.map(day => itineraryDayRowHtml(day, { editable: !locked })).join('')}</div></details>` : '<p class="emptyText">Für diese Reise ist noch kein Reiseverlauf hinterlegt. Du kannst den ersten Reisetag manuell ergänzen.</p>'}
-    ${locked ? '' : `<div class="buttonStack itineraryManagementActions"><button class="primary" data-action="addItineraryDay">Reisetag hinzufügen</button>${days.length ? '<button class="secondary dangerText" data-action="clearItinerary">Gesamten Verlauf entfernen</button>' : ''}</div>`}
+    ${days.length ? (() => {
+      const expanded = state.expandedItineraryTripId === trip.id || state.editingItineraryDayDate !== null;
+      return `<div class="itineraryDetails itineraryDisclosure">
+        <input type="checkbox" id="itinerarySavedDisclosure" class="itineraryDisclosureInput" ${expanded ? 'checked' : ''}>
+        <label id="itinerarySavedToggle" class="itineraryToggle" for="itinerarySavedDisclosure" role="button" aria-expanded="${expanded ? 'true' : 'false'}" aria-controls="itinerarySavedContent">
+          <span><b class="itineraryToggleLabel itineraryToggleLabelOpen">Gespeicherten Verlauf anzeigen</b><b class="itineraryToggleLabel itineraryToggleLabelClose">Gespeicherten Verlauf ausblenden</b><small>${days.length} Reisetage · mit Bearbeiten- und Löschen-Funktion</small></span>
+          <svg class="itineraryToggleChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+        </label>
+        <div id="itinerarySavedContent" class="itineraryExpandable" aria-hidden="${expanded ? 'false' : 'true'}"><div class="itineraryPreviewList">${days.map(day => itineraryDayRowHtml(day, { editable: !locked })).join('')}</div></div>
+      </div>`;
+    })() : '<p class="emptyText">Für diese Reise ist noch kein Reiseverlauf hinterlegt. Du kannst den ersten Reisetag manuell ergänzen.</p>'}
+    ${locked ? '' : `<div class="buttonStack itineraryManagementActions"><button type="button" class="primary" data-action="addItineraryDay">Reisetag hinzufügen</button>${days.length ? '<button type="button" class="secondary dangerText" data-action="clearItinerary">Gesamten Verlauf entfernen</button>' : ''}</div>`}
   </div>`;
 }
 async function applyPreparedItineraryImport() {
@@ -3493,6 +3528,7 @@ async function clearCurrentItinerary() {
   await put('trips', next);
   state.pendingItineraryImport = null;
   state.editingItineraryDayDate = null;
+  state.expandedItineraryTripId = null;
   await loadState();
   render();
   toast('Reiseverlauf entfernt');
@@ -4133,6 +4169,7 @@ function viewSettings() {
     <section class="screen">
       <div class="sectionHead"><h1>Einstellungen</h1><span class="subtle">${esc(APP_VERSION)}</span></div>
       ${activeTripContextHtml()}
+      <div class="card"><h2>Verwaltung</h2><div class="buttonStack"><button class="secondary" data-route="trips">Reisen verwalten</button><button class="secondary" data-route="devices">Geräte & Personen</button><button class="secondary" data-route="barkarte">Barkarte verwalten</button></div></div>
       <div class="card"><h2>Status</h2>
         ${infoRow('App-Version', APP_VERSION)}
         ${infoRow('Build', APP_BUILD)}
@@ -4159,7 +4196,6 @@ function viewSettings() {
         <div class="effectsSetting"><div><b>Reduzierte Effekte</b><small>Deaktiviert Animationen, stärkere Schatten, Transparenzen und dekorative Verläufe.</small></div><div class="effectsSwitch" role="group" aria-label="Visuelle Effekte wählen"><button class="${state.settings.reducedEffects ? '' : 'active'}" data-action="setReducedEffects" data-id="false" aria-pressed="${state.settings.reducedEffects ? 'false' : 'true'}">Standard</button><button class="${state.settings.reducedEffects ? 'active' : ''}" data-action="setReducedEffects" data-id="true" aria-pressed="${state.settings.reducedEffects ? 'true' : 'false'}">Reduziert</button></div></div>
         <p class="hint">Darstellung und Effekte sind gerätebezogen. Reiseexporte und Zusammenführungsdateien verändern diese Auswahl nicht.</p>
       </div>
-      <div class="card"><h2>Verwaltung</h2><div class="buttonStack"><button class="secondary" data-route="trips">Reisen verwalten</button><button class="secondary" data-route="devices">Geräte & Personen</button><button class="secondary" data-route="barkarte">Barkarte verwalten</button></div></div>
       <div class="card"><h2>Aktionen</h2><div class="buttonStack"><button class="secondary" data-action="checkAppUpdate">Jetzt auf Update prüfen</button><button class="secondary" data-route="changelog">Changelog öffnen</button><button class="secondary" data-action="reRunOnboarding">Onboarding erneut anzeigen</button><button class="secondary" data-action="exportFullBackup">Vollständiges Backup exportieren</button></div></div>
       <div class="card"><h2>Offline-Hinweis</h2><p>Für die Kreuzfahrt: App vor Abfahrt einmal online öffnen, über Safari zum Home-Bildschirm hinzufügen, danach kurz im Flugmodus starten und ein vollständiges Backup erstellen.</p></div>
     </section>`;

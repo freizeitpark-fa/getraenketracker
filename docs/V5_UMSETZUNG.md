@@ -42,7 +42,7 @@ Beim ersten Start nach dem Update von v4 auf v5 wird vor der Migration einmalig 
 ## Technischer Stand
 
 - App-Version: 5.4.1
-- Build: 5.4.1a
+- Build: 5.4.1c
 - IndexedDB-Version: 2
 - Neue Store-Struktur: `snapshots`
 - Bestehende Kern-Stores und IDs bleiben unverändert.

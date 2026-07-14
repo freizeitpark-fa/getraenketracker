@@ -1531,3 +1531,22 @@ html[data-route="track"] .drinkSortControl.compact select{height:34px!important;
   .itineraryEditorActions,.itineraryManagementActions{grid-template-columns:1fr}
 }
 
+
+/* v5.4.1c: native checkbox disclosure for reliable iPhone/PWA operation */
+.itineraryDisclosure{overflow:hidden;border-top:0;padding-top:0;position:relative}
+.itineraryDisclosureInput{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;clip-path:inset(50%)!important;white-space:nowrap!important}
+.itineraryToggle{display:grid;grid-template-columns:minmax(0,1fr) 28px;gap:10px;align-items:center;width:100%;min-height:52px;margin:0;border:1px solid var(--line);border-radius:14px;background:var(--cardSolid);padding:10px 11px;color:var(--text);text-align:left;cursor:pointer;box-shadow:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none}
+.itineraryToggle>span,.itineraryToggle b,.itineraryToggle small{display:block;min-width:0}
+.itineraryToggle b{font-size:12px;line-height:1.25}
+.itineraryToggle small{margin-top:3px;color:var(--muted);font-size:9px;line-height:1.35}
+.itineraryToggleLabelClose{display:none!important}
+.itineraryToggleChevron{width:22px;height:22px;justify-self:end;transition:transform .18s ease;color:var(--muted)}
+.itineraryExpandable{display:none;border:1px solid var(--line);border-top:0;border-radius:0 0 14px 14px;background:var(--cardSolid);padding:9px}
+.itineraryDisclosureInput:checked + .itineraryToggle{border-radius:14px 14px 0 0;border-bottom-color:transparent}
+.itineraryDisclosureInput:checked + .itineraryToggle .itineraryToggleChevron{transform:rotate(180deg)}
+.itineraryDisclosureInput:checked + .itineraryToggle .itineraryToggleLabelOpen{display:none!important}
+.itineraryDisclosureInput:checked + .itineraryToggle .itineraryToggleLabelClose{display:block!important}
+.itineraryDisclosureInput:checked ~ .itineraryExpandable{display:block}
+.itineraryDisclosureInput:focus-visible + .itineraryToggle{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
+.itineraryRowActions button{min-height:34px}
+[data-reduced-effects="true"] .itineraryToggleChevron{transition:none}

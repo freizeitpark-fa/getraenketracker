@@ -1,3 +1,21 @@
+## v5.4.1c – Reiseverlauf-Aufklappen und Setup-Reihenfolge
+
+- Der Reiseverlauf verwendet jetzt einen nativen Checkbox-/Label-Mechanismus, der auch ohne JavaScript-Klickverarbeitung auf iPhone und in der installierten PWA zuverlässig auf- und zuklappt.
+- Der gesamte Balken einschließlich Pfeil ist antippbar; Pfeil und Beschriftung wechseln sichtbar zwischen Anzeigen und Ausblenden.
+- Die Verwaltung mit Reisen, Geräten/Personen und Barkarte wurde auf der Setup-Seite direkt unter die aktive Reise verschoben.
+- App- und Service-Worker-Build auf `5.4.1c` erhöht.
+
+# CruiseSip – Changelog
+
+## v5.4.1b – Reiseverlauf zuverlässig aufklappen
+
+- „Gespeicherten Verlauf anzeigen“ verwendet jetzt eine eigene, iPhone-taugliche Auf-/Zuklappsteuerung statt des nativen Details-Elements.
+- Der gesamte Kopfbereich einschließlich Pfeil ist antippbar; Pfeilrichtung und Beschriftung zeigen den aktuellen Zustand eindeutig an.
+- Nach dem Aufklappen sind die Aktionen „Bearbeiten“ und „Löschen“ je Reisetag sichtbar.
+- Beim Öffnen eines Reisetag-Editors bleibt der gespeicherte Verlauf geöffnet.
+- Schaltflächen erhielten explizit `type="button"`, um unbeabsichtigte Formularaktionen zu verhindern.
+- App- und Service-Worker-Build auf `5.4.1b` erhöht.
+
 # CruiseSip Changelog
 
 ## 5.4.1 – Reiseverlauf bearbeiten

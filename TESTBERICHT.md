@@ -1,30 +1,32 @@
-# Testbericht CruiseSip v5.4.1a
+# Testbericht CruiseSip v5.4.1c
 
-## Automatisierte Prüfungen
+## Behobener Fehler
 
-- JavaScript-Syntax mit Node.js
-- JSON-Syntax von Manifest, Barkarte und Paketen
-- Service-Worker-Dateiliste und Versionsreferenzen
-- ZIP-Integrität
-- statische Prüfung der neuen Reiseverlauf-Aktionen und des Formular-Submit
-- Logiktest für Sortierung und fortlaufende Nummerierung von Reisetagen
-- Logiktest für Zeitnormalisierung im Format `HH:MM`
-- statische Prüfung der Datums-, Dubletten- und Archivschutz-Validierung
-- statische Prüfung der Wiederherstellungspunkte vor Ergänzen, Bearbeiten und Löschen
-- Prüfung, dass der Geräteabgleich den eigentlichen Reiseverlauf als Reisekonflikt berücksichtigt
+Der gespeicherte Reiseverlauf ließ sich in der iPhone-PWA über den sichtbaren Pfeil nicht zuverlässig aufklappen. Dadurch waren auch die Aktionen zum Bearbeiten und Löschen einzelner Reisetage nicht erreichbar.
 
-## Manuell auf dem iPhone prüfen
+## Umsetzung
 
-1. Aktive Reise unter **Setup → Reisen** öffnen.
-2. Einen vorhandenen Hafentag bearbeiten und Liegezeit oder Hafen ändern.
-3. Einen neuen Seetag ergänzen; Reihenfolge und Tagesnummer prüfen.
-4. Einen Testtag löschen und den Wiederherstellungspunkt im Setup kontrollieren.
-5. Ein doppeltes oder außerhalb des Reisezeitraums liegendes Datum testen; Speichern muss blockiert werden.
-6. Reise abschließen; Bearbeitung muss gesperrt sein.
-7. Reise reaktivieren und Bearbeitung erneut prüfen.
-8. Geänderten Reiseexport auf einem zweiten Gerät importieren; der abweichende Reiseverlauf muss als Reisekonflikt erscheinen.
-9. Flugmodus aktivieren und Editor erneut öffnen.
+- Native `details`-Steuerung im Reiseverwaltungsbereich durch eine explizite Schaltfläche mit `aria-expanded` und kontrolliertem Inhaltsbereich ersetzt.
+- Gesamte Schaltfläche und Pfeil lösen denselben Auf-/Zuklappvorgang aus.
+- Bearbeiten- und Löschen-Schaltflächen sind nach dem Öffnen sichtbar.
+- Öffnen eines Editors hält den Verlauf aufgeklappt.
+- Reduzierte Effekte deaktivieren auch die Pfeilanimation.
 
-## Hinweis
+## Prüfungen
 
-Die automatisierten Prüfungen ersetzen nicht den Safari-/Home-Bildschirm-Praxistest auf dem konkret verwendeten iPhone.
+- JavaScript-Syntax mit `node --check` geprüft.
+- Service-Worker-Cache und Versionsparameter auf Build 5.4.1c geprüft.
+- Vorhandensein der Toggle-Aktion, ARIA-Zustände, Inhalts-ID und Bearbeitungsaktionen statisch geprüft.
+- JSON-Dateien validiert.
+- ZIP-Integrität geprüft.
+
+## Offener Praxistest
+
+Die tatsächliche Touch-Bedienung sollte nach Veröffentlichung einmal auf dem verwendeten iPhone geprüft werden.
+
+## Ergänzende Prüfung Build 5.4.1c
+
+- Checkbox-/Label-Aufklappmechanismus ohne Abhängigkeit vom delegierten Klickhandler geprüft.
+- Gesamter Aufklappbalken ist über das zugeordnete Label antippbar.
+- CSS-Zustände für Inhalt, Pfeildrehung und wechselnde Beschriftung geprüft.
+- Verwaltung steht im Setup unmittelbar unter der aktiven Reise.
