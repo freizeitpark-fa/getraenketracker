@@ -208,3 +208,7 @@ Reisen und Personen werden anhand ihrer internen IDs erkannt. Dieselbe Person wi
 
 Bereits importierte Buchungen werden über ihren stabilen Merge-Key erkannt und übersprungen. Ein wiederholter Import derselben Dateien ist deshalb zulässig.
 
+
+## Abgeschlossene Reisen ab Version 4.5.0
+
+Der Abschlussstatus wird je Gerät bewusst lokal geschützt. Schließe die Reise idealerweise erst ab, nachdem alle Geräteexporte zusammengeführt wurden. Enthält ein späterer Import neue Buchungen für eine lokal abgeschlossene Reise, zeigt CruiseSip dies in der Importvorschau an und verlangt eine zusätzliche Bestätigung. Die Reise bleibt nach dem Import abgeschlossen; prüfe die Abschlussdaten anschließend erneut oder reaktiviere die Reise für notwendige Korrekturen.

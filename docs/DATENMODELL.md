@@ -49,3 +49,13 @@ Jede Buchung enthält zusätzlich:
 Die Geräteherkunft bleibt bei späteren Korrekturen der Person, des Getränks, des Preises oder des Paketstatus unverändert.
 
 Reiseexporte werden zunächst ausschließlich im Arbeitsspeicher geprüft. Die Vorschau erstellt einen Importplan mit Ergänzungen, Dubletten und Konflikten. Erst nach ausdrücklicher Bestätigung werden neue Datensätze in einer gemeinsamen IndexedDB-Transaktion gespeichert. Vor dem Schreiben wird der Importplan nochmals mit dem dann aktuellen lokalen Bestand verglichen.
+
+## Reiseabschluss ab 4.5.0
+
+Der bestehende boolesche Wert `trips.archived` dient als Abschluss- und Schreibschutzstatus. Es wurde kein neuer Store und keine neue IndexedDB-Version eingeführt.
+
+- `archived: false` – Reise ist aktiv und darf bebucht beziehungsweise geändert werden.
+- `archived: true` – Reise ist abgeschlossen; Buchungen, Personen und Paketdaten sind schreibgeschützt.
+- Abschluss und Reaktivierung ändern keine Reise-, Personen- oder Buchungs-ID.
+- Beim Geräteabgleich ist `archived` ein lokaler Schutzstatus. Ein abweichender Wert eines anderen Geräts überschreibt den lokalen Status nicht.
+- Vollständige Backups enthalten den Status weiterhin und können ihn beim ausdrücklich gewählten vollständigen Ersetzen wiederherstellen.

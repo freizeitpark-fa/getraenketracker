@@ -1,7 +1,7 @@
 'use strict';
 
-const APP_VERSION = '4.4.3';
-const APP_CACHE_NAME = 'cruisesip-v4-4-3-20260714a';
+const APP_VERSION = '4.5.0';
+const APP_CACHE_NAME = 'cruisesip-v4-5-0-20260714a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -57,7 +57,8 @@ let state = {
   online: navigator.onLine,
   offlineDiagnostics: null,
   pendingBackup: null,
-  pendingTripImport: null
+  pendingTripImport: null,
+  pendingTripClosure: null
 };
 
 const actionLocks = Object.create(null);
@@ -624,8 +625,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.4.3a',
-    './js/app.js?v=4.4.3a',
+    './css/styles.css?v=4.5.0a',
+    './js/app.js?v=4.5.0a',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -834,7 +835,9 @@ async function handleClick(event) {
   if (action === 'skipOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; render(); return; }
   if (action === 'setTrip') { await putSetting('currentTripId', id); state.currentTripId = id; state.selectedPersonId = preferredPersonIdForTrip(id); render(); return; }
   if (action === 'editTrip') { fillTripForm(id); return; }
-  if (action === 'archiveTrip') { await toggleArchiveTrip(id); return; }
+  if (action === 'archiveTrip') { const trip = tripById(id); if (trip?.archived) await reactivateTrip(id); else prepareTripClosure(id); return; }
+  if (action === 'cancelTripClosure') { state.pendingTripClosure = null; render(); return; }
+  if (action === 'confirmTripClosure') { await runActionOnce('confirmTripClosure', () => confirmTripClosure(id)); return; }
   if (action === 'deleteTrip') { await deleteTrip(id); return; }
   if (action === 'resetTripForm') { fillTripForm(null); return; }
   if (action === 'saveTrip') { await runActionOnce('saveTrip', () => saveTripForm($('#tripForm'))); return; }
@@ -941,6 +944,36 @@ function activeTripId() {
 function currentTrip() {
   const id = activeTripId();
   return state.trips.find(t => t.id === id) || state.trips[0] || null;
+}
+function tripById(id) { return state.trips.find(trip => trip.id === id) || null; }
+function isTripCompleted(trip = currentTrip()) { return !!trip?.archived; }
+function tripAllowsChanges(tripId = activeTripId()) {
+  const trip = tripById(tripId);
+  return !!trip && !trip.archived;
+}
+function ensureTripWritable(tripId = activeTripId(), actionLabel = 'Diese Änderung') {
+  const trip = tripById(tripId);
+  if (!trip) {
+    alert('Die zugehörige Reise wurde nicht gefunden.');
+    return false;
+  }
+  if (trip.archived) {
+    alert(`${actionLabel} ist bei der abgeschlossenen Reise „${trip.name || 'Unbenannte Reise'}“ gesperrt. Reaktiviere die Reise zuerst unter „Reisen“.`);
+    return false;
+  }
+  return true;
+}
+function tripStatusNoticeHtml(context = 'general', trip = currentTrip()) {
+  if (!trip?.archived) return '';
+  const messages = {
+    dashboard: 'Die Reise ist abgeschlossen. Neue Getränke können nicht mehr erfasst werden; Verlauf und Auswertungen bleiben verfügbar.',
+    track: 'Für diese abgeschlossene Reise ist das Tracking gesperrt. Reaktiviere sie bewusst, wenn noch Buchungen ergänzt oder korrigiert werden müssen.',
+    history: 'Der Verlauf ist schreibgeschützt. Buchungen können erst nach einer bewussten Reaktivierung wieder geändert oder gelöscht werden.',
+    stats: 'Die Abschlussdaten sind schreibgeschützt. Die vorhandenen Auswertungen bleiben vollständig verfügbar.',
+    persons: 'Personen, Getränkepakete und Paketpreise sind für diese Reise schreibgeschützt.',
+    barkarte: 'Barkarten-Stammdaten können weiter gepflegt werden. Bestehende Buchungen dieser abgeschlossenen Reise werden dabei nicht aktualisiert.'
+  };
+  return `<div class="card completedTripNotice"><div class="completedTripIcon" aria-hidden="true">✓</div><div><span>Reise abgeschlossen</span><b>${esc(trip.name || 'Unbenannte Reise')}</b><p>${esc(messages[context] || messages.dashboard)}</p></div><button class="mini" data-route="trips">Reisen</button></div>`;
 }
 function currentPersons() {
   const id = activeTripId();
@@ -1049,7 +1082,7 @@ async function setTheme(theme) {
 function updateShell() {
   const trip = currentTrip();
   $('#appVersion').textContent = `v${APP_VERSION}`;
-  $('#tripTitle').textContent = state.route === 'track' ? `Tracken${trip ? ' · ' + short(trip.name, 18) : ''}` : (trip ? short(trip.name, 24) : 'Keine Reise');
+  $('#tripTitle').textContent = state.route === 'track' ? `Tracken${trip ? ' · ' + short(trip.name, 18) : ''}${trip?.archived ? ' · abgeschlossen' : ''}` : (trip ? `${short(trip.name, 24)}${trip.archived ? ' · abgeschlossen' : ''}` : 'Keine Reise');
   $('#onlineDot').textContent = state.online ? 'Online' : 'Offline';
   $$('.navButton').forEach(b => b.classList.toggle('active', b.dataset.route === state.route || (state.route === 'onboarding' && b.dataset.route === 'settings')));
   applyTheme();
@@ -1136,11 +1169,12 @@ function viewDashboard() {
   const recent = recentDrinkIds().map(id => drinkById(id)).filter(Boolean).slice(0, 6);
   return `
     <section class="screen">
-      <div class="heroCard dashboardHero">
-        <p class="eyebrow">${esc(trip?.ship || 'Aktive Reise')}</p>
+      <div class="heroCard dashboardHero ${trip?.archived ? 'completed' : ''}">
+        <p class="eyebrow">${esc(trip?.archived ? 'Abgeschlossene Reise' : (trip?.ship || 'Aktive Reise'))}</p>
         <h1>${esc(trip?.name || 'CruiseSip')}</h1>
         <p>${trip?.startDate || trip?.endDate ? `${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))}` : 'Schnelles Getränketracking für iPhone und Offline-Nutzung.'}</p>
       </div>
+      ${tripStatusNoticeHtml('dashboard', trip)}
       <div class="kpiGrid">
         ${kpi('Heute', eur(today.value), `${today.count} Getränke`)}
         ${kpi('Gesamtreise', eur(total.value), `${total.count} Getränke`)}
@@ -1190,30 +1224,43 @@ function setupWarningsHtml() {
 }
 
 function dashboardQuickHtml(favorites, recent) {
+  const locked = isTripCompleted();
   return `
     <div class="card quickCard">
-      <div class="sectionHead"><h2>Schnellzugriff</h2><button class="mini" data-route="track">Tracken</button></div>
-      <div class="quickActions">
-        <button class="quickAction primaryAction" data-route="track"><b>＋</b><span>Getränk erfassen</span></button>
+      <div class="sectionHead"><h2>Schnellzugriff</h2>${locked ? '<span class="diagnosticSummary ok">Abgeschlossen</span>' : '<button class="mini" data-route="track">Tracken</button>'}</div>
+      <div class="quickActions ${locked ? 'readOnlyQuickActions' : ''}">
+        ${locked ? '' : '<button class="quickAction primaryAction" data-route="track"><b>＋</b><span>Getränk erfassen</span></button>'}
         <button class="quickAction" data-route="history"><b>↺</b><span>Verlauf</span></button>
         <button class="quickAction" data-route="stats"><b>∑</b><span>Auswertung</span></button>
+        ${locked ? '<button class="quickAction" data-route="trips"><b>✓</b><span>Reise verwalten</span></button>' : ''}
       </div>
     </div>
     <div class="card">
       <div class="sectionHead"><h2>Favoriten</h2><span class="subtle">${favorites.length || 0}</span></div>
-      ${favorites.length ? quickDrinkList(favorites) : '<p class="emptyText">Noch keine Favoriten. Im Tracking Stern antippen.</p>'}
+      ${favorites.length ? quickDrinkList(favorites, locked) : '<p class="emptyText">Noch keine Favoriten. Im Tracking Stern antippen.</p>'}
     </div>
     <div class="card">
       <div class="sectionHead"><h2>Zuletzt getrunken</h2><span class="subtle">${recent.length || 0}</span></div>
-      ${recent.length ? quickDrinkList(recent) : '<p class="emptyText">Noch kein Verlauf vorhanden.</p>'}
+      ${recent.length ? quickDrinkList(recent, locked) : '<p class="emptyText">Noch kein Verlauf vorhanden.</p>'}
     </div>`;
 }
 function renderDashboardQuick() { const holder = $('#dashboardQuick'); if (holder) holder.innerHTML = dashboardQuickHtml(favoriteIds().map(id => drinkById(id)).filter(Boolean).slice(0, 6), recentDrinkIds().map(id => drinkById(id)).filter(Boolean).slice(0, 6)); }
-function quickDrinkList(drinks) { return `<div class="compactList">${drinks.map(d => `<button class="compactDrink" data-action="trackDrink" data-id="${esc(d.id)}"><span>${esc(d.name)}</span><b>${eur(d.price)}</b></button>`).join('')}</div>`; }
+function quickDrinkList(drinks, readOnly = false) { return `<div class="compactList">${drinks.map(d => readOnly ? `<div class="compactDrink readOnly"><span>${esc(d.name)}</span><b>${eur(d.price)}</b></div>` : `<button class="compactDrink" data-action="trackDrink" data-id="${esc(d.id)}"><span>${esc(d.name)}</span><b>${eur(d.price)}</b></button>`).join('')}</div>`; }
 function kpi(label, value, sub) { return `<article class="kpi"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(sub)}</small></article>`; }
 
 function viewTrack() {
+  const trip = currentTrip();
   const persons = currentPersons();
+  if (trip?.archived) return `
+    <section class="screen trackLockedScreen">
+      ${tripStatusNoticeHtml('track', trip)}
+      <div class="card trackLockedCard">
+        <div class="trackLockedSymbol" aria-hidden="true">✓</div>
+        <h1>Tracking gesperrt</h1>
+        <p>Die Reise wurde kontrolliert abgeschlossen. Vorhandene Buchungen bleiben unverändert erhalten.</p>
+        <div class="buttonStack"><button class="primary" data-route="stats">Auswertung öffnen</button><button class="secondary" data-route="history">Verlauf ansehen</button><button class="secondary" data-route="trips">Reise verwalten</button></div>
+      </div>
+    </section>`;
   return `
     <section class="screen trackScreen">
       <div class="stickyHeader trackStickyHeader">
@@ -1226,6 +1273,7 @@ function viewTrack() {
       <div id="drinkList">${drinkListHtml()}</div>
     </section>`;
 }
+
 function personInitials(name = '') {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
   return (parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : (parts[0] || '?').slice(0, 2)).toUpperCase();
@@ -1415,11 +1463,13 @@ function drinkListHtml() {
 
 function viewHistory() {
   const logs = logsByFilter();
+  const locked = isTripCompleted();
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Verlauf</h1><span class="subtle">${logs.length} Einträge</span></div>
+      ${tripStatusNoticeHtml('history')}
       ${historyFilterHtml()}
-      ${logs.length ? `<div class="timeline">${logs.map(logItemHtml).join('')}</div>` : '<div class="card emptyText">Keine Einträge im gewählten Zeitraum.</div>'}
+      ${logs.length ? `<div class="timeline ${locked ? 'readOnlyTimeline' : ''}">${logs.map(logItemHtml).join('')}</div>` : '<div class="card emptyText">Keine Einträge im gewählten Zeitraum.</div>'}
     </section>`;
 }
 function historyFilterHtml() { return `<div class="segmented"><button class="${state.historyFilter === 'today' ? 'active' : ''}" data-action="setHistoryFilter" data-id="today">Heute</button><button class="${state.historyFilter === 'yesterday' ? 'active' : ''}" data-action="setHistoryFilter" data-id="yesterday">Gestern</button><button class="${state.historyFilter === 'trip' ? 'active' : ''}" data-action="setHistoryFilter" data-id="trip">Reise</button></div>`; }
@@ -1442,14 +1492,15 @@ function logOriginHtml(log, compact = false) {
 }
 function logItemHtml(log) {
   const person = personById(log.personId) || { name: log.personName || 'Unbekannt', color: '#f1f5f9' };
-  if (state.editingLogId === log.id) return logEditItemHtml(log, person);
+  const writable = tripAllowsChanges(log.tripId || activeTripId());
+  if (state.editingLogId === log.id && writable) return logEditItemHtml(log, person);
   return `<article class="timelineItem" style="--person:${esc(person.color || '#f1f5f9')}">
     <div class="timelineMarker"></div>
     <div class="timelineCard">
       <div class="logTop"><b>${statusDot(log.packageStatus)}${esc(log.drinkName)}</b><span>${eur(log.price)}</span></div>
       <div class="logMeta"><span class="personPill">${esc(person.name)}</span><span>${esc(formatDateTime(log.ts))}</span><span>${esc(statusLabel(log.packageStatus))}</span></div>
       <div class="logOriginRow">${logOriginHtml(log)}</div>
-      <div class="logActions"><button class="mini" data-action="editLog" data-id="${esc(log.id)}">Bearbeiten</button><button class="mini dangerText" data-action="deleteLog" data-id="${esc(log.id)}">Löschen</button></div>
+      ${writable ? `<div class="logActions"><button class="mini" data-action="editLog" data-id="${esc(log.id)}">Bearbeiten</button><button class="mini dangerText" data-action="deleteLog" data-id="${esc(log.id)}">Löschen</button></div>` : '<div class="logReadOnlyLabel">Abgeschlossen · schreibgeschützt</div>'}
     </div>
   </article>`;
 }
@@ -1505,6 +1556,7 @@ function viewStats() {
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Auswertungen</h1><span class="subtle">${esc(currentTrip()?.name || '')}</span></div>
+      ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
       <div class="kpiGrid">
         ${kpi('Konsumwert', eur(total.value), `${total.count} Getränke`)}
@@ -1612,6 +1664,7 @@ function viewStatsPersonDetail(person, logs) {
   return `
     <section class="screen">
       <div class="sectionHead"><div><h1>${esc(person.name)}</h1><span class="subtle">Paketprüfung & Verlauf</span></div><button class="mini" data-action="backStatsDashboard">Zurück</button></div>
+      ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
       <article class="card personDetailCard" style="--person:${esc(person.color || '#e0f2fe')}">
         <div class="personAnalysisHead"><div><b>${esc(mainLabel)}</b><small>${esc(packageName(person.packageId))} · ${data.personLogs.length} Getränke im Zeitraum</small></div><strong>${esc(mainValue)}</strong></div>
@@ -1651,6 +1704,7 @@ function viewTrips() {
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Reisen</h1><span class="subtle">${state.trips.length}</span></div>
+      ${tripClosurePreviewHtml()}
       <form id="tripForm" class="card formCard" autocomplete="off">
         <input id="tripIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Reise bearbeiten' : 'Reise anlegen'}</h2>
@@ -1666,24 +1720,213 @@ function viewTrips() {
 function tripCardHtml(trip) {
   const active = trip.id === state.currentTripId;
   const logs = state.logs.filter(l => l.tripId === trip.id);
-  return `<article class="itemCard ${active ? 'selected' : ''} ${trip.archived ? 'mutedCard' : ''}">
-    <div><b>${esc(trip.name)}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${trip.archived ? ' · archiviert' : ''}</small></div>
-    <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">Aktiv</button><button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button><button class="mini" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Archivieren'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
+  return `<article class="itemCard ${active ? 'selected' : ''} ${trip.archived ? 'completedTripCard' : ''}">
+    <div><b>${esc(trip.name)}${trip.archived ? '<span class="tripStateBadge completed">Abgeschlossen</span>' : '<span class="tripStateBadge active">Aktiv</span>'}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${active ? ' · geöffnet' : ''}</small></div>
+    <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">Öffnen</button>${trip.archived ? '' : `<button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button>`}<button class="mini ${trip.archived ? '' : 'completeTripButton'}" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Reise abschließen'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
   </article>`;
+}
+function addTripClosureIssue(bucket, code, title, message, detail = '') {
+  let issue = bucket.get(code);
+  if (!issue) {
+    issue = { code, title, message, count: 0, details: [] };
+    bucket.set(code, issue);
+  }
+  issue.count += 1;
+  if (detail && issue.details.length < 8 && !issue.details.includes(detail)) issue.details.push(detail);
+}
+function validateTripForClosure(tripId) {
+  const trip = tripById(tripId);
+  const critical = new Map();
+  const warnings = new Map();
+  if (!trip) {
+    addTripClosureIssue(critical, 'trip_missing', 'Reise nicht gefunden', 'Der Reisedatensatz ist nicht mehr verfügbar.');
+    return { tripId, tripName: 'Unbekannte Reise', critical: [...critical.values()], warnings: [], summary: { persons: 0, logs: 0, value: 0 }, checkedAt: nowIso() };
+  }
+
+  const validDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+  const isValidDateValue = value => {
+    if (!validDatePattern.test(String(value || ''))) return false;
+    const [year, month, day] = String(value).split('-').map(Number);
+    const parsed = new Date(year, month - 1, day);
+    return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day;
+  };
+  if ((trip.startDate && !isValidDateValue(trip.startDate)) || (trip.endDate && !isValidDateValue(trip.endDate))) {
+    addTripClosureIssue(critical, 'trip_dates_unreadable', 'Reisedatum ungültig', 'Start- oder Enddatum besitzt kein auswertbares Datumsformat.', `${trip.startDate || 'Start fehlt'} bis ${trip.endDate || 'Ende fehlt'}`);
+  } else if (trip.startDate && trip.endDate && trip.startDate > trip.endDate) {
+    addTripClosureIssue(critical, 'trip_dates_invalid', 'Ungültiger Reisezeitraum', 'Das Startdatum liegt nach dem Enddatum.', `${formatDate(trip.startDate)} bis ${formatDate(trip.endDate)}`);
+  }
+  if (!trip.startDate || !trip.endDate) {
+    addTripClosureIssue(warnings, 'trip_dates_missing', 'Reisezeitraum unvollständig', 'Die spätere Tagesauswertung kann eingeschränkt sein.', `${trip.startDate ? 'Enddatum' : trip.endDate ? 'Startdatum' : 'Start- und Enddatum'} fehlt`);
+  }
+
+  const includeLegacyRows = tripId === activeTripId();
+  const persons = state.persons.filter(person => person.tripId === tripId || (includeLegacyRows && !person.tripId));
+  const logs = state.logs.filter(log => log.tripId === tripId || (includeLegacyRows && !log.tripId));
+  const personsById = new Map(state.persons.map(person => [person.id, person]));
+  const drinksById = new Map(state.drinks.map(drink => [drink.id, drink]));
+  const allowedStatuses = new Set(['included', 'not_included', 'unclear']);
+  const mergeKeys = new Map();
+  let value = 0;
+
+  if (!persons.length) addTripClosureIssue(warnings, 'no_persons', 'Keine Personen angelegt', 'Die Reise kann abgeschlossen werden, enthält aber keine Personendaten.');
+  if (!logs.length) addTripClosureIssue(warnings, 'no_logs', 'Keine Buchungen vorhanden', 'Die Reise kann ohne Getränkebuchungen abgeschlossen werden.');
+
+  for (const person of persons) {
+    if (!person.id) addTripClosureIssue(critical, 'person_id_missing', 'Person ohne stabile ID', 'Mindestens eine Person besitzt keine stabile ID.', person.name || 'Unbenannte Person');
+    if (!person.tripId) addTripClosureIssue(warnings, 'person_trip_missing', 'Person ohne feste Reisezuordnung', 'Eine Person besitzt keine gespeicherte Reise-ID.', person.name || person.id || 'Unbenannte Person');
+    if (person.tripId && person.tripId !== tripId) addTripClosureIssue(critical, 'person_wrong_trip', 'Person falsch zugeordnet', 'Eine Person ist einer anderen Reise zugeordnet.', person.name || person.id || 'Unbenannte Person');
+    const packagePriceValue = Number(person.packagePrice);
+    if (person.packageId && person.packageId !== 'none' && (person.packagePrice === '' || person.packagePrice === null || person.packagePrice === undefined || !Number.isFinite(packagePriceValue) || packagePriceValue <= 0)) {
+      addTripClosureIssue(warnings, 'package_price_missing', 'Paketpreis fehlt oder ist ungültig', 'Für die Abschlussauswertung kann kein belastbarer Paketvergleich berechnet werden.', `${person.name || 'Unbenannt'} · ${packageName(person.packageId)}`);
+    }
+  }
+
+  for (const log of logs) {
+    const label = `${log.drinkName || log.drinkId || 'Unbekanntes Getränk'} · ${log.personName || log.personId || 'Unbekannte Person'}`;
+    if (!log.id) addTripClosureIssue(critical, 'log_id_missing', 'Buchung ohne stabile ID', 'Mindestens eine Buchung besitzt keine stabile Buchungs-ID.', label);
+    if (!log.tripId) addTripClosureIssue(critical, 'log_trip_missing', 'Buchung ohne Reise-ID', 'Eine Buchung kann keiner Reise eindeutig zugeordnet werden.', label);
+    else if (log.tripId !== tripId) addTripClosureIssue(critical, 'log_wrong_trip', 'Buchung falsch zugeordnet', 'Eine geprüfte Buchung verweist auf eine andere Reise.', label);
+
+    const person = personsById.get(log.personId);
+    if (!log.personId || !person) addTripClosureIssue(critical, 'log_person_missing', 'Buchung ohne gültige Person', 'Eine Buchung verweist auf keine vorhandene Person.', label);
+    else if (!person.tripId || person.tripId !== tripId) addTripClosureIssue(critical, 'log_person_wrong_trip', 'Person gehört nicht zur Reise', 'Die Person einer Buchung ist nicht eindeutig dieser Reise zugeordnet.', label);
+
+    const rawPrice = log.price;
+    if (rawPrice === '' || rawPrice === null || rawPrice === undefined) {
+      addTripClosureIssue(warnings, 'price_missing', 'Buchung ohne Preis', 'Der Barkartenwert dieser Buchung ist nicht belastbar.', label);
+    } else {
+      const price = Number(rawPrice);
+      if (!Number.isFinite(price) || price < 0) addTripClosureIssue(critical, 'price_invalid', 'Ungültiger Buchungspreis', 'Eine Buchung enthält einen nicht numerischen oder negativen Preis.', `${label} · ${String(rawPrice)}`);
+      else {
+        value += price;
+        if (price === 0) addTripClosureIssue(warnings, 'price_zero', 'Buchung mit 0,00 EUR', 'Bitte prüfen, ob der Preis bewusst 0,00 EUR beträgt.', label);
+      }
+    }
+
+    const ts = Number(log.ts);
+    if (!Number.isFinite(ts) || ts <= 0) addTripClosureIssue(critical, 'timestamp_invalid', 'Ungültiger Buchungszeitpunkt', 'Eine Buchung besitzt kein auswertbares Datum und keine auswertbare Uhrzeit.', label);
+    else if ((trip.startDate && localDateInputValue(ts) < trip.startDate) || (trip.endDate && localDateInputValue(ts) > trip.endDate)) {
+      addTripClosureIssue(warnings, 'outside_trip_dates', 'Buchung außerhalb des Reisezeitraums', 'Mindestens eine Buchung liegt vor dem Start- oder nach dem Enddatum.', `${label} · ${formatDateTime(ts)}`);
+    }
+
+    if (log.packageStatus === 'unclear') addTripClosureIssue(warnings, 'package_unclear', 'Unklarer Paketstatus', 'Diese Buchungen werden konservativ nicht als Ersparnis gewertet.', label);
+    else if (!allowedStatuses.has(log.packageStatus)) addTripClosureIssue(warnings, 'package_invalid', 'Unbekannter Paketstatus', 'Der Status wird für die Prüfung als unklar behandelt.', `${label} · ${String(log.packageStatus || 'leer')}`);
+
+    const key = logMergeKey(log, log.trackedByDeviceId || state.settings.deviceId || '');
+    if (!key) addTripClosureIssue(critical, 'merge_key_missing', 'Buchung ohne Merge-Key', 'Die Buchung kann beim Geräteabgleich nicht sicher identifiziert werden.', label);
+    else if (mergeKeys.has(key)) addTripClosureIssue(critical, 'merge_key_duplicate', 'Doppelter Merge-Key', 'Mehrere Buchungen besitzen dieselbe geräteübergreifende Identität.', `${label} · auch ${mergeKeys.get(key)}`);
+    else mergeKeys.set(key, label);
+
+    if (!log.drinkId || !drinksById.has(log.drinkId)) addTripClosureIssue(warnings, 'drink_reference_missing', 'Getränk nicht in aktueller Barkarte', 'Die gespeicherten Buchungswerte bleiben erhalten, der Stammdatensatz fehlt jedoch.', label);
+    if (!String(log.drinkName || '').trim()) addTripClosureIssue(warnings, 'drink_name_missing', 'Getränkename fehlt', 'Eine Buchung besitzt keinen gespeicherten Getränkenamen.', log.id || 'Buchung ohne ID');
+    if (!String(log.category || '').trim()) addTripClosureIssue(warnings, 'category_missing', 'Kategorie fehlt', 'Der spätere Kategorienvergleich kann unvollständig sein.', label);
+    if (!String(log.trackedByDeviceId || '').trim()) addTripClosureIssue(warnings, 'origin_missing', 'Geräteherkunft fehlt', 'Die Herkunft dieser Buchung ist beim Mehrgeräteabgleich nicht vollständig nachvollziehbar.', label);
+  }
+
+  const criticalRows = [...critical.values()];
+  const warningRows = [...warnings.values()];
+  return {
+    tripId,
+    tripName: trip.name || 'Unbenannte Reise',
+    critical: criticalRows,
+    warnings: warningRows,
+    criticalCount: criticalRows.reduce((sum, row) => sum + row.count, 0),
+    warningCount: warningRows.reduce((sum, row) => sum + row.count, 0),
+    summary: { persons: persons.length, logs: logs.length, value },
+    checkedAt: nowIso()
+  };
+}
+function tripClosureIssueHtml(issue, severity) {
+  return `<details class="closureIssue ${severity}"><summary><span><b>${esc(issue.title)}</b><small>${esc(issue.message)}</small></span><strong>${issue.count}</strong></summary>${issue.details.length ? `<div class="closureIssueDetails">${issue.details.map(detail => `<span>${esc(detail)}</span>`).join('')}</div>` : ''}</details>`;
+}
+function tripClosurePreviewHtml() {
+  const pending = state.pendingTripClosure;
+  if (!pending) return '';
+  const trip = tripById(pending.tripId);
+  if (!trip || trip.archived) return '';
+  const result = pending.validation || validateTripForClosure(pending.tripId);
+  const blocked = result.criticalCount > 0;
+  return `<div class="card tripClosurePreview" id="tripClosurePreview">
+    <div class="backupPreviewHead"><div><b>Reiseabschluss prüfen</b><small>${esc(trip.name)} · Noch keine Daten verändert</small></div><span class="diagnosticSummary ${blocked ? 'bad' : result.warningCount ? 'warn' : 'ok'}">${blocked ? 'Abschluss blockiert' : result.warningCount ? 'Hinweise prüfen' : 'Bereit zum Abschluss'}</span></div>
+    <div class="closureSummaryGrid"><span><b>${result.summary.persons}</b> Personen</span><span><b>${result.summary.logs}</b> Buchungen</span><span><b>${eur(result.summary.value)}</b> Barkartenwert</span><span class="${blocked ? 'badText' : ''}"><b>${result.criticalCount}</b> kritische Fehler</span><span class="${result.warningCount ? 'warnText' : ''}"><b>${result.warningCount}</b> Hinweise</span></div>
+    ${result.critical.length ? `<div class="closureIssueGroup critical"><h3>Kritische Fehler</h3><p>Diese Punkte müssen vor dem Abschluss korrigiert werden.</p>${result.critical.map(issue => tripClosureIssueHtml(issue, 'critical')).join('')}</div>` : ''}
+    ${result.warnings.length ? `<div class="closureIssueGroup warning"><h3>Hinweise</h3><p>Der Abschluss bleibt möglich. Prüfe die Punkte bewusst.</p>${result.warnings.map(issue => tripClosureIssueHtml(issue, 'warning')).join('')}</div>` : '<div class="closureReadyMessage"><b>Keine Auffälligkeiten erkannt.</b><p>Die Reise kann kontrolliert abgeschlossen werden.</p></div>'}
+    <div class="buttonStack"><button class="primary" data-action="confirmTripClosure" data-id="${esc(trip.id)}" ${blocked ? 'disabled' : ''}>${result.warningCount ? 'Trotz Hinweisen abschließen' : 'Reise jetzt abschließen'}</button><button class="secondary" data-action="cancelTripClosure">Prüfung schließen</button></div>
+  </div>`;
+}
+function prepareTripClosure(id) {
+  const trip = tripById(id);
+  if (!trip || trip.archived) return;
+  state.pendingTripClosure = { tripId: id, validation: validateTripForClosure(id), preparedAt: nowIso() };
+  state.editingTripId = null;
+  clearDraft('trip');
+  render();
+  requestAnimationFrame(() => $('#tripClosurePreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+async function confirmTripClosure(id) {
+  await loadState();
+  const trip = tripById(id);
+  if (!trip) throw new Error('Die Reise wurde nicht gefunden.');
+  if (trip.archived) { state.pendingTripClosure = null; render(); return; }
+  const result = validateTripForClosure(id);
+  state.pendingTripClosure = { tripId: id, validation: result, preparedAt: nowIso() };
+  if (result.criticalCount) {
+    render();
+    alert('Der Abschluss ist wegen kritischer Datenfehler derzeit nicht möglich. Die Prüfung wurde aktualisiert.');
+    return;
+  }
+  const warningText = result.warningCount ? `\n\nEs bestehen ${result.warningCount} Hinweis${result.warningCount === 1 ? '' : 'e'}, die den Abschluss nicht verhindern.` : '';
+  if (!confirm(`Reise „${trip.name}“ wirklich abschließen?\n\nDanach sind Tracking sowie Änderungen an Buchungen, Personen und Paketpreisen gesperrt. Alle vorhandenen Daten bleiben erhalten. Die Reise kann später wieder reaktiviert werden.${warningText}`)) {
+    render();
+    return;
+  }
+  await put('trips', { ...trip, archived: true, updatedAt: nowIso() });
+  if (state.undoLog?.tripId === id) {
+    clearUndoAutoHide();
+    state.undoLog = null;
+  }
+  const editedLog = state.logs.find(log => log.id === state.editingLogId);
+  if (editedLog?.tripId === id) { state.editingLogId = null; clearDraft('log'); }
+  const editedPerson = state.persons.find(person => person.id === state.editingPersonId);
+  if (editedPerson?.tripId === id) { state.editingPersonId = null; clearDraft('person'); }
+  if (state.editingTripId === id) { state.editingTripId = null; clearDraft('trip'); }
+  state.pendingTripClosure = null;
+  await loadState();
+  render();
+  toast('Reise abgeschlossen');
+  haptic();
+}
+async function reactivateTrip(id) {
+  const trip = tripById(id);
+  if (!trip || !trip.archived) return;
+  if (!confirm(`Reise „${trip.name}“ wieder reaktivieren?\n\nDanach können erneut Getränke erfasst sowie Personen und Buchungen geändert werden.`)) return;
+  await put('trips', { ...trip, archived: false, updatedAt: nowIso() });
+  await putSetting('currentTripId', id);
+  state.pendingTripClosure = null;
+  state.currentTripId = id;
+  await loadState();
+  state.currentTripId = id;
+  state.selectedPersonId = preferredPersonIdForTrip(id);
+  render();
+  toast('Reise reaktiviert');
+  haptic();
 }
 
 function viewDevices() {
-  const edit = state.editingPersonId ? state.persons.find(p => p.id === state.editingPersonId) : null;
+  const trip = currentTrip();
+  const locked = isTripCompleted(trip);
+  const edit = !locked && state.editingPersonId ? state.persons.find(p => p.id === state.editingPersonId) : null;
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Geräte & Personen</h1><span class="subtle">${currentPersons().length} Personen</span></div>
+      ${tripStatusNoticeHtml('persons', trip)}
       <form id="deviceForm" class="card formCard">
         <h2>Gerät</h2>
         <div class="formField"><label for="deviceNameInput">Gerätename</label><input id="deviceNameInput" name="deviceName" value="${esc(draftValue('device', 'deviceName', state.settings.deviceName || ''))}"></div>
         <div class="infoBox"><span>Geräte-ID</span><code>${esc(state.settings.deviceId || '')}</code></div>
         <button id="deviceSaveButton" class="primary" type="submit" data-action="saveDevice">Gerätename speichern</button>
       </form>
-      <form id="personForm" class="card formCard" autocomplete="off">
+      ${locked ? `<div class="card readOnlyManagement"><h2>Personen dieser Reise</h2><p>Personen, Getränkepakete und Paketpreise können erst nach der Reaktivierung geändert werden.</p><button class="secondary" data-route="trips">Reise verwalten</button></div>` : `<form id="personForm" class="card formCard" autocomplete="off">
         <input id="personIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Person bearbeiten' : 'Person anlegen'}</h2>
         <div class="formField"><label for="personNameInput">Name</label><input id="personNameInput" name="name" placeholder="Name" value="${esc(draftValue('person', 'name', edit?.name || ''))}"></div>
@@ -1691,14 +1934,15 @@ function viewDevices() {
         <div class="formField"><label for="personPackagePriceInput">Paketpreis gesamt</label><input id="personPackagePriceInput" name="packagePrice" type="text" inputmode="decimal" autocomplete="off" placeholder="optional, z. B. 329,00" value="${esc(draftValue('person', 'packagePrice', edit?.packagePrice ?? ''))}"></div>
         <button id="personSaveButton" class="primary" type="submit" data-action="savePerson">${edit ? 'Änderungen speichern' : 'Person speichern'}</button>
         <button class="secondary" type="button" data-action="resetPersonForm">Formular leeren</button>
-      </form>
+      </form>`}
       <div class="card"><h2>Personen dieser Reise</h2><div class="itemList">${currentPersons().map(personCardHtml).join('') || '<p class="emptyText">Noch keine Personen angelegt.</p>'}</div></div>
       <div class="card"><div class="sectionHead"><h2>Importprotokoll</h2><button class="mini" data-action="clearImportLog">Leeren</button></div>${importLogHtml()}</div>
     </section>`;
 }
 function personCardHtml(person) {
   const count = currentLogs().filter(l => l.personId === person.id).length;
-  return `<article class="itemCard" style="--person:${esc(person.color || '#e0f2fe')}"><div><b><span class="personDot"></span>${esc(person.name)}</b><small>${esc(packageName(person.packageId))}${person.packagePrice ? ` · Paketpreis ${eur(person.packagePrice)}` : ''} · ${count} Einträge</small></div><div class="rowActions"><button class="mini" data-action="editPerson" data-id="${esc(person.id)}">Bearbeiten</button><button class="mini dangerText" data-action="deletePerson" data-id="${esc(person.id)}">Löschen</button></div></article>`;
+  const locked = isTripCompleted();
+  return `<article class="itemCard" style="--person:${esc(person.color || '#e0f2fe')}"><div><b><span class="personDot"></span>${esc(person.name)}</b><small>${esc(packageName(person.packageId))}${person.packagePrice ? ` · Paketpreis ${eur(person.packagePrice)}` : ''} · ${count} Einträge</small></div>${locked ? '<span class="readOnlyBadge">Schreibgeschützt</span>' : `<div class="rowActions"><button class="mini" data-action="editPerson" data-id="${esc(person.id)}">Bearbeiten</button><button class="mini dangerText" data-action="deletePerson" data-id="${esc(person.id)}">Löschen</button></div>`}</article>`;
 }
 function importLogHtml() {
   if (!state.imports.length) return '<p class="emptyText">Noch keine Importe.</p>';
@@ -1711,6 +1955,7 @@ function viewBarkarte() {
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Barkarte</h1><span class="subtle">${state.drinks.length} Getränke</span></div>
+      ${tripStatusNoticeHtml('barkarte')}
       <div class="card">
         <h2>Aktuelle Barkarte</h2>
         <div class="infoBox"><span>Version</span><b>${esc(v.version || 'unbekannt')}</b></div>
@@ -1739,12 +1984,14 @@ function renderArticleList() { const el = $('#articleList'); if (el) el.innerHTM
 function renderArticleEdit() { const el = $('#articleEdit'); if (el) el.innerHTML = articleEditFormHtml(state.editingDrinkId ? drinkById(state.editingDrinkId) : null); }
 function articleEditFormHtml(drink) {
   if (!drink) return `<div class="articleEditEmpty"><b>Kein Artikel ausgewählt.</b><small>Artikel suchen und „Bearbeiten“ antippen.</small></div>`;
+  const locked = isTripCompleted();
   return `<form id="articleForm" class="articleForm" autocomplete="off">
     <input id="articleIdInput" type="hidden" name="id" value="${esc(drink.id)}">
     <div class="articleEditHead"><div><b>${esc(drink.name)}</b><small>${esc(drink.category || 'Ohne Kategorie')}${drink.volume ? ` · ${esc(drink.volume)}` : ''}</small></div><button class="mini" type="button" data-action="resetArticleForm">Schließen</button></div>
     <div class="twoCols"><div class="formField"><label for="articlePriceInput">Preis</label><input id="articlePriceInput" name="price" type="text" inputmode="decimal" value="${esc(String(Number(drink.price) || 0).replace('.', ','))}"></div><div class="formField"><label for="articleCategoryInput">Kategorie</label><input id="articleCategoryInput" name="category" value="${esc(drink.category || '')}"></div></div>
     <div class="packageStatusEditor"><b>Enthalten je Getränkepaket</b>${packageStatusFieldsHtml(drink)}</div>
-    <label class="checkLine"><input id="articleApplyLogsInput" name="applyLogs" type="checkbox" checked> Bestehende Einträge dieser Reise für diesen Artikel aktualisieren</label>
+    <label class="checkLine ${locked ? 'disabledCheckLine' : ''}"><input id="articleApplyLogsInput" name="applyLogs" type="checkbox" ${locked ? 'disabled' : 'checked'}> Bestehende Einträge dieser Reise für diesen Artikel aktualisieren</label>
+    ${locked ? '<p class="hint">Die aktuelle Reise ist abgeschlossen. Stammdatenänderungen gelten für künftige Buchungen; vorhandene Buchungen bleiben unverändert.</p>' : ''}
     <button class="primary" type="submit" data-action="saveArticle">Artikel speichern</button>
   </form>`;
 }
@@ -1789,6 +2036,9 @@ async function saveDrinkArticleForm(form) {
     const raw = formValue(form, `pkg_${pkg.id}`) || 'unclear';
     packages[pkg.id] = ['included', 'not_included', 'unclear'].includes(raw) ? raw : 'unclear';
   }
+  const applyLogs = !!form.elements.namedItem('applyLogs')?.checked;
+  const activeId = activeTripId();
+  if (applyLogs && activeId && !ensureTripWritable(activeId, 'Die Aktualisierung bestehender Buchungen')) return;
   const updated = {
     ...drink,
     price,
@@ -1800,9 +2050,7 @@ async function saveDrinkArticleForm(form) {
   await put('drinks', updated);
 
   let updatedLogs = 0;
-  const applyLogs = !!form.elements.namedItem('applyLogs')?.checked;
   if (applyLogs) {
-    const activeId = activeTripId();
     const relevantLogs = state.logs.filter(log => log.drinkId === id && (!activeId || (log.tripId || activeId) === activeId));
     for (const log of relevantLogs) {
       const person = personById(log.personId);
@@ -1876,13 +2124,16 @@ function viewChangelog() {
 }
 
 async function trackDrink(drinkId) {
+  const trip = currentTrip();
+  if (!trip || !ensureTripWritable(trip.id, 'Das Erfassen eines Getränks')) return;
   const person = personById(state.selectedPersonId);
   const drink = drinkById(drinkId);
   if (!person) { alert('Bitte zuerst eine Person auswählen oder anlegen.'); state.route = 'devices'; render(); return; }
+  if (person.tripId !== trip.id) { alert('Die ausgewählte Person gehört nicht zur geöffneten Reise. Bitte wähle eine gültige Person.'); return; }
   if (!drink) return;
   const status = statusForDrink(drink, person.packageId);
   const id = `log_${uid()}`;
-  const log = { id, mergeKey: `${state.settings.deviceId}:${id}`, tripId: state.currentTripId, personId: person.id, personName: person.name, drinkId: drink.id, drinkName: drink.name, category: drink.category || '', price: Number(drink.price) || 0, packageId: person.packageId || 'none', packageStatus: status, ts: Date.now(), trackedByDeviceId: state.settings.deviceId, trackedByDeviceName: state.settings.deviceName, createdAt: nowIso(), updatedAt: nowIso() };
+  const log = { id, mergeKey: `${state.settings.deviceId}:${id}`, tripId: trip.id, personId: person.id, personName: person.name, drinkId: drink.id, drinkName: drink.name, category: drink.category || '', price: Number(drink.price) || 0, packageId: person.packageId || 'none', packageStatus: status, ts: Date.now(), trackedByDeviceId: state.settings.deviceId, trackedByDeviceName: state.settings.deviceName, createdAt: nowIso(), updatedAt: nowIso() };
   await put('logs', log);
   state.undoLog = log;
   await loadState();
@@ -1896,6 +2147,7 @@ async function trackDrink(drinkId) {
 }
 async function undoLast() {
   if (!state.undoLog) return;
+  if (!ensureTripWritable(state.undoLog.tripId || activeTripId(), 'Das Rückgängigmachen einer Buchung')) { clearUndoAutoHide(); state.undoLog = null; updateUndoDock(); return; }
   clearUndoAutoHide();
   await del('logs', state.undoLog.id);
   state.undoLog = null;
@@ -1946,6 +2198,7 @@ function recentDrinkIds() {
 function editLog(id) {
   const log = state.logs.find(row => row.id === id);
   if (!log) return;
+  if (!ensureTripWritable(log.tripId || activeTripId(), 'Die Korrektur einer Buchung')) return;
   state.editingLogId = id;
   state.formDraft.log = {
     id: log.id,
@@ -1984,9 +2237,12 @@ async function saveLogForm(form) {
   const id = formValue(form, 'id') || state.editingLogId;
   const original = state.logs.find(row => row.id === id);
   if (!original) throw new Error('Der Verlaufseintrag wurde nicht gefunden.');
+  if (!ensureTripWritable(original.tripId || activeTripId(), 'Die Korrektur einer Buchung')) return;
   const person = personById(formValue(form, 'personId'));
   const drink = drinkById(formValue(form, 'drinkId'));
   if (!person) throw new Error('Bitte eine gültige Person auswählen.');
+  const originalTripId = original.tripId || activeTripId();
+  if (!originalTripId || person.tripId !== originalTripId) throw new Error('Die ausgewählte Person gehört nicht zur Reise dieser Buchung.');
   if (!drink) throw new Error('Bitte ein gültiges Getränk auswählen.');
   const date = formValue(form, 'date');
   const time = formValue(form, 'time');
@@ -2026,6 +2282,7 @@ async function saveLogForm(form) {
 async function deleteLog(id) {
   const log = state.logs.find(l => l.id === id);
   if (!log) return;
+  if (!ensureTripWritable(log.tripId || activeTripId(), 'Das Löschen einer Buchung')) return;
   if (!confirm(`Eintrag wirklich löschen?\n\n${log.drinkName} · ${log.personName}`)) return;
   await del('logs', id);
   if (state.editingLogId === id) { state.editingLogId = null; clearDraft('log'); }
@@ -2039,6 +2296,7 @@ async function deleteLog(id) {
 
 function fillTripForm(id) {
   const trip = id ? state.trips.find(t => t.id === id) : null;
+  if (trip?.archived) { alert('Eine abgeschlossene Reise ist schreibgeschützt. Reaktiviere sie vor einer Bearbeitung.'); return; }
   state.editingTripId = trip?.id || null;
   state.formDraft.trip = trip ? { id: trip.id || '', name: trip.name || '', ship: trip.ship || '', startDate: trip.startDate || '', endDate: trip.endDate || '' } : {};
   setFieldValue('#tripIdInput', trip?.id || '');
@@ -2064,6 +2322,7 @@ async function saveTripForm(form = null) {
       return;
     }
     const existing = state.trips.find(t => t.id === id) || {};
+    if (existing.id && existing.archived) { alert('Eine abgeschlossene Reise ist schreibgeschützt. Reaktiviere sie vor einer Bearbeitung.'); return; }
     const trip = {
       ...existing,
       id,
@@ -2094,19 +2353,15 @@ async function saveTripForm(form = null) {
 }
 async function saveOnboardingTrip(form) {
   const current = currentTrip();
-  const id = current?.id || `trip_${uid()}`;
-  const trip = { ...(current || {}), id, name: formValue(form, 'name').trim() || 'Aktuelle Reise', ship: formValue(form, 'ship').trim(), startDate: formValue(form, 'startDate'), endDate: formValue(form, 'endDate'), archived: false, createdAt: current?.createdAt || nowIso(), updatedAt: nowIso() };
+  const editableCurrent = current?.archived ? null : current;
+  const id = editableCurrent?.id || `trip_${uid()}`;
+  const trip = { ...(editableCurrent || {}), id, name: formValue(form, 'name').trim() || 'Aktuelle Reise', ship: formValue(form, 'ship').trim(), startDate: formValue(form, 'startDate'), endDate: formValue(form, 'endDate'), archived: false, createdAt: editableCurrent?.createdAt || nowIso(), updatedAt: nowIso() };
   await put('trips', trip);
   await putSetting('currentTripId', id);
   clearDraft('onboardingTrip');
   await loadState();
   toast('Reise gespeichert');
   render();
-}
-async function toggleArchiveTrip(id) {
-  const trip = state.trips.find(t => t.id === id); if (!trip) return;
-  trip.archived = !trip.archived; trip.updatedAt = nowIso();
-  await put('trips', trip); await loadState(); render();
 }
 async function deleteTrip(id) {
   const trip = state.trips.find(t => t.id === id); if (!trip) return;
@@ -2122,6 +2377,7 @@ async function deleteTrip(id) {
 
 function fillPersonForm(id) {
   const person = id ? state.persons.find(p => p.id === id) : null;
+  if (!ensureTripWritable(person?.tripId || activeTripId(), 'Die Bearbeitung einer Person')) return;
   state.editingPersonId = person?.id || null;
   state.formDraft.person = person ? { id: person.id || '', name: person.name || '', packageId: person.packageId || 'none', packagePrice: person.packagePrice ?? '' } : {};
   setFieldValue('#personIdInput', person?.id || '');
@@ -2141,6 +2397,7 @@ async function savePersonForm(form = null) {
     const trip = currentTrip();
     const tripId = activeTripId() || trip?.id;
     if (!trip || !tripId) { alert('Bitte zuerst eine Reise anlegen.'); return; }
+    if (!ensureTripWritable(tripId, 'Die Bearbeitung von Personen und Paketdaten')) return;
 
     const name = fieldValue('#personNameInput', form, 'name').trim();
     if (!name) {
@@ -2195,6 +2452,7 @@ async function saveDeviceForm(form) {
 }
 async function deletePerson(id) {
   const person = state.persons.find(p => p.id === id); if (!person) return;
+  if (!ensureTripWritable(person.tripId || activeTripId(), 'Das Löschen einer Person')) return;
   const count = state.logs.filter(l => l.personId === id).length;
   if (count) { alert('Diese Person hat Verlaufseinträge. Lösche oder bearbeite zuerst die Einträge im Verlauf.'); return; }
   if (!confirm(`Person „${person.name}“ löschen?`)) return;
@@ -2271,6 +2529,14 @@ function meaningfulRow(store, row) {
 }
 function rowsMeaningfullyEqual(store, left, right) {
   return stableStringify(meaningfulRow(store, left)) === stableStringify(meaningfulRow(store, right));
+}
+function tripRowForDeviceSync(row) {
+  const copy = meaningfulRow('trips', row);
+  delete copy.archived;
+  return copy;
+}
+function tripRowsEqualForDeviceSync(left, right) {
+  return stableStringify(tripRowForDeviceSync(left)) === stableStringify(tripRowForDeviceSync(right));
 }
 function logMergeKey(log, fallbackDeviceId = '') {
   if (log?.mergeKey) return String(log.mergeKey);
@@ -2789,7 +3055,7 @@ async function buildTripImportPlan(parsed, local) {
   const personById = new Map((local.persons || []).map(row => [row.id, row]));
   const logByKey = new Map((local.logs || []).map(row => [logMergeKey(row, state.settings.deviceId || ''), row]));
   const usedLogIds = new Set((local.logs || []).map(row => row.id));
-  const summary = { files: parsed.length, trips: 0, persons: 0, logs: 0, duplicates: 0, conflicts: 0, nameWarnings: 0, legacyFiles: 0 };
+  const summary = { files: parsed.length, trips: 0, persons: 0, logs: 0, duplicates: 0, conflicts: 0, nameWarnings: 0, legacyFiles: 0, archivedTripLogs: 0 };
   const fileSummaries = [];
   const conflicts = [];
   const warnings = [];
@@ -2817,6 +3083,7 @@ async function buildTripImportPlan(parsed, local) {
       addedLogs: 0,
       duplicates: 0,
       conflicts: 0,
+      archivedTripLogs: 0,
       legacy: !validation.isV2
     };
     const blockedPersonIds = new Set();
@@ -2827,7 +3094,7 @@ async function buildTripImportPlan(parsed, local) {
       tripById.set(tripId, trip);
       summary.trips += 1;
       fileSummary.addedTrips += 1;
-    } else if (!rowsMeaningfullyEqual('trips', existingTrip, trip)) {
+    } else if (!tripRowsEqualForDeviceSync(existingTrip, trip)) {
       summary.conflicts += 1;
       fileSummary.conflicts += 1;
       conflicts.push(tripConflictDetail('trip', fileName, payload, existingTrip, trip, 'Reise mit gleicher ID besitzt abweichende Stammdaten.'));
@@ -2897,6 +3164,10 @@ async function buildTripImportPlan(parsed, local) {
       log.personName = personById.get(log.personId)?.name || log.personName;
       log.trackedByDeviceId = incomingLog.trackedByDeviceId || payload.device?.id || 'unknown';
       log.trackedByDeviceName = incomingLog.trackedByDeviceName || payload.device?.name || 'Import';
+      if (tripById.get(tripId)?.archived) {
+        summary.archivedTripLogs += 1;
+        fileSummary.archivedTripLogs += 1;
+      }
       rows.logs.push(log);
       logByKey.set(key, log);
       usedLogIds.add(log.id);
@@ -2904,6 +3175,7 @@ async function buildTripImportPlan(parsed, local) {
       fileSummary.addedLogs += 1;
     }
     fileSummary.added = fileSummary.addedTrips + fileSummary.addedPersons + fileSummary.addedLogs;
+    if (fileSummary.archivedTripLogs) warnings.push(`${fileName}: ${fileSummary.archivedTripLogs} neue Buchung${fileSummary.archivedTripLogs === 1 ? '' : 'en'} wird einer lokal abgeschlossenen Reise hinzugefügt. Die Reise bleibt abgeschlossen.`);
     fileSummaries.push(fileSummary);
   }
 
@@ -2936,6 +3208,7 @@ function tripImportFileHtml(row) {
   return `<div class="tripImportFile">
     <div class="tripImportFileHead"><div><b>${esc(row.deviceName)}</b><small>${esc(row.tripName)} · ${esc(exportedAt)}</small></div><span class="diagnosticSummary ${row.conflicts ? 'warn' : 'ok'}">${row.conflicts ? `${row.conflicts} Konflikt${row.conflicts === 1 ? '' : 'e'}` : 'Geprüft'}</span></div>
     <div class="tripImportFileCounts"><span><b>+${row.addedPersons}</b> Personen</span><span><b>+${row.addedLogs}</b> Buchungen</span><span><b>${row.duplicates}</b> vorhanden</span></div>
+    ${row.archivedTripLogs ? `<div class="archivedImportWarning">${row.archivedTripLogs} neue Buchung${row.archivedTripLogs === 1 ? '' : 'en'} für eine abgeschlossene Reise</div>` : ''}
     <small class="tripImportFileName">${esc(row.fileName)}${row.legacy ? ' · älteres Exportformat' : ''}</small>
   </div>`;
 }
@@ -2951,7 +3224,7 @@ function tripImportPreviewHtml() {
   return `<div class="tripImportPreview" id="tripImportPreview">
     <div class="backupPreviewHead"><div><b>Importvorschau</b><small>${summary.files} Datei${summary.files === 1 ? '' : 'en'} geprüft · Noch keine lokalen Daten verändert</small></div><span class="diagnosticSummary ${summary.conflicts ? 'warn' : 'ok'}">${summary.conflicts ? 'Konflikte erkannt' : 'Bereit zum Zusammenführen'}</span></div>
     <div class="tripImportSummary">
-      <span><b>+${summary.trips}</b> Reisen</span><span><b>+${summary.persons}</b> Personen</span><span><b>+${summary.logs}</b> Buchungen</span><span><b>${summary.duplicates}</b> bereits vorhanden</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte</span>
+      <span><b>+${summary.trips}</b> Reisen</span><span><b>+${summary.persons}</b> Personen</span><span><b>+${summary.logs}</b> Buchungen</span><span><b>${summary.duplicates}</b> bereits vorhanden</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte</span>${summary.archivedTripLogs ? `<span class="warnText"><b>${summary.archivedTripLogs}</b> Buchungen für abgeschlossene Reisen</span>` : ''}
     </div>
     <div class="tripImportFiles">${plan.fileSummaries.map(tripImportFileHtml).join('')}</div>
     ${plan.warnings.length ? `<div class="backupMessages warn">${plan.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
@@ -2980,6 +3253,7 @@ async function applyPreparedTripImport() {
     return;
   }
   if (plan.summary.conflicts && !confirm(`${plan.summary.conflicts} Konflikt${plan.summary.conflicts === 1 ? '' : 'e'} wurde${plan.summary.conflicts === 1 ? '' : 'n'} erkannt. Konfliktbehaftete Datensätze werden übersprungen; lokale Daten bleiben erhalten. Trotzdem zusammenführen?`)) return;
+  if (plan.summary.archivedTripLogs && !confirm(`${plan.summary.archivedTripLogs} neue Buchung${plan.summary.archivedTripLogs === 1 ? '' : 'en'} wird einer lokal abgeschlossenen Reise hinzugefügt. Die Reise bleibt abgeschlossen und die neuen Daten sollten anschließend erneut geprüft werden. Trotzdem importieren?`)) return;
   const importedAt = nowIso();
   for (const fileSummary of plan.fileSummaries) {
     plan.rows.imports.push({
@@ -3003,7 +3277,9 @@ async function applyPreparedTripImport() {
   const notices = [];
   if (plan.summary.nameWarnings) notices.push(`${plan.summary.nameWarnings} gleichnamige Person(en) mit unterschiedlicher ID wurden getrennt beibehalten.`);
   if (plan.summary.legacyFiles) notices.push(`${plan.summary.legacyFiles} ältere Exportdatei(en) wurden kompatibel importiert.`);
-  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${plan.summary.files}\nNeue Reisen: ${plan.summary.trips}\nNeue Personen: ${plan.summary.persons}\nNeue Buchungen: ${plan.summary.logs}\nBereits vorhanden: ${plan.summary.duplicates}\nKonflikte übersprungen: ${plan.summary.conflicts}${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
+  if (plan.summary.archivedTripLogs) notices.push(`${plan.summary.archivedTripLogs} neue Buchung(en) wurden abgeschlossenen Reisen hinzugefügt; der lokale Abschlussstatus blieb erhalten.`);
+  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${plan.summary.files}\nNeue Reisen: ${plan.summary.trips}\nNeue Personen: ${plan.summary.persons}\nNeue Buchungen: ${plan.summary.logs}\nBereits vorhanden: ${plan.summary.duplicates}\nKonflikte übersprungen: ${plan.summary.conflicts}
+Buchungen für abgeschlossene Reisen: ${plan.summary.archivedTripLogs || 0}${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
   toast(`${plan.summary.logs} neue Buchungen · ${plan.summary.duplicates} bereits vorhanden`);
 }
 
@@ -3103,6 +3379,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.0</h2>
+  <ul>
+    <li>Reisen können nach einer strukturierten Datenprüfung kontrolliert abgeschlossen und bei Bedarf bewusst reaktiviert werden.</li>
+    <li>Abgeschlossene Reisen sind auf Home, Tracken, Verlauf, Auswertung sowie in der Personenverwaltung deutlich gekennzeichnet.</li>
+    <li>Tracking, Rückgängig, Verlaufskorrekturen, Personen- und Paketänderungen sowie die Aktualisierung bestehender Buchungen sind zentral gesperrt.</li>
+    <li>Kritische Identitäts- und Zuordnungsfehler blockieren den Abschluss; unklare Paketstatus, fehlende Paketpreise und weitere Auffälligkeiten bleiben als Hinweise sichtbar.</li>
+    <li>Der lokale Abschlussstatus wird beim Geräteabgleich nicht überschrieben. Neue Buchungen für abgeschlossene Reisen werden vor dem Import gesondert bestätigt.</li>
+  </ul>
   <h2>Version 4.4.3</h2>
   <ul>
     <li>Geräteexporte werden vor dem Schreiben vollständig geprüft und als Importvorschau mit neuen Reisen, Personen, Buchungen, Dubletten und Konflikten angezeigt.</li>

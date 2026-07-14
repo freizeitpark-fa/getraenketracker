@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.4.3**
+Aktuelle Entwicklungsfassung: **4.5.0**
 
-Version 4.4.3 ergänzt vor dem Geräteabgleich eine vollständige Importvorschau. Neue Reisen, Personen und Buchungen, bereits vorhandene Buchungen sowie Konflikte werden angezeigt, bevor lokale Daten verändert werden. Konflikte lassen sich mit lokalem und importiertem Inhalt vergleichen und werden nicht überschrieben. Im Verlauf und in der personenbezogenen Analyse ist außerdem je Buchung das erfassende Gerät sichtbar. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.5.0 ergänzt einen kontrollierten Reiseabschluss mit Datenprüfung, Sicherheitsabfrage, zentralem Schreibschutz und bewusster Reaktivierung. Abgeschlossene Reisen bleiben vollständig auswertbar, können aber nicht versehentlich bebucht oder verändert werden. Der Geräteabgleich erhält den lokalen Abschlussstatus und warnt ausdrücklich vor neuen Buchungen für bereits abgeschlossene Reisen. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,7 +20,7 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.4.3 Importvorschau`.
+4. Commit erstellen, z. B. `CruiseSip v4.5.0 Reiseabschluss`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
@@ -46,7 +46,7 @@ CruiseSip/
 
 ## Kernfunktionen
 
-- Reiseverwaltung mit Archivierung und Sicherheitslöschung
+- Reiseverwaltung mit kontrolliertem Abschluss, Schreibschutz, Reaktivierung und Sicherheitslöschung
 - Personenverwaltung mit Getränkepaket und optionalem Paketpreis
 - Geräte-ID und Gerätename
 - extrem schnelles Tracking: Person wählen, Getränk antippen, speichern

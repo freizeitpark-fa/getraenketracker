@@ -1,5 +1,13 @@
 # Roadmap CruiseSip
 
+## Version 4.5.0 Reiseabschluss
+
+- strukturierte Abschlussprüfung mit kritischen Fehlern und nicht blockierenden Hinweisen
+- Sicherheitsabfrage vor Abschluss und Reaktivierung
+- zentraler Schreibschutz für Tracking, Verlauf, Rückgängig, Personen und Paketdaten
+- deutlicher Abschlussstatus auf allen relevanten Ansichten
+- lokaler Abschlussstatus bleibt beim Mehrgeräteabgleich geschützt
+
 ## Version 4.4.3 Importvorschau und Herkunftsanzeige
 
 - Ausgewählte Reiseexporte zunächst vollständig prüfen, ohne lokale Daten zu verändern.

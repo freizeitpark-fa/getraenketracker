@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 4.4.3**. Geräteexporte werden vollständig offline als lokale JSON-Dateien erstellt, vor dem Import geprüft und anschließend bewusst über die Dateien-App zusammengeführt.
+Aktueller Stand: **CruiseSip 4.5.0**. Reisen können vollständig offline kontrolliert abgeschlossen, schreibgeschützt ausgewertet und bei Bedarf bewusst reaktiviert werden. Geräteexporte werden weiterhin lokal erstellt, vor dem Import geprüft und anschließend über die Dateien-App zusammengeführt.
 
 ## Einrichtung vor der Kreuzfahrt
 

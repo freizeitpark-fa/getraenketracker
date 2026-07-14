@@ -1,5 +1,35 @@
 # Changelog
 
+## 4.5.0 – Kontrollierter Reiseabschluss und Schreibschutz
+
+### Neu
+
+- Reisen können über `Reise abschließen` kontrolliert abgeschlossen werden. Vor dem Speichern erscheint eine vollständige Abschlussprüfung; bis zur Bestätigung werden keine lokalen Daten verändert.
+- Die Prüfung unterscheidet zwischen kritischen Fehlern und Hinweisen. Kritische Identitäts-, Zuordnungs-, Zeitstempel- oder Preisfehler blockieren den Abschluss.
+- Unklare Paketstatus, fehlende beziehungsweise 0,00-EUR-Preise, fehlende Paketpreise, Buchungen außerhalb des Reisezeitraums, fehlende Kategorien, fehlende Barkartenreferenzen und fehlende Geräteherkunft werden sichtbar ausgewiesen, verhindern den Abschluss aber nicht.
+- Vor dem endgültigen Abschluss wird der lokale Datenbestand erneut geprüft.
+- Abgeschlossene Reisen können nach einer gesonderten Sicherheitsabfrage wieder reaktiviert werden.
+
+### Schreibschutz
+
+- Abgeschlossene Reisen sind auf Home, Tracken, Verlauf, Auswertung, Reisen, Geräte & Personen sowie in der Barkartenverwaltung deutlich gekennzeichnet.
+- Neue Getränkebuchungen sind sowohl über die Tracken-Seite als auch über Home-Favoriten und zuletzt verwendete Getränke gesperrt.
+- Rückgängig, Verlaufskorrekturen, Löschungen, Personenänderungen, Paketänderungen und Änderungen des Paketpreises sind bis zur Reaktivierung gesperrt.
+- Barkarten-Stammdaten bleiben bearbeitbar. Die Übernahme geänderter Stammdaten auf vorhandene Buchungen einer abgeschlossenen Reise ist gesperrt.
+- Reise- und Personendaten sowie sämtliche Buchungen bleiben beim Abschluss unverändert erhalten; gespeichert wird ausschließlich der bestehende Status `archived: true` und ein aktualisierter Änderungszeitpunkt.
+
+### Mehrgeräteabgleich
+
+- Der lokale Abschlussstatus wird beim Geräteabgleich nicht durch den Status eines anderen Geräts überschrieben. Ein Unterschied ausschließlich bei `archived` wird nicht mehr als Reisestammdatenkonflikt behandelt.
+- Neue Buchungen für eine lokal abgeschlossene Reise werden in der Importvorschau gesondert angezeigt und müssen vor dem Schreiben zusätzlich bestätigt werden. Die Reise bleibt danach abgeschlossen.
+
+### Technisch
+
+- App-Version auf `4.5.0` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-5-0-20260714a` erhöht.
+- IndexedDB-Name `cruisesip_v4`, Datenbankversion `1`, Stores, stabile Reise-, Personen- und Buchungs-IDs sowie Exportformatversionen bleiben unverändert.
+- Barkarte und Paketdaten bleiben unverändert; weiterhin exakt 233 Getränke.
+
 ## 4.4.3 – Importvorschau, Konflikterkennung und Buchungsherkunft
 
 ### Neu
