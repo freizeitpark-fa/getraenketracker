@@ -1,7 +1,7 @@
 'use strict';
 
-const APP_VERSION = '4.5.0';
-const APP_CACHE_NAME = 'cruisesip-v4-5-0-20260714c';
+const APP_VERSION = '4.5.1';
+const APP_CACHE_NAME = 'cruisesip-v4-5-1-20260714a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -625,8 +625,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.5.0c',
-    './js/app.js?v=4.5.0c',
+    './css/styles.css?v=4.5.1',
+    './js/app.js?v=4.5.1',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -1566,15 +1566,15 @@ function logEditItemHtml(log, person) {
 
 function viewStats() {
   const filter = state.statsFilter || 'trip';
-  const logs = logsByFilter(filter, currentLogs());
+  const allTripLogs = currentLogs();
+  const logs = logsByFilter(filter, allTripLogs);
   const persons = currentPersons();
   const selectedPerson = state.statsPersonId ? persons.find(person => person.id === state.statsPersonId) : null;
   if (state.statsPersonId && !selectedPerson) state.statsPersonId = null;
-  if (selectedPerson) return viewStatsPersonDetail(selectedPerson, logs);
+  if (selectedPerson) return viewStatsPersonDetail(selectedPerson, logs, filter);
 
   const total = calcDetailed(logs);
-  const packagePriceTotal = persons.reduce((sum, person) => sum + (Number(person.packagePrice) || 0), 0);
-  const packageBalance = packagePriceTotal ? total.included - packagePriceTotal : 0;
+  const isTripView = filter === 'trip';
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Auswertungen</h1><span class="subtle">${esc(currentTrip()?.name || '')}</span></div>
@@ -1582,12 +1582,12 @@ function viewStats() {
       ${statsFilterHtml()}
       <div class="kpiGrid">
         ${kpi('Konsumwert', eur(total.value), `${total.count} Getränke`)}
-        ${kpi('Im Paket', eur(total.included), 'eindeutig enthalten')}
-        ${kpi('Außerhalb Paket', eur(total.notIncluded), 'eindeutig nicht enthalten')}
-        ${kpi('Unklar', eur(total.unclear), 'an Bord prüfen')}
+        ${kpi('Im Paket', eur(total.included), `${total.includedCount} eindeutig enthalten`)}
+        ${kpi('Außerhalb Paket', eur(total.notIncluded), `${total.notIncludedCount} eindeutig nicht enthalten`)}
+        ${kpi('Unklar', eur(total.unclear), `${total.unclearCount} an Bord prüfen`)}
       </div>
-      ${packagePriceTotal ? `<div class="kpiGrid compact">${kpi('Paketpreise', eur(packagePriceTotal), 'Summe erfasster Personen')}${kpi('Paketbilanz', eur(packageBalance), packageBalance >= 0 ? 'Paket aktuell im Plus' : 'noch nicht amortisiert')}</div>` : ''}
-      ${personPackageDashboardHtml(logs)}
+      ${isTripView ? overallCompletionSummaryHtml(persons, allTripLogs) : ''}
+      ${isTripView ? personCompletionDashboardHtml(persons, allTripLogs) : ''}
       ${statusBreakdownHtml(logs)}
       ${outsidePackageHtml(logs)}
       ${statsSection('Pro Person', groupStats(logs, l => personById(l.personId)?.name || l.personName || 'Unbekannt'))}
@@ -1630,54 +1630,183 @@ function statsSection(title, rows, limit = 12) {
   if (!rows.length) return `<div class="card"><h2>${esc(title)}</h2><p class="emptyText">Keine Daten vorhanden.</p></div>`;
   return `<div class="card"><div class="sectionHead"><h2>${esc(title)}</h2><span class="subtle">Top ${Math.min(limit, rows.length)} von ${rows.length}</span></div><div class="statList">${rows.slice(0, limit).map(r => `<div class="statRow"><div><b>${esc(r.key)}</b><small>${r.count} Getränke · im Paket ${eur(r.saved)}${r.unclear ? ` · unklar ${eur(r.unclear)}` : ''}</small></div><strong>${eur(r.value)}</strong></div>`).join('')}</div></div>`;
 }
-function packageBreakEvenHtml(logs) {
-  return personPackageDashboardHtml(logs);
+function isoDateDayNumber(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const stamp = Date.UTC(year, month - 1, day);
+  const date = new Date(stamp);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return Math.floor(stamp / 86400000);
 }
-function personPackageStats(person, logs) {
+function localLogDayKey(ts) {
+  const date = new Date(Number(ts));
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+function tripDayInfo(logs = currentLogs(), trip = currentTrip()) {
+  const start = isoDateDayNumber(trip?.startDate);
+  const end = isoDateDayNumber(trip?.endDate);
+  if (start !== null && end !== null && end >= start) {
+    const days = end - start + 1;
+    return { days, label: `${days} Reisetag${days === 1 ? '' : 'e'}`, source: 'Reisezeitraum' };
+  }
+  const consumedDays = new Set(logs.map(log => localLogDayKey(log.ts)).filter(Boolean)).size;
+  if (consumedDays) return { days: consumedDays, label: `${consumedDays} Tag${consumedDays === 1 ? '' : 'e'} mit Buchungen`, source: 'Buchungstage' };
+  return { days: 0, label: 'keine Reisetage ermittelbar', source: 'Keine Datumsbasis' };
+}
+function statsPeriodDayInfo(filter, logs) {
+  if (filter === 'today' || filter === 'yesterday') return { days: 1, label: '1 Kalendertag', source: 'Tagesfilter' };
+  return tripDayInfo(logs, currentTrip());
+}
+function hasPackage(person) {
+  return !!person?.packageId && person.packageId !== 'none';
+}
+function hasComparablePackage(person) {
+  return hasPackage(person) && person.packageId !== 'unclear' && Number(person.packagePrice) > 0;
+}
+function personCompletionStats(person, logs, filter = 'trip') {
   const personLogs = logs.filter(log => log.personId === person.id);
   const stats = calcDetailed(personLogs);
-  const packagePrice = Number(person.packagePrice) || 0;
-  const remaining = packagePrice ? Math.max(0, packagePrice - stats.included) : 0;
-  const savings = packagePrice ? Math.max(0, stats.included - packagePrice) : 0;
-  const balance = packagePrice ? stats.included - packagePrice : 0;
-  const progress = packagePrice ? Math.min(100, Math.round((stats.included / packagePrice) * 100)) : 0;
-  const avgIncluded = stats.includedCount ? stats.included / stats.includedCount : 0;
-  const remainingDrinkHint = !packagePrice
-    ? 'Paketpreis bei der Person hinterlegen.'
-    : remaining <= 0
-      ? `Break-even erreicht: rechnerische Ersparnis ${eur(savings)}.`
-      : avgIncluded
-        ? `ca. ${Math.ceil(remaining / avgIncluded)} weitere enthaltene Getränke bei Ø ${eur(avgIncluded)}`
-        : 'Noch kein enthaltenes Getränk als Durchschnitt vorhanden.';
-  return { personLogs, stats, packagePrice, remaining, savings, balance, progress, avgIncluded, remainingDrinkHint };
+  const packagePrice = Math.max(0, Number(person.packagePrice) || 0);
+  const packageSelected = hasPackage(person);
+  const comparable = hasComparablePackage(person);
+  const packageResult = comparable ? stats.included - packagePrice : null;
+  const dayInfo = statsPeriodDayInfo(filter, filter === 'trip' ? logs : personLogs);
+  const averagePerTripDay = dayInfo.days ? stats.value / dayInfo.days : 0;
+  return { personLogs, stats, packagePrice, packageSelected, comparable, packageResult, dayInfo, averagePerTripDay };
 }
-function personPackageDashboardHtml(logs) {
-  const persons = currentPersons();
-  if (!persons.length) return '';
+function resultPresentation(data) {
+  if (!data.packageSelected) return { label: 'Kein Paketvergleich', value: '—', tone: 'neutral', sub: 'Kein Getränkepaket hinterlegt.' };
+  if (!data.comparable) {
+    const missingPrice = !data.packagePrice;
+    return {
+      label: missingPrice ? 'Paketpreis fehlt' : 'Paketvergleich unklar',
+      value: '—',
+      tone: 'warning',
+      sub: missingPrice ? 'Paketpreis bei der Person ergänzen.' : 'Das ausgewählte Paket ist als unklar markiert.'
+    };
+  }
+  if (data.packageResult > 0) return { label: 'Ersparnis', value: eur(data.packageResult), tone: 'positive', sub: `${eur(data.stats.included)} Paketwert abzüglich ${eur(data.packagePrice)} Paketpreis.` };
+  if (data.packageResult < 0) return { label: 'Mehrkosten', value: eur(Math.abs(data.packageResult)), tone: 'negative', sub: `${eur(data.packagePrice)} Paketpreis abzüglich ${eur(data.stats.included)} Paketwert.` };
+  return { label: 'Ausgeglichen', value: eur(0), tone: 'neutral', sub: 'Paketwert und Paketpreis sind rechnerisch gleich hoch.' };
+}
+function completionTotals(persons, logs) {
+  const total = calcDetailed(logs);
+  let packagePriceTotal = 0;
+  let packageResult = 0;
+  let comparablePersons = 0;
+  let incompletePersons = 0;
+  let packagePersons = 0;
+  let missingPricePersons = 0;
+  let unclearPackagePersons = 0;
+  persons.forEach(person => {
+    const data = personCompletionStats(person, logs, 'trip');
+    if (data.packageSelected) {
+      packagePersons += 1;
+      packagePriceTotal += data.packagePrice;
+      if (!data.packagePrice) missingPricePersons += 1;
+      if (person.packageId === 'unclear') unclearPackagePersons += 1;
+      if (data.comparable) {
+        comparablePersons += 1;
+        packageResult += data.packageResult;
+      } else {
+        incompletePersons += 1;
+      }
+    }
+  });
+  return { total, packagePriceTotal, packageResult, comparablePersons, incompletePersons, packagePersons, missingPricePersons, unclearPackagePersons };
+}
+function overallResultPresentation(summary) {
+  if (!summary.packagePersons) return { label: 'Kein Paketvergleich', value: '—', tone: 'neutral', sub: 'Für keine Person ist ein Getränkepaket hinterlegt.' };
+  if (!summary.comparablePersons) return { label: 'Gesamtergebnis offen', value: '—', tone: 'warning', sub: 'Für den Paketvergleich fehlen belastbare Paketdaten.' };
+  const partial = summary.incompletePersons ? ` · Teilberechnung, ${summary.incompletePersons} Person${summary.incompletePersons === 1 ? '' : 'en'} nicht einbezogen` : '';
+  if (summary.packageResult > 0) return { label: 'Gesamtersparnis', value: eur(summary.packageResult), tone: 'positive', sub: `${summary.comparablePersons} Paketvergleich${summary.comparablePersons === 1 ? '' : 'e'}${partial}` };
+  if (summary.packageResult < 0) return { label: 'Gesamtmehrkosten', value: eur(Math.abs(summary.packageResult)), tone: 'negative', sub: `${summary.comparablePersons} Paketvergleich${summary.comparablePersons === 1 ? '' : 'e'}${partial}` };
+  return { label: 'Gesamtergebnis ausgeglichen', value: eur(0), tone: 'neutral', sub: `${summary.comparablePersons} Paketvergleich${summary.comparablePersons === 1 ? '' : 'e'}${partial}` };
+}
+function overallCompletionSummaryHtml(persons, logs) {
+  const trip = currentTrip();
+  const summary = completionTotals(persons, logs);
+  const result = overallResultPresentation(summary);
+  const title = trip?.archived ? 'Abschlussauswertung' : 'Reiseauswertung – Zwischenstand';
+  const dayInfo = tripDayInfo(logs, trip);
+  return `<article class="card completionOverviewCard">
+    <div class="sectionHead"><div><h2>${esc(title)}</h2><p class="hint">Finanzielle Paketbilanz konservativ: Nur eindeutig enthaltene Getränke werden dem Paketpreis gegenübergestellt. Nicht enthaltene Getränke werden als Kosten außerhalb des Pakets ausgewiesen; unklare Status bleiben separat.</p></div><span class="completionState ${trip?.archived ? 'completed' : 'ongoing'}">${trip?.archived ? 'Abgeschlossen' : 'Laufend'}</span></div>
+    <div class="completionOverviewGrid">
+      ${completionMetric('Getränke gesamt', String(summary.total.count), eur(summary.total.value))}
+      ${completionMetric('Gesamt-Barkartenwert', eur(summary.total.value), dayInfo.label)}
+      ${completionMetric('Gesamtpaketkosten', eur(summary.packagePriceTotal), `${summary.packagePersons} Person${summary.packagePersons === 1 ? '' : 'en'} mit Paket${summary.missingPricePersons ? ` · ${summary.missingPricePersons} Preis${summary.missingPricePersons === 1 ? '' : 'e'} fehlt${summary.missingPricePersons === 1 ? '' : 'en'}` : ''}${summary.unclearPackagePersons ? ` · ${summary.unclearPackagePersons} Paket${summary.unclearPackagePersons === 1 ? '' : 'e'} unklar` : ''}`)}
+      ${completionMetric('Kosten außerhalb Paket', eur(summary.total.notIncluded), `${summary.total.notIncludedCount} eindeutig nicht enthalten`)}
+      ${completionMetric('Unklare Paketstatus', String(summary.total.unclearCount), eur(summary.total.unclear))}
+      ${completionMetric(result.label, result.value, result.sub, result.tone)}
+    </div>
+  </article>`;
+}
+function completionMetric(label, value, sub, tone = 'neutral') {
+  return `<div class="completionMetric ${esc(tone)}"><span>${esc(label)}</span><b>${esc(value)}</b><small>${esc(sub)}</small></div>`;
+}
+function personSummaryMetric(label, value, sub = '') {
+  return `<span class="personSummaryMetric"><span>${esc(label)}</span><b>${esc(value)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span>`;
+}
+function personCompletionDashboardHtml(persons, logs) {
+  if (!persons.length) return `<div class="card"><h2>Abschlussauswertung je Person</h2><p class="emptyText">Keine Personen vorhanden.</p></div>`;
+  const dayInfo = tripDayInfo(logs, currentTrip());
   const cards = persons.map(person => {
-    const data = personPackageStats(person, logs);
-    const reached = data.packagePrice && data.remaining <= 0;
-    const headline = !data.packagePrice ? 'Paketpreis fehlt' : reached ? 'Ersparnis erreicht' : 'Restbetrag zum Paketpreis';
-    const mainValue = !data.packagePrice ? 'fehlt' : reached ? eur(data.savings) : eur(data.remaining);
-    const subline = !data.packagePrice
-      ? 'Paketpreis in der Person hinterlegen.'
-      : reached
-        ? `Paketwert ${eur(data.stats.included)} bei ${eur(data.packagePrice)} Paketpreis.`
-        : `${eur(data.stats.included)} von ${eur(data.packagePrice)} erreicht.`;
-    return `<button class="personBreakEvenCard" data-action="showStatsPerson" data-id="${esc(person.id)}" style="--person:${esc(person.color || '#e0f2fe')}">
-      <span class="personBreakEvenTop"><span><b>${esc(person.name)}</b><small>${esc(packageName(person.packageId))} · ${data.personLogs.length} Getränke</small></span><strong>${esc(mainValue)}</strong></span>
-      ${data.packagePrice ? `<span class="meter"><i style="width:${data.progress}%"></i></span>` : ''}
-      <span class="personBreakEvenMeta"><span>${esc(headline)}</span><span>Bordrechnung ${esc(eur(data.stats.notIncluded))}</span></span>
-      <small>${esc(subline)}</small>
+    const data = personCompletionStats(person, logs, 'trip');
+    const result = resultPresentation(data);
+    return `<button class="personCompletionCard" data-action="showStatsPerson" data-id="${esc(person.id)}" style="--person:${esc(person.color || '#e0f2fe')}">
+      <span class="personCompletionHead"><span><b>${esc(person.name)}</b><small>${esc(packageName(person.packageId))}</small></span><span class="personResult ${esc(result.tone)}"><small>${esc(result.label)}</small><strong>${esc(result.value)}</strong></span></span>
+      <span class="personCompletionGrid">
+        ${personSummaryMetric('Getränke', String(data.stats.count), eur(data.stats.value))}
+        ${personSummaryMetric('Barkartenwert', eur(data.stats.value), `Ø ${eur(data.averagePerTripDay)} je Reisetag`)}
+        ${personSummaryMetric('Im Paket', `${data.stats.includedCount} · ${eur(data.stats.included)}`)}
+        ${personSummaryMetric('Nicht enthalten', `${data.stats.notIncludedCount} · ${eur(data.stats.notIncluded)}`)}
+        ${personSummaryMetric('Unklar', `${data.stats.unclearCount} · ${eur(data.stats.unclear)}`)}
+        ${personSummaryMetric('Außerhalb-Kosten', eur(data.stats.notIncluded), 'eindeutig nicht enthalten')}
+        ${personSummaryMetric('Paketpreis', data.packageSelected ? (data.packagePrice ? eur(data.packagePrice) : 'fehlt') : eur(0), data.packageSelected && !data.packagePrice ? 'nicht in Bilanz einbezogen' : '')}
+        ${personSummaryMetric('Ø pro Reisetag', dayInfo.days ? eur(data.averagePerTripDay) : '—', dayInfo.label)}
+      </span>
+      <span class="personCompletionHint">${esc(result.sub)} · Kategorien und Buchungen ansehen</span>
     </button>`;
   }).join('');
-  return `<div class="card"><div class="sectionHead"><h2>Restbetrag / Paketprüfung pro Person</h2><span class="subtle">antippen für Verlauf</span></div><p class="hint">Die Kachel zeigt je Person den verbleibenden Betrag bis zum rechnerischen Paketpreis. Sobald der Break-even erreicht ist, wird die rechnerische Ersparnis ausgewiesen. Bordrechnung zählt nur eindeutig nicht enthaltene Getränke.</p><div class="personBreakEvenGrid">${cards}</div></div>`;
+  return `<div class="card"><div class="sectionHead"><h2>Abschlussauswertung je Person</h2><span class="subtle">antippen für Details</span></div><div class="personCompletionList">${cards}</div></div>`;
 }
-function viewStatsPersonDetail(person, logs) {
-  const data = personPackageStats(person, logs);
-  const reached = data.packagePrice && data.remaining <= 0;
-  const mainLabel = !data.packagePrice ? 'Paketpreis fehlt' : reached ? 'Rechnerische Ersparnis' : 'Restbetrag zum Paketpreis';
-  const mainValue = !data.packagePrice ? 'fehlt' : reached ? eur(data.savings) : eur(data.remaining);
+function categoryDetailedStats(logs) {
+  const map = new Map();
+  logs.forEach(log => {
+    const key = resolvedLogCategory(log) || 'Ohne Kategorie';
+    if (!map.has(key)) map.set(key, { key, count: 0, value: 0, includedCount: 0, included: 0, notIncludedCount: 0, notIncluded: 0, unclearCount: 0, unclear: 0 });
+    const row = map.get(key);
+    const price = Number(log.price) || 0;
+    row.count += 1;
+    row.value += price;
+    if (log.packageStatus === 'included') { row.includedCount += 1; row.included += price; }
+    else if (log.packageStatus === 'not_included') { row.notIncludedCount += 1; row.notIncluded += price; }
+    else { row.unclearCount += 1; row.unclear += price; }
+  });
+  return [...map.values()].sort((a, b) => b.value - a.value || b.count - a.count || a.key.localeCompare(b.key, 'de'));
+}
+function personCategoryBreakdownHtml(logs) {
+  const rows = categoryDetailedStats(logs);
+  if (!rows.length) return `<div class="card"><h2>Getränkekategorien</h2><p class="emptyText">Keine Kategorien im gewählten Zeitraum vorhanden.</p></div>`;
+  return `<div class="card"><div class="sectionHead"><h2>Getränkekategorien</h2><span class="subtle">${rows.length} Kategorien</span></div><div class="categoryAnalysisList">${rows.map(row => `<div class="categoryAnalysisRow"><div><b>${esc(row.key)}</b><small>${row.count} Getränke · ${row.includedCount} enthalten · ${row.notIncludedCount} nicht enthalten${row.unclearCount ? ` · ${row.unclearCount} unklar` : ''}</small></div><strong>${eur(row.value)}</strong></div>`).join('')}</div></div>`;
+}
+function packageBreakEvenHtml(logs) {
+  return personCompletionDashboardHtml(currentPersons(), logs);
+}
+function personPackageStats(person, logs) {
+  return personCompletionStats(person, logs, state.statsFilter || 'trip');
+}
+function personPackageDashboardHtml(logs) {
+  return personCompletionDashboardHtml(currentPersons(), logs);
+}
+function viewStatsPersonDetail(person, logs, filter = state.statsFilter || 'trip') {
+  const data = personCompletionStats(person, logs, filter);
+  const fullTripData = personCompletionStats(person, currentLogs(), 'trip');
+  const result = resultPresentation(fullTripData);
   const drinkRows = data.personLogs
     .slice()
     .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
@@ -1685,24 +1814,29 @@ function viewStatsPersonDetail(person, logs) {
     .join('');
   return `
     <section class="screen">
-      <div class="sectionHead"><div><h1>${esc(person.name)}</h1><span class="subtle">Paketprüfung & Verlauf</span></div><button class="mini" data-action="backStatsDashboard">Zurück</button></div>
+      <div class="sectionHead"><div><h1>${esc(person.name)}</h1><span class="subtle">Abschlussauswertung & Verlauf</span></div><button class="mini" data-action="backStatsDashboard">Zurück</button></div>
       ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
       <article class="card personDetailCard" style="--person:${esc(person.color || '#e0f2fe')}">
-        <div class="personAnalysisHead"><div><b>${esc(mainLabel)}</b><small>${esc(packageName(person.packageId))} · ${data.personLogs.length} Getränke im Zeitraum</small></div><strong>${esc(mainValue)}</strong></div>
-        ${data.packagePrice ? `<span class="meter"><i style="width:${data.progress}%"></i></span>` : ''}
+        <div class="personAnalysisHead"><div><b>${esc(result.label)} · gesamte Reise</b><small>${esc(packageName(person.packageId))} · ${data.stats.count} Getränke im gewählten Zeitraum</small></div><strong class="personDetailResult ${esc(result.tone)}">${esc(result.value)}</strong></div>
+        <p class="personResultExplanation">${esc(result.sub)}</p>
         <div class="personAnalysisGrid">
-          ${miniMetric('Paketpreis', data.packagePrice ? eur(data.packagePrice) : 'fehlt', 'bei Person hinterlegt')}
-          ${miniMetric('Im Paket gerechnet', eur(data.stats.included), `${data.stats.includedCount} enthalten`)}
-          ${miniMetric(reached ? 'Ersparnis' : 'Noch offen', data.packagePrice ? (reached ? eur(data.savings) : eur(data.remaining)) : '-', data.remainingDrinkHint)}
-          ${miniMetric('Bordrechnung', eur(data.stats.notIncluded), `${data.stats.notIncludedCount} nicht enthalten`)}
-          ${miniMetric('Unklar', eur(data.stats.unclear), `${data.stats.unclearCount} an Bord prüfen`)}
-          ${miniMetric('Gesamt getrunken', eur(data.stats.value), `${data.stats.count} Getränke`)}
+          ${miniMetric('Anzahl Getränke', String(data.stats.count), `Barkartenwert ${eur(data.stats.value)}`)}
+          ${miniMetric('Barkartenwert gesamt', eur(data.stats.value), `Ø ${eur(data.averagePerTripDay)} je Reisetag`)}
+          ${miniMetric('Im Paket enthalten', `${data.stats.includedCount} · ${eur(data.stats.included)}`, 'eindeutig enthalten')}
+          ${miniMetric('Nicht enthalten', `${data.stats.notIncludedCount} · ${eur(data.stats.notIncluded)}`, 'Kosten außerhalb des Pakets')}
+          ${miniMetric('Unklare Paketstatus', `${data.stats.unclearCount} · ${eur(data.stats.unclear)}`, 'nicht in die Paketbilanz einbezogen')}
+          ${miniMetric('Kosten außerhalb Paket', eur(data.stats.notIncluded), `${data.stats.notIncludedCount} Getränke`)}
+          ${miniMetric('Bezahlter Paketpreis', data.packageSelected ? (data.packagePrice ? eur(data.packagePrice) : 'fehlt') : eur(0), data.packageSelected ? (data.packagePrice ? 'bei Person hinterlegt' : 'Paketpreis fehlt') : 'kein Paket')}
+          ${miniMetric(`${result.label} · Reise`, result.value, result.sub)}
+          ${miniMetric('Ø Getränkewert pro Reisetag', data.dayInfo.days ? eur(data.averagePerTripDay) : '—', data.dayInfo.label)}
         </div>
       </article>
+      ${personCategoryBreakdownHtml(data.personLogs)}
       <div class="card"><div class="sectionHead"><h2>Getränkeverlauf</h2><span class="subtle">${data.personLogs.length} Einträge</span></div>${drinkRows ? `<div class="personDrinkList">${drinkRows}</div>` : '<p class="emptyText">Keine Getränke im gewählten Zeitraum.</p>'}</div>
     </section>`;
 }
+
 function miniMetric(label, value, sub) {
   return `<div class="miniMetric"><span>${esc(label)}</span><b>${esc(value)}</b><small>${esc(sub)}</small></div>`;
 }
@@ -3401,6 +3535,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.1</h2>
+  <ul>
+    <li>Neue Abschlussauswertung mit Gesamt-Barkartenwert, Gesamtpaketkosten, Kosten außerhalb des Pakets, unklaren Paketstatus und Gesamtbilanz.</li>
+    <li>Je Person werden Getränkeanzahl, Barkartenwert, enthaltene, nicht enthaltene und unklare Getränke, Paketpreis, Ersparnis oder Mehrkosten sowie der durchschnittliche Getränkewert pro Reisetag ausgewiesen.</li>
+    <li>Personendetails enthalten zusätzlich eine Kategorienauswertung mit Anzahl, Wert und Paketstatus-Verteilung.</li>
+    <li>Die Paketbilanz bleibt konservativ: Nur eindeutig enthaltene Getränke werden mit dem Paketpreis verglichen; unklare Getränke werden nicht als Ersparnis berücksichtigt.</li>
+    <li>Bei fehlendem oder unklarem Paketpreis wird kein scheinbar genauer Vergleich berechnet, sondern die Auswertung sichtbar als unvollständig gekennzeichnet.</li>
+  </ul>
   <h2>Version 4.5.0</h2>
   <ul>
     <li>Reisen können nach einer strukturierten Datenprüfung kontrolliert abgeschlossen und bei Bedarf bewusst reaktiviert werden.</li>

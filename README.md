@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.5.0**
+Aktuelle Entwicklungsfassung: **4.5.1**
 
-Version 4.5.0 ergänzt einen kontrollierten Reiseabschluss mit Datenprüfung, Sicherheitsabfrage, zentralem Schreibschutz und bewusster Reaktivierung. Abgeschlossene Reisen bleiben vollständig auswertbar, können aber nicht versehentlich bebucht oder verändert werden. Der Geräteabgleich erhält den lokalen Abschlussstatus und warnt ausdrücklich vor neuen Buchungen für bereits abgeschlossene Reisen. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.5.1 ergänzt die Abschlussauswertung je Person und für die gesamte Reise. Ausgewiesen werden Getränkeanzahl, Barkartenwerte, Paketstatus, Kosten außerhalb des Pakets, Paketpreise, Ersparnis oder Mehrkosten, Durchschnittswerte je Reisetag und Kategorien. Die Berechnung bleibt konservativ und verändert keine gespeicherten Buchungen. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,7 +20,7 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.5.0 Reiseabschluss`.
+4. Commit erstellen, z. B. `CruiseSip v4.5.1 Abschlussauswertung`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
@@ -55,8 +55,9 @@ CruiseSip/
 - stabile Suche ohne Fokusverlust
 - Favoriten, Kategorien und zuletzt verwendete Getränke
 - Verlauf als Timeline mit Bearbeiten/Löschen und Filtern
-- Auswertungen nach Person, Getränk, Kategorie, Tag und Reise inklusive Paket-Break-even und Bordrechnung außerhalb Paket
-- Personen-Detailanalyse mit Restbetrag zum Paketpreis, rechnerischer Ersparnis und vollständigem Getränkeverlauf
+- Abschlussauswertung je Person und Gesamtübersicht mit Barkartenwert, Paketkosten, Kosten außerhalb Paket sowie Ersparnis oder Mehrkosten
+- Durchschnittlicher Getränkewert pro Reisetag und Kategorienauswertung je Person
+- Auswertungen nach Person, Getränk, Kategorie, Tag und Reise inklusive vollständigem Getränkeverlauf
 - Export/Import je Reise
 - Zusammenführen mehrerer Geräte mit Importvorschau, Dubletten- und Konflikterkennung
 - sichtbare Geräteherkunft je Buchung im Verlauf und in der Personenanalyse

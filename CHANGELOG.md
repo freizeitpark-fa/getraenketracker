@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.5.1 – Abschlussauswertung je Person und Gesamtübersicht
+
+### Neu
+
+- Gesamtübersicht mit Anzahl aller Getränke, Gesamt-Barkartenwert, Gesamtpaketkosten, Kosten außerhalb des Pakets, unklaren Paketstatus sowie Gesamtersparnis oder Gesamtmehrkosten.
+- Je Person werden Getränkeanzahl, Barkartenwert, enthaltene, nicht enthaltene und unklare Getränke jeweils mit Anzahl und Wert ausgewiesen.
+- Bezahlter Paketpreis, Kosten außerhalb des Pakets und die rechnerische Ersparnis beziehungsweise Mehrkosten werden transparent getrennt dargestellt.
+- Durchschnittlicher Getränkewert pro Reisetag auf Basis des hinterlegten Reisezeitraums; bei fehlenden Reisedaten erfolgt ein sichtbar gekennzeichneter Rückgriff auf Tage mit Buchungen.
+- Kategorienauswertung je Person mit Getränkeanzahl, Barkartenwert und Verteilung auf enthalten, nicht enthalten und unklar.
+- Abgeschlossene Reisen zeigen die Überschrift `Abschlussauswertung`; aktive Reisen zeigen denselben Datenstand als `Reiseauswertung – Zwischenstand`.
+
+### Berechnungslogik
+
+- Die Paketbilanz bleibt konservativ: Nur eindeutig als `included` gespeicherte Getränke werden dem Paketpreis gegenübergestellt.
+- Eindeutig nicht enthaltene Getränke werden als Kosten außerhalb des Pakets ausgewiesen und verändern die Paketbilanz nicht, da sie auch ohne Paket zum Barkartenpreis angefallen wären.
+- Unklare Paketstatus werden separat ausgewiesen und nicht als Ersparnis berücksichtigt.
+- Bei fehlendem Paketpreis oder dem Paketstatus `Unklar / an Bord prüfen` wird kein scheinbar genauer Vergleich berechnet.
+- Personen ohne Getränkepaket erhalten ausdrücklich keinen Paketvergleich statt einer irreführenden Mehrkostenanzeige.
+
+### Technisch
+
+- App-Version auf `4.5.1` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-5-1-20260714a` erhöht.
+- IndexedDB, Stores, IDs, Exportformate, Backup und Geräteabgleich bleiben unverändert.
+- Barkarte weiterhin vollständig mit 233 Getränken.
+
 ## 4.5.0c – Hotfix abgeschlossene Reise öffnen
 
 ### Behoben

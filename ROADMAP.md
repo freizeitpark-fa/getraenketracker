@@ -1,5 +1,15 @@
 # Roadmap CruiseSip
 
+## Version 4.5.1 Abschlussauswertung je Person
+
+- Getränkeanzahl und Barkartenwert je Person
+- enthaltene, nicht enthaltene und unklare Getränke mit Anzahl und Wert
+- Kosten außerhalb des Pakets und bezahlter Paketpreis
+- konservative Ersparnis- oder Mehrkostenberechnung
+- durchschnittlicher Getränkewert pro Reisetag
+- Kategorienauswertung je Person
+- Gesamtübersicht mit Gesamtwert, Gesamtpaketkosten und Gesamtbilanz
+
 ## Version 4.5.0 Reiseabschluss
 
 - strukturierte Abschlussprüfung mit kritischen Fehlern und nicht blockierenden Hinweisen
