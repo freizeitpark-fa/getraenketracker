@@ -1,5 +1,13 @@
 # Roadmap CruiseSip
 
+## Version 4.5.2b Importierter Reiseverlauf
+
+- tatsächlichen Reiseverlauf als lokale JSON-Datei importieren
+- Häfen, Länder, Seetage sowie optionale Ankunfts- und Abfahrtszeiten speichern
+- geprüfte Importvorschau vor dem Ersetzen bestehender Routendaten
+- Reiseverlauf in Tages- und Abschlussbericht anzeigen
+- Tracking, Buchungen und Paketberechnungen unverändert lassen
+
 ## Version 4.5.2 Tages- und Reisebericht
 
 - chronologische Auswertung je Reisetag

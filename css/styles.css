@@ -948,3 +948,28 @@ html[data-theme="dark"] .updateDock{background:rgba(10,32,56,.97)}
 .tripReportCard{display:grid;gap:16px;border-color:color-mix(in srgb,var(--brand2) 24%,var(--line));background:linear-gradient(150deg,color-mix(in srgb,var(--brand2) 4%,var(--card)),var(--card))}.tripReportCard>.sectionHead{align-items:flex-start}.tripReportSummaryGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tripReportSection{display:grid;gap:9px;border-top:1px solid var(--line);padding-top:14px}.tripReportSection h3,.tripReportPanel h3{margin:0;font-size:16px}.tripDayList{display:grid}.tripDayRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}.tripDayRow:last-child{border-bottom:0}.tripDayRow>div{min-width:0}.tripDayRow b{display:block;font-size:13px;line-height:1.3}.tripDayRow small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}.tripDayRow strong{color:var(--brand2);font-size:13px;white-space:nowrap}.tripDayRow.strongest{margin:4px -6px;padding:11px 8px;border:1px solid color-mix(in srgb,var(--brand) 28%,var(--line));border-radius:14px;background:color-mix(in srgb,var(--brand) 6%,var(--cardSolid))}.tripReportWarning{margin:2px 0 0;border-radius:12px;background:color-mix(in srgb,var(--warn) 10%,var(--cardSolid));padding:9px;color:var(--warn);font-size:10px;line-height:1.4}.tripReportColumns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tripReportPanel{min-width:0;border:1px solid var(--line);border-radius:17px;background:var(--cardSolid);padding:11px}.tripReportPanelHead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding-bottom:5px}.tripReportPanelHead small{display:block;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.3}.tripReportList{display:grid}.tripReportRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}.tripReportRow:last-child{border-bottom:0}.tripReportRow>div{min-width:0}.tripReportRow b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:1.3}.tripReportRow small{display:block;margin-top:2px;color:var(--muted);font-size:9px;line-height:1.35}.tripReportRow strong{color:var(--brand2);font-size:12px;white-space:nowrap}
 @media(max-width:560px){.tripReportColumns{grid-template-columns:1fr}}
 @media(max-width:380px){.tripReportSummaryGrid{grid-template-columns:1fr}.tripDayRow,.tripReportRow{grid-template-columns:1fr}.tripDayRow strong,.tripReportRow strong{justify-self:start}}
+
+/* 4.5.2b – importierter Reiseverlauf */
+.itineraryCard .buttonStack{margin-top:14px}
+.itinerarySummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
+.itinerarySummary span{display:flex;flex-direction:column;gap:2px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft)}
+.itinerarySummary b{font-size:1.05rem}
+.itineraryDetails{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.itineraryDetails summary{cursor:pointer;font-weight:700}
+.itineraryPreviewList,.itineraryReportList{display:grid;gap:8px;margin-top:12px}
+.itineraryDayRow,.itineraryReportRow{display:grid;grid-template-columns:minmax(88px,.8fr) minmax(0,2fr);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.itineraryDayRow:last-child,.itineraryReportRow:last-child{border-bottom:0}
+.itineraryDate,.itineraryLocation,.itineraryReportRow>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.itineraryDate small,.itineraryLocation small,.itineraryReportRow small{color:var(--muted);line-height:1.35}
+.itineraryLocation b,.itineraryReportRow strong{overflow-wrap:anywhere}
+.itineraryImportPreview{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.itineraryImportPreview .backupModeCard{margin-top:14px}
+.itineraryReportRow{grid-template-columns:minmax(0,1.35fr) minmax(100px,.9fr)}
+.itineraryReportRow strong{text-align:right;font-size:.95rem}
+@media (max-width:560px){
+  .itinerarySummary{grid-template-columns:1fr 1fr}
+  .itinerarySummary span:first-child{grid-column:1/-1}
+  .itineraryDayRow{grid-template-columns:86px minmax(0,1fr)}
+  .itineraryReportRow{grid-template-columns:1fr}
+  .itineraryReportRow strong{text-align:left}
+}

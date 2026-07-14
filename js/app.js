@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '4.5.2';
-const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714a';
-const APP_BUILD = '4.5.2a';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.2a';
+const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714b';
+const APP_BUILD = '4.5.2b';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.2b';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -17,6 +17,9 @@ const LEGACY_TRIP_EXPORT_TYPE = 'CruiseSipExport';
 const TRIP_EXPORT_FORMAT_VERSION = 2;
 const TRIP_EXPORT_MAX_BYTES = 25 * 1024 * 1024;
 const TRIP_EXPORT_MAX_FILES = 20;
+const ITINERARY_IMPORT_TYPE = 'CruiseSipItinerary';
+const ITINERARY_IMPORT_FORMAT_VERSION = 1;
+const ITINERARY_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 
 const STORE_NAMES = ['settings', 'trips', 'persons', 'drinks', 'logs', 'imports', 'barkarten'];
 const PERSON_COLORS = ['#e0f2fe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#ccfbf1', '#f1f5f9'];
@@ -60,7 +63,8 @@ let state = {
   offlineDiagnostics: null,
   pendingBackup: null,
   pendingTripImport: null,
-  pendingTripClosure: null
+  pendingTripClosure: null,
+  pendingItineraryImport: null
 };
 
 const actionLocks = Object.create(null);
@@ -860,6 +864,10 @@ async function handleClick(event) {
   if (action === 'cancelTripClosure') { state.pendingTripClosure = null; render(); return; }
   if (action === 'confirmTripClosure') { await runActionOnce('confirmTripClosure', () => confirmTripClosure(id)); return; }
   if (action === 'deleteTrip') { await deleteTrip(id); return; }
+  if (action === 'importItinerary') { openFile('itinerary'); return; }
+  if (action === 'cancelItineraryImport') { state.pendingItineraryImport = null; render(); return; }
+  if (action === 'applyItineraryImport') { await runActionOnce('applyItineraryImport', applyPreparedItineraryImport); return; }
+  if (action === 'clearItinerary') { await clearCurrentItinerary(); return; }
   if (action === 'resetTripForm') { fillTripForm(null); return; }
   if (action === 'saveTrip') { await runActionOnce('saveTrip', () => saveTripForm($('#tripForm'))); return; }
   if (action === 'selectPerson') {
@@ -945,9 +953,13 @@ async function handleFileInput(event) {
     if (state.pendingFileMode === 'fullBackup' && file.size > FULL_BACKUP_MAX_BYTES) {
       throw new Error('Die Backupdatei ist größer als 25 MB und wird aus Sicherheitsgründen nicht eingelesen.');
     }
+    if (state.pendingFileMode === 'itinerary' && file.size > ITINERARY_IMPORT_MAX_BYTES) {
+      throw new Error('Die Reiseverlaufsdatei ist größer als 2 MB und wird aus Sicherheitsgründen nicht eingelesen.');
+    }
     const text = await file.text();
     if (state.pendingFileMode === 'barkarte') await importBarkarte(text, file.name);
     if (state.pendingFileMode === 'fullBackup') await prepareFullBackupImport(text, file.name);
+    if (state.pendingFileMode === 'itinerary') await prepareItineraryImport(text, file.name);
   } catch (error) {
     alert(`Import nicht möglich: ${error.message || error}`);
   } finally {
@@ -967,6 +979,28 @@ function currentTrip() {
   return state.trips.find(t => t.id === id) || state.trips[0] || null;
 }
 function tripById(id) { return state.trips.find(trip => trip.id === id) || null; }
+function tripItinerary(trip = currentTrip()) { return Array.isArray(trip?.itinerary) ? trip.itinerary : []; }
+function itineraryDayForDate(dateKey, trip = currentTrip()) { return tripItinerary(trip).find(day => day.date === dateKey) || null; }
+function itineraryTypeLabel(type) {
+  return ({ embarkation: 'Einschiffung', port: 'Hafentag', sea: 'Seetag', overnight: 'Übernacht im Hafen', disembarkation: 'Ausschiffung', unknown: 'Reisetag' })[type] || 'Reisetag';
+}
+function itineraryLocationLabel(day) {
+  if (!day) return '';
+  if (day.type === 'sea') return 'Seetag';
+  const location = String(day.port || day.location || '').trim();
+  const country = String(day.country || '').trim();
+  if (location && country) return `${location}, ${country}`;
+  return location || country || itineraryTypeLabel(day.type);
+}
+function itineraryTimeLabel(day) {
+  if (!day) return '';
+  const arrival = String(day.arrival || '').trim();
+  const departure = String(day.departure || '').trim();
+  if (arrival && departure) return `${arrival}–${departure}`;
+  if (arrival) return `Ankunft ${arrival}`;
+  if (departure) return `Abfahrt ${departure}`;
+  return '';
+}
 function isTripCompleted(trip = currentTrip()) { return !!trip?.archived; }
 function tripAllowsChanges(tripId = activeTripId()) {
   const trip = tripById(tripId);
@@ -1799,6 +1833,8 @@ function tripReportDateKeys(logs, trip = currentTrip()) {
   if (start !== null && end !== null && end >= start && end - start <= 366) {
     return Array.from({ length: end - start + 1 }, (_, index) => isoDayKeyFromNumber(start + index));
   }
+  const itineraryDates = tripItinerary(trip).map(day => day.date).filter(validItineraryDate);
+  if (itineraryDates.length) return [...new Set(itineraryDates)].sort();
   return [...new Set(logs.map(log => localLogDayKey(log.ts)).filter(Boolean))].sort();
 }
 function tripDailyReport(logs, trip = currentTrip()) {
@@ -1862,6 +1898,15 @@ function personReportRows(persons, logs) {
 function tripReportListHtml(title, subtitle, rows, rowHtml, emptyText = 'Keine Daten vorhanden.') {
   return `<section class="tripReportPanel"><div class="tripReportPanelHead"><div><h3>${esc(title)}</h3><small>${esc(subtitle)}</small></div></div>${rows.length ? `<div class="tripReportList">${rows.map(rowHtml).join('')}</div>` : `<p class="emptyText">${esc(emptyText)}</p>`}</section>`;
 }
+
+function tripItineraryReportHtml(trip = currentTrip()) {
+  const days = tripItinerary(trip);
+  if (!days.length) return '<section class="tripReportSection"><div class="sectionHead"><div><h3>Reiseverlauf</h3><p class="hint">Noch keine Häfen oder Seetage importiert.</p></div></div><button class="secondary" data-route="trips">Reiseverlauf importieren</button></section>';
+  const ports = days.filter(day => ['port', 'embarkation', 'disembarkation', 'overnight'].includes(day.type) && day.port).length;
+  const seaDays = days.filter(day => day.type === 'sea').length;
+  return `<section class="tripReportSection"><div class="sectionHead"><div><h3>Reiseverlauf</h3><p class="hint">Importierte Route als Kontext für die Tagesauswertung.</p></div><span class="subtle">${ports} Hafentage · ${seaDays} Seetage</span></div><div class="itineraryReportList">${days.map(day => `<div class="itineraryReportRow"><div><b>${esc(reportDateLabel(day.date, trip))}</b><small>${esc([itineraryTypeLabel(day.type), itineraryTimeLabel(day), day.notes].filter(Boolean).join(' · '))}</small></div><strong>${esc(itineraryLocationLabel(day))}</strong></div>`).join('')}</div></section>`;
+}
+
 function tripTravelReportHtml(persons, logs) {
   const trip = currentTrip();
   const daily = tripDailyReport(logs, trip);
@@ -1871,9 +1916,15 @@ function tripTravelReportHtml(persons, logs) {
   const personRows = personReportRows(persons, logs);
   const categories = categoryDetailedStats(logs).sort((a, b) => b.count - a.count || b.value - a.value || a.key.localeCompare(b.key, 'de'));
   const total = calcDetailed(logs);
-  const strongestText = daily.strongest ? reportDateLabel(daily.strongest.key, trip) : 'Noch kein Konsumtag';
+  const strongestDay = daily.strongest ? itineraryDayForDate(daily.strongest.key, trip) : null;
+  const strongestText = daily.strongest ? `${reportDateLabel(daily.strongest.key, trip)}${strongestDay ? ` · ${itineraryLocationLabel(strongestDay)}` : ''}` : 'Noch kein Konsumtag';
   const reportState = trip?.archived ? 'Abschlussbericht' : 'Zwischenbericht';
-  const dayRows = daily.rows.map(row => `<div class="tripDayRow ${daily.strongest?.key === row.key ? 'strongest' : ''}"><div><b>${esc(reportDateLabel(row.key, trip))}${daily.strongest?.key === row.key ? ' · stärkster Tag' : ''}</b><small>${row.count} ${row.count === 1 ? 'Getränk' : 'Getränke'} · ${row.includedCount} enthalten · ${row.notIncludedCount} nicht enthalten${row.unclearCount ? ` · ${row.unclearCount} unklar` : ''}</small></div><strong>${eur(row.value)}</strong></div>`).join('');
+  const dayRows = daily.rows.map(row => {
+    const itineraryDay = itineraryDayForDate(row.key, trip);
+    const routeLabel = itineraryDay ? itineraryLocationLabel(itineraryDay) : '';
+    const routeMeta = itineraryDay ? [itineraryTypeLabel(itineraryDay.type), itineraryTimeLabel(itineraryDay)].filter(Boolean).join(' · ') : '';
+    return `<div class="tripDayRow ${daily.strongest?.key === row.key ? 'strongest' : ''}"><div><b>${esc(reportDateLabel(row.key, trip))}${routeLabel ? ` · ${esc(routeLabel)}` : ''}${daily.strongest?.key === row.key ? ' · stärkster Tag' : ''}</b><small>${routeMeta ? `${esc(routeMeta)} · ` : ''}${row.count} ${row.count === 1 ? 'Getränk' : 'Getränke'} · ${row.includedCount} enthalten · ${row.notIncludedCount} nicht enthalten${row.unclearCount ? ` · ${row.unclearCount} unklar` : ''}</small></div><strong>${eur(row.value)}</strong></div>`;
+  }).join('');
   return `<article class="card tripReportCard">
     <div class="sectionHead"><div><h2>Tages- und Reisebericht</h2><p class="hint">Chronologische Reiseauswertung mit Tageswerten, Spitzenwerten und Vergleichen. Tage ohne Buchungen werden bei vollständig hinterlegtem Reisezeitraum mit 0 berücksichtigt.</p></div><span class="completionState ${trip?.archived ? 'completed' : 'ongoing'}">${esc(reportState)}</span></div>
     <div class="tripReportSummaryGrid">
@@ -1882,6 +1933,7 @@ function tripTravelReportHtml(persons, logs) {
       ${completionMetric('Stärkster Konsumtag', daily.strongest ? `${daily.strongest.count} Getränke` : '—', daily.strongest ? `${strongestText} · ${eur(daily.strongest.value)}` : strongestText)}
       ${completionMetric('Reisewert', eur(total.value), `${total.count} Getränke gesamt`)}
     </div>
+    ${tripItineraryReportHtml(trip)}
     <section class="tripReportSection"><div class="sectionHead"><div><h3>Auswertung je Reisetag</h3><p class="hint">Sortiert nach dem lokalen Buchungsdatum.</p></div><span class="subtle">${daily.rows.length} Tage</span></div>${dayRows ? `<div class="tripDayList">${dayRows}</div>` : '<p class="emptyText">Keine Reisetage ermittelbar.</p>'}${daily.invalidCount ? `<p class="tripReportWarning">${daily.invalidCount} Buchung${daily.invalidCount === 1 ? '' : 'en'} ohne gültiges Datum konnte${daily.invalidCount === 1 ? '' : 'n'} keinem Tag zugeordnet werden.</p>` : ''}</section>
     <div class="tripReportColumns">
       ${tripReportListHtml('Häufigste Getränke', 'Nach Anzahl der Buchungen', frequent, row => `<div class="tripReportRow"><div><b>${esc(row.key)}</b><small>${row.count}× · Gesamtwert ${eur(row.value)}</small></div><strong>${row.count}×</strong></div>`)}
@@ -1975,12 +2027,147 @@ function outsidePackageHtml(logs) {
   return `<div class="card"><div class="sectionHead"><h2>Außerhalb Paket / unklar</h2><span class="subtle">Top ${rows.length}</span></div><div class="statList">${rows.map(r => `<div class="statRow"><div><b>${esc(r.key)}</b><small>${r.count} Getränke</small></div><strong>${eur(r.value)}</strong></div>`).join('')}</div></div>`;
 }
 
+
+function normalizeItineraryType(value, row = {}) {
+  const key = normalize(value || row.dayType || row.type || row.kind || row.tag || '');
+  if (['embarkation', 'einschiffung', 'abfahrt', 'start'].includes(key)) return 'embarkation';
+  if (['disembarkation', 'ausschiffung', 'ankunft', 'ende', 'end'].includes(key)) return 'disembarkation';
+  if (['sea', 'sea day', 'seetag', 'auf see'].includes(key)) return 'sea';
+  if (['overnight', 'overnight port', 'uber nacht', 'ueber nacht', 'ubernacht', 'uebernacht'].includes(key) || row.overnight === true) return 'overnight';
+  if (['port', 'hafen', 'hafentag', 'landgang'].includes(key)) return 'port';
+  return 'unknown';
+}
+function validItineraryDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+  return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day;
+}
+function normalizeItineraryDay(raw, index) {
+  const row = isPlainRecord(raw) ? raw : {};
+  const date = String(row.date || row.datum || row.Date || '').trim();
+  const type = normalizeItineraryType(row.type || row.dayType || row.typ, row);
+  const port = String(row.port || row.portName || row.location || row.ort || row.hafen || '').trim();
+  const country = String(row.country || row.land || '').trim();
+  const arrival = String(row.arrival || row.ankunft || '').trim();
+  const departure = String(row.departure || row.abfahrt || '').trim();
+  const notes = String(row.notes || row.note || row.hinweis || row.bemerkung || '').trim();
+  return {
+    date,
+    dayNumber: Number.isFinite(Number(row.dayNumber || row.day || row.tag)) ? Number(row.dayNumber || row.day || row.tag) : index + 1,
+    type,
+    port,
+    country,
+    arrival,
+    departure,
+    overnight: type === 'overnight' || row.overnight === true,
+    notes
+  };
+}
+function itineraryImportValidation(payload, trip = currentTrip(), fileName = 'Reiseverlauf') {
+  const errors = [];
+  const warnings = [];
+  if (!isPlainRecord(payload)) errors.push('Die Datei enthält kein gültiges JSON-Objekt.');
+  if (payload?.type !== ITINERARY_IMPORT_TYPE) errors.push(`Die Datei ist nicht als ${ITINERARY_IMPORT_TYPE} gekennzeichnet.`);
+  if (Number(payload?.formatVersion) !== ITINERARY_IMPORT_FORMAT_VERSION) errors.push(`Formatversion ${payload?.formatVersion ?? 'unbekannt'} wird nicht unterstützt.`);
+  if (!Array.isArray(payload?.days) || !payload.days.length) errors.push('Die Datei enthält keine Reisetage.');
+  const days = (payload?.days || []).map(normalizeItineraryDay);
+  const seen = new Set();
+  days.forEach((day, index) => {
+    if (!validItineraryDate(day.date)) errors.push(`Reisetag ${index + 1} besitzt kein gültiges Datum im Format JJJJ-MM-TT.`);
+    else if (seen.has(day.date)) errors.push(`Das Datum ${day.date} ist mehrfach enthalten.`);
+    else seen.add(day.date);
+    if (day.type !== 'sea' && !day.port && !day.notes) warnings.push(`${day.date || `Reisetag ${index + 1}`}: Kein Hafen oder Hinweis hinterlegt.`);
+    if (day.arrival && !/^\d{2}:\d{2}$/.test(day.arrival)) warnings.push(`${day.date}: Ankunftszeit „${day.arrival}“ entspricht nicht HH:MM.`);
+    if (day.departure && !/^\d{2}:\d{2}$/.test(day.departure)) warnings.push(`${day.date}: Abfahrtszeit „${day.departure}“ entspricht nicht HH:MM.`);
+  });
+  days.sort((a, b) => a.date.localeCompare(b.date));
+  if (trip?.startDate && days[0]?.date && days[0].date !== trip.startDate) warnings.push(`Der Verlauf beginnt am ${formatDate(days[0].date)}, die Reise ist ab ${formatDate(trip.startDate)} hinterlegt.`);
+  if (trip?.endDate && days[days.length - 1]?.date && days.at(-1).date !== trip.endDate) warnings.push(`Der Verlauf endet am ${formatDate(days.at(-1).date)}, die Reise ist bis ${formatDate(trip.endDate)} hinterlegt.`);
+  if (payload?.trip?.name && trip?.name && normalize(payload.trip.name) !== normalize(trip.name)) warnings.push(`Datei-Reise „${payload.trip.name}“ weicht von „${trip.name}“ ab.`);
+  if (payload?.trip?.ship && trip?.ship && normalize(payload.trip.ship) !== normalize(trip.ship)) warnings.push(`Datei-Schiff „${payload.trip.ship}“ weicht von „${trip.ship}“ ab.`);
+  const summary = {
+    days: days.length,
+    ports: days.filter(day => ['port', 'embarkation', 'disembarkation', 'overnight'].includes(day.type) && day.port).length,
+    seaDays: days.filter(day => day.type === 'sea').length,
+    startDate: days[0]?.date || '',
+    endDate: days[days.length - 1]?.date || ''
+  };
+  return { errors: Array.from(new Set(errors)), warnings: Array.from(new Set(warnings)), days, summary, fileName, source: String(payload?.source || payload?.meta?.source || '').trim() };
+}
+async function prepareItineraryImport(text, fileName) {
+  const trip = currentTrip();
+  if (!trip) throw new Error('Bitte zuerst eine Reise anlegen oder öffnen.');
+  let payload;
+  try { payload = JSON.parse(text); }
+  catch (_) { throw new Error('Die Datei enthält kein gültiges JSON.'); }
+  const validation = itineraryImportValidation(payload, trip, fileName);
+  if (validation.errors.length) throw new Error(validation.errors[0]);
+  state.pendingItineraryImport = { tripId: trip.id, payload, validation, preparedAt: nowIso() };
+  render();
+  requestAnimationFrame(() => $('#itineraryImportPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  toast('Reiseverlauf geprüft – noch nicht importiert');
+}
+function itineraryDayRowHtml(day) {
+  const location = itineraryLocationLabel(day);
+  const time = itineraryTimeLabel(day);
+  const details = [itineraryTypeLabel(day.type), time, day.notes].filter(Boolean).join(' · ');
+  return `<div class="itineraryDayRow"><div class="itineraryDate"><b>${esc(formatDate(day.date))}</b><small>Tag ${esc(day.dayNumber || '')}</small></div><div class="itineraryLocation"><b>${esc(location || itineraryTypeLabel(day.type))}</b><small>${esc(details)}</small></div></div>`;
+}
+function itineraryImportPreviewHtml() {
+  const pending = state.pendingItineraryImport;
+  if (!pending) return '';
+  const trip = tripById(pending.tripId);
+  if (!trip) return '';
+  const { validation } = pending;
+  return `<div class="itineraryImportPreview" id="itineraryImportPreview"><div class="backupPreviewHead"><div><b>Importvorschau Reiseverlauf</b><small>${esc(validation.fileName)} · Noch keine Daten verändert</small></div><span class="diagnosticSummary ${validation.warnings.length ? 'warn' : 'ok'}">${validation.warnings.length ? 'Hinweise prüfen' : 'Bereit'}</span></div><div class="tripImportSummary"><span><b>${validation.summary.days}</b> Reisetage</span><span><b>${validation.summary.ports}</b> Hafentage</span><span><b>${validation.summary.seaDays}</b> Seetage</span><span><b>${esc(formatDate(validation.summary.startDate))}</b> bis ${esc(formatDate(validation.summary.endDate))}</span></div>${validation.warnings.length ? `<div class="backupMessages warn">${validation.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}<div class="itineraryPreviewList">${validation.days.map(itineraryDayRowHtml).join('')}</div><div class="backupModeCard"><b>Verlauf für „${esc(trip.name)}“ übernehmen</b><p>Ein bereits vorhandener Reiseverlauf wird vollständig ersetzt. Getränkebuchungen, Personen, Preise und Paketdaten bleiben unverändert.</p><button class="primary" data-action="applyItineraryImport">Geprüften Verlauf importieren</button></div><button class="secondary" data-action="cancelItineraryImport">Importvorschau schließen</button></div>`;
+}
+function itineraryManagementHtml(trip = currentTrip()) {
+  if (!trip) return `<div class="card"><h2>Reiseverlauf</h2><p class="emptyText">Lege zuerst eine Reise an.</p></div>`;
+  const days = tripItinerary(trip);
+  const ports = days.filter(day => ['port', 'embarkation', 'disembarkation', 'overnight'].includes(day.type) && day.port).length;
+  const seaDays = days.filter(day => day.type === 'sea').length;
+  return `<div class="card itineraryCard"><div class="sectionHead"><div><h2>Reiseverlauf</h2><p class="hint">Häfen und Seetage werden ausschließlich für den späteren Reisebericht verwendet. Das Tracking richtet sich weiterhin nur nach Datum und Uhrzeit.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="importItinerary">Reiseverlauf importieren</button>${days.length ? '<button class="secondary dangerText" data-action="clearItinerary">Verlauf entfernen</button>' : ''}</div>${days.length ? `<div class="itinerarySummary"><span><b>${days.length}</b> Reisetage</span><span><b>${ports}</b> Hafentage</span><span><b>${seaDays}</b> Seetage</span></div><details class="itineraryDetails"><summary>Gespeicherten Verlauf anzeigen</summary><div class="itineraryPreviewList">${days.map(itineraryDayRowHtml).join('')}</div></details>` : '<p class="emptyText">Noch kein Reiseverlauf hinterlegt.</p>'}${itineraryImportPreviewHtml()}</div>`;
+}
+async function applyPreparedItineraryImport() {
+  const pending = state.pendingItineraryImport;
+  if (!pending) throw new Error('Keine geprüfte Reiseverlaufsdatei vorhanden.');
+  const trip = tripById(pending.tripId);
+  if (!trip) throw new Error('Die Zielreise wurde nicht gefunden.');
+  const validation = itineraryImportValidation(pending.payload, trip, pending.validation.fileName);
+  if (validation.errors.length) throw new Error(validation.errors[0]);
+  const existingCount = tripItinerary(trip).length;
+  if (existingCount && !confirm(`Der vorhandene Reiseverlauf mit ${existingCount} Reisetagen wird vollständig ersetzt. Fortfahren?`)) return;
+  await put('trips', { ...trip, itinerary: validation.days, itineraryImportedAt: nowIso(), itinerarySource: validation.source || pending.validation.fileName, updatedAt: nowIso() });
+  state.pendingItineraryImport = null;
+  await loadState();
+  render();
+  toast(`${validation.days.length} Reisetage importiert`);
+  haptic();
+}
+async function clearCurrentItinerary() {
+  const trip = currentTrip();
+  const count = tripItinerary(trip).length;
+  if (!trip || !count) return;
+  if (!confirm(`Den gespeicherten Reiseverlauf mit ${count} Reisetagen entfernen? Getränkebuchungen bleiben unverändert.`)) return;
+  const next = { ...trip, itinerary: [], itineraryImportedAt: '', itinerarySource: '', updatedAt: nowIso() };
+  await put('trips', next);
+  state.pendingItineraryImport = null;
+  await loadState();
+  render();
+  toast('Reiseverlauf entfernt');
+}
+
 function viewTrips() {
   const edit = state.editingTripId ? state.trips.find(t => t.id === state.editingTripId) : null;
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Reisen</h1><span class="subtle">${state.trips.length}</span></div>
       ${tripClosurePreviewHtml()}
+      ${itineraryManagementHtml(currentTrip())}
       <form id="tripForm" class="card formCard" autocomplete="off">
         <input id="tripIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
         <h2>${edit ? 'Reise bearbeiten' : 'Reise anlegen'}</h2>
@@ -1997,7 +2184,7 @@ function tripCardHtml(trip) {
   const active = trip.id === state.currentTripId;
   const logs = state.logs.filter(l => l.tripId === trip.id);
   return `<article class="itemCard ${active ? 'selected' : ''} ${trip.archived ? 'completedTripCard' : ''}">
-    <div><b>${esc(trip.name)}${trip.archived ? '<span class="tripStateBadge completed">Abgeschlossen</span>' : '<span class="tripStateBadge active">Aktiv</span>'}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${active ? ' · geöffnet' : ''}</small></div>
+    <div><b>${esc(trip.name)}${trip.archived ? '<span class="tripStateBadge completed">Abgeschlossen</span>' : '<span class="tripStateBadge active">Aktiv</span>'}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${tripItinerary(trip).length ? ` · ${tripItinerary(trip).length} Routentage` : ''}${active ? ' · geöffnet' : ''}</small></div>
     <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Buchungen ansehen' : 'Öffnen'}</button>${trip.archived ? '' : `<button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button>`}<button class="mini ${trip.archived ? '' : 'completeTripButton'}" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Reise abschließen'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
   </article>`;
 }
@@ -2810,6 +2997,9 @@ function rowsMeaningfullyEqual(store, left, right) {
 function tripRowForDeviceSync(row) {
   const copy = meaningfulRow('trips', row);
   delete copy.archived;
+  delete copy.itinerary;
+  delete copy.itineraryImportedAt;
+  delete copy.itinerarySource;
   return copy;
 }
 function tripRowsEqualForDeviceSync(left, right) {
@@ -3656,6 +3846,13 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.2b</h2>
+  <ul>
+    <li>Tatsächlicher Reiseverlauf mit Häfen, Seetagen und optionalen Liegezeiten kann als lokale JSON-Datei importiert werden.</li>
+    <li>Eine Importvorschau prüft Format, Datumswerte, doppelte Tage sowie Abweichungen bei Reisezeitraum, Reisename und Schiff.</li>
+    <li>Importierte Routendaten ergänzen den Tages- und Reisebericht; Tracking, Buchungen und Paketberechnungen bleiben unverändert.</li>
+    <li>Bestehende Reiseverläufe werden nur nach ausdrücklicher Bestätigung ersetzt und können unabhängig von Getränkebuchungen wieder entfernt werden.</li>
+  </ul>
   <h2>Version 4.5.2</h2>
   <ul>
     <li>Neuer Tages- und Reisebericht mit chronologischer Auswertung aller Reisetage einschließlich Tagen ohne Buchungen.</li>

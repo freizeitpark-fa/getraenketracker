@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 4.5.2**, Build **4.5.2a**. Reisen können vollständig offline abgeschlossen und anschließend je Person, je Reisetag sowie insgesamt ausgewertet werden. Sämtliche Berichtskennzahlen werden direkt aus den lokal gespeicherten Buchungen berechnet; es werden keine Daten an einen Server übertragen.
+Aktueller Stand: **CruiseSip 4.5.2**, Build **4.5.2b**. Reisen können vollständig offline abgeschlossen und anschließend je Person, je Reisetag sowie insgesamt ausgewertet werden. Sämtliche Berichtskennzahlen werden direkt aus den lokal gespeicherten Buchungen berechnet; es werden keine Daten an einen Server übertragen.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -20,6 +20,7 @@ Aktueller Stand: **CruiseSip 4.5.2**, Build **4.5.2a**. Reisen können vollstän
 - Verlauf, Reisen, Personen, Favoriten und Auswertungen bleiben lokal gespeichert.
 - Exportdateien können lokal erzeugt und später weitergegeben werden.
 - Neue Barkarten können nur importiert werden, wenn sie als strukturierte JSON- oder CSV-Datei auf dem Gerät verfügbar sind.
+- Der tatsächliche Reiseverlauf kann vor der Reise als strukturierte JSON-Datei in der Dateien-App abgelegt und vollständig offline importiert werden.
 
 ## Wichtige Hinweise
 

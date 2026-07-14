@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.5.2b – Importierter Reiseverlauf
+
+### Neu
+
+- Reiseverlauf mit Häfen, Seetagen, Ankunfts- und Abfahrtszeiten als lokale JSON-Datei importieren.
+- Importvorschau mit Prüfung von Format, Datumswerten, doppelten Tagen, Reisezeitraum, Reisename und Schiff.
+- Bereits vorhandenen Reiseverlauf nach ausdrücklicher Bestätigung vollständig ersetzen oder gezielt entfernen.
+- Importierte Häfen und Seetage werden im Tages- und Reisebericht angezeigt; das Getränketracking bleibt ausschließlich datumsbasiert.
+- Reiseverlauf kann auch bei einer abgeschlossenen Reise ergänzt werden, ohne Buchungen, Personen, Preise oder Paketdaten zu verändern.
+- Vollbackup und vollständige Wiederherstellung enthalten den Reiseverlauf automatisch.
+
+### Technisch
+
+- App-Version bleibt `4.5.2`, Build auf `4.5.2b` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-5-2-20260714b` erhöht.
+- Keine Änderung an IndexedDB-Version, Stores, IDs oder Buchungslogik.
+- Reiseverlauf wird beim Geräteabgleich nicht als Stammdatenkonflikt bewertet. Bei bereits vorhandener Reise muss er bei Bedarf auf dem zweiten Gerät separat importiert werden.
+
 ## 4.5.2 – Tages- und Reisebericht
 
 ### Neu
