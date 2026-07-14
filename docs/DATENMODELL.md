@@ -36,3 +36,16 @@ Das Format `CruiseSipFullBackup` mit `backupFormatVersion: 1` enthält unveränd
 Die Integrität wird über SHA-256 auf einer kanonisch sortierten JSON-Darstellung aller Backupfelder mit Ausnahme des Feldes `integrity` geprüft.
 
 Beim Ergänzen sind IDs maßgeblich. Personen mit gleicher ID werden wiederverwendet; gleiche Namen mit unterschiedlichen IDs werden nicht automatisch zusammengeführt. Buchungsdubletten werden über `mergeKey` beziehungsweise über Geräte-ID und ursprüngliche Buchungs-ID erkannt.
+
+
+## Geräteherkunft und Importvorschau ab 4.4.3
+
+Jede Buchung enthält zusätzlich:
+
+- `trackedByDeviceId`: stabile ID des Geräts, auf dem die Buchung ursprünglich erfasst wurde
+- `trackedByDeviceName`: zum Erfassungszeitpunkt verwendeter Gerätename
+- `importedAt`: Zeitpunkt, zu dem eine fremde Buchung auf dem aktuellen Gerät ergänzt wurde
+
+Die Geräteherkunft bleibt bei späteren Korrekturen der Person, des Getränks, des Preises oder des Paketstatus unverändert.
+
+Reiseexporte werden zunächst ausschließlich im Arbeitsspeicher geprüft. Die Vorschau erstellt einen Importplan mit Ergänzungen, Dubletten und Konflikten. Erst nach ausdrücklicher Bestätigung werden neue Datensätze in einer gemeinsamen IndexedDB-Transaktion gespeichert. Vor dem Schreiben wird der Importplan nochmals mit dem dann aktuellen lokalen Bestand verglichen.

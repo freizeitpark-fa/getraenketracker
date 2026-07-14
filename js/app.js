@@ -1,7 +1,7 @@
 'use strict';
 
-const APP_VERSION = '4.4.2';
-const APP_CACHE_NAME = 'cruisesip-v4-4-2-20260713b';
+const APP_VERSION = '4.4.3';
+const APP_CACHE_NAME = 'cruisesip-v4-4-3-20260714a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -56,7 +56,8 @@ let state = {
   lastBarkarteComparison: null,
   online: navigator.onLine,
   offlineDiagnostics: null,
-  pendingBackup: null
+  pendingBackup: null,
+  pendingTripImport: null
 };
 
 const actionLocks = Object.create(null);
@@ -623,8 +624,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.4.2b',
-    './js/app.js?v=4.4.2b',
+    './css/styles.css?v=4.4.3a',
+    './js/app.js?v=4.4.3a',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -875,6 +876,8 @@ async function handleClick(event) {
   if (action === 'replaceFullBackup') { await runActionOnce('replaceFullBackup', replaceFullBackup); return; }
   if (action === 'backupTest') { await runActionOnce('backupTest', backupTest); return; }
   if (action === 'importTrip') { openFile('trip'); return; }
+  if (action === 'cancelTripImport') { state.pendingTripImport = null; render(); return; }
+  if (action === 'applyTripImport') { await runActionOnce('applyTripImport', applyPreparedTripImport); return; }
   if (action === 'importBarkarte') { openFile('barkarte'); return; }
   if (action === 'clearImportLog') { await clearStore('imports'); await loadState(); render(); return; }
   if (action === 'showChangelog') { state.route = 'changelog'; render(); return; }
@@ -911,7 +914,7 @@ async function handleFileInput(event) {
       if (files.length > TRIP_EXPORT_MAX_FILES) throw new Error(`Bitte höchstens ${TRIP_EXPORT_MAX_FILES} Geräteexporte gleichzeitig auswählen.`);
       const oversized = files.find(file => file.size > TRIP_EXPORT_MAX_BYTES);
       if (oversized) throw new Error(`Die Datei „${oversized.name}“ ist größer als 25 MB.`);
-      await importTripFiles(files);
+      await prepareTripImportFiles(files);
       return;
     }
     const file = files[0];
@@ -1420,6 +1423,23 @@ function viewHistory() {
     </section>`;
 }
 function historyFilterHtml() { return `<div class="segmented"><button class="${state.historyFilter === 'today' ? 'active' : ''}" data-action="setHistoryFilter" data-id="today">Heute</button><button class="${state.historyFilter === 'yesterday' ? 'active' : ''}" data-action="setHistoryFilter" data-id="yesterday">Gestern</button><button class="${state.historyFilter === 'trip' ? 'active' : ''}" data-action="setHistoryFilter" data-id="trip">Reise</button></div>`; }
+function logOriginInfo(log) {
+  const deviceId = String(log?.trackedByDeviceId || '').trim();
+  const deviceName = String(log?.trackedByDeviceName || '').trim() || 'Unbekanntes Gerät';
+  const isCurrentDevice = !!deviceId && deviceId === String(state.settings.deviceId || '');
+  return {
+    deviceId,
+    deviceName,
+    isCurrentDevice,
+    label: isCurrentDevice ? `${deviceName} · dieses Gerät` : deviceName
+  };
+}
+function logOriginHtml(log, compact = false) {
+  const origin = logOriginInfo(log);
+  const imported = !!log?.importedAt && !origin.isCurrentDevice;
+  const label = compact ? origin.label : `Erfasst auf ${origin.label}${imported ? ' · importiert' : ''}`;
+  return `<span class="logOrigin ${origin.isCurrentDevice ? 'current' : 'remote'}" title="${esc(origin.deviceId || 'Keine Geräte-ID verfügbar')}">${esc(label)}</span>`;
+}
 function logItemHtml(log) {
   const person = personById(log.personId) || { name: log.personName || 'Unbekannt', color: '#f1f5f9' };
   if (state.editingLogId === log.id) return logEditItemHtml(log, person);
@@ -1428,6 +1448,7 @@ function logItemHtml(log) {
     <div class="timelineCard">
       <div class="logTop"><b>${statusDot(log.packageStatus)}${esc(log.drinkName)}</b><span>${eur(log.price)}</span></div>
       <div class="logMeta"><span class="personPill">${esc(person.name)}</span><span>${esc(formatDateTime(log.ts))}</span><span>${esc(statusLabel(log.packageStatus))}</span></div>
+      <div class="logOriginRow">${logOriginHtml(log)}</div>
       <div class="logActions"><button class="mini" data-action="editLog" data-id="${esc(log.id)}">Bearbeiten</button><button class="mini dangerText" data-action="deleteLog" data-id="${esc(log.id)}">Löschen</button></div>
     </div>
   </article>`;
@@ -1462,7 +1483,8 @@ function logEditItemHtml(log, person) {
           <div class="formField"><label for="logPriceInput">Preis</label><input id="logPriceInput" name="price" type="text" inputmode="decimal" autocomplete="off" value="${esc(price)}"></div>
           <div class="formField"><label for="logStatusInput">Paketstatus</label><select id="logStatusInput" name="packageStatus"><option value="included" ${packageStatus === 'included' ? 'selected' : ''}>enthalten</option><option value="not_included" ${packageStatus === 'not_included' ? 'selected' : ''}>nicht enthalten</option><option value="unclear" ${packageStatus === 'unclear' ? 'selected' : ''}>unklar</option></select></div>
         </div>
-        <p class="logEditHint">Beim Wechsel des Getränks werden Barkartenpreis und Paketstatus automatisch angepasst. Der Preis kann danach nur bei einem bewusst abweichenden Sonderfall manuell geändert werden.</p>
+        <div class="logEditOrigin"><span>Herkunft</span>${logOriginHtml(log)}</div>
+        <p class="logEditHint">Beim Wechsel des Getränks werden Barkartenpreis und Paketstatus automatisch angepasst. Der Preis kann danach nur bei einem bewusst abweichenden Sonderfall manuell geändert werden. Die ursprüngliche Geräteherkunft bleibt bei Korrekturen erhalten.</p>
         <div class="logEditActions"><button id="logSaveButton" class="primary" type="submit">Änderungen speichern</button><button type="button" class="secondary dangerText" data-action="deleteLog" data-id="${esc(log.id)}">Eintrag löschen</button></div>
       </form>
     </div>
@@ -1585,7 +1607,7 @@ function viewStatsPersonDetail(person, logs) {
   const drinkRows = data.personLogs
     .slice()
     .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
-    .map(log => `<div class="personDrinkRow"><div><b>${statusDot(log.packageStatus)}${esc(log.drinkName || 'Unbekannt')}</b><small>${esc(formatDateTime(log.ts))}${log.category ? ` · ${esc(log.category)}` : ''} · ${esc(statusLabel(log.packageStatus))}</small></div><strong>${esc(eur(log.price))}</strong></div>`)
+    .map(log => `<div class="personDrinkRow"><div><b>${statusDot(log.packageStatus)}${esc(log.drinkName || 'Unbekannt')}</b><small>${esc(formatDateTime(log.ts))}${log.category ? ` · ${esc(log.category)}` : ''} · ${esc(statusLabel(log.packageStatus))}</small><span class="personDrinkOrigin">${logOriginHtml(log, true)}</span></div><strong>${esc(eur(log.price))}</strong></div>`)
     .join('');
   return `
     <section class="screen">
@@ -1680,7 +1702,7 @@ function personCardHtml(person) {
 }
 function importLogHtml() {
   if (!state.imports.length) return '<p class="emptyText">Noch keine Importe.</p>';
-  return `<div class="statList">${state.imports.slice(0, 10).map(i => `<div class="statRow"><div><b>${esc(i.fileName || 'Import')}</b><small>${esc(formatDateTime(Date.parse(i.importedAt)))} · neu ${i.added || 0} · doppelt ${i.duplicates || 0}${i.conflicts ? ` · Konflikte ${i.conflicts}` : ''}</small></div><strong>${esc(i.kind || '')}</strong></div>`).join('')}</div>`;
+  return `<div class="statList">${state.imports.slice(0, 10).map(i => `<div class="statRow"><div><b>${esc(i.fileName || 'Import')}</b><small>${esc(formatDateTime(Date.parse(i.importedAt)))}${i.sourceDeviceName ? ` · von ${esc(i.sourceDeviceName)}` : ''} · neu ${i.added || 0} · doppelt ${i.duplicates || 0}${i.conflicts ? ` · Konflikte ${i.conflicts}` : ''}</small></div><strong>${esc(i.kind || '')}</strong></div>`).join('')}</div>`;
 }
 
 function viewBarkarte() {
@@ -1834,7 +1856,7 @@ function viewSettings() {
         <p class="hint">Die Diagnose löscht oder verändert keine Reisen und Buchungen. Für den endgültigen Praxistest CruiseSip einmal im Flugmodus vollständig neu öffnen.</p>
       </div>
       ${fullBackupCardHtml()}
-      <div class="card"><div class="sectionHead"><div><h2>Geräteabgleich</h2><p class="hint">Reisedaten mehrerer Geräte manuell über JSON-Dateien zusammenführen.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und zusammenführen</button></div><p class="hint">Bis zu 20 Reiseexporte können gemeinsam ausgewählt werden. Reisen und Personen werden über stabile IDs erkannt; bereits vorhandene Buchungen werden über den Merge-Key übersprungen.</p></div>
+      ${deviceSyncCardHtml()}
       <div class="card themeCard"><div class="sectionHead"><h2>Darstellung</h2><span class="subtle">${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}</span></div>
         <div class="themeSwitch" role="group" aria-label="Farbdarstellung wählen">
           <button class="themeOption ${effectiveTheme() === 'light' ? 'active' : ''}" data-action="setTheme" data-id="light" aria-pressed="${effectiveTheme() === 'light'}"><span aria-hidden="true">☀</span><b>Hell</b></button>
@@ -2719,44 +2741,96 @@ function canonicalTripLog(log) {
 function tripLogsEqual(left, right) {
   return stableStringify(canonicalTripLog(left)) === stableStringify(canonicalTripLog(right));
 }
-async function importTripFiles(files) {
-  const parsed = [];
-  for (const file of files) {
-    let payload;
-    try { payload = JSON.parse(await file.text()); }
-    catch (_) { throw new Error(`Die Datei „${file.name}“ enthält kein gültiges JSON.`); }
-    const validation = await validateTripExportPayload(payload, file.name);
-    if (validation.errors.length) throw new Error(validation.errors[0]);
-    parsed.push({ file, payload, validation });
+function tripConflictDetail(type, fileName, payload, localRow, incomingRow, message) {
+  const deviceName = payload?.device?.name || 'Unbekanntes Gerät';
+  const detail = { type, fileName, deviceName, message };
+  if (type === 'trip') {
+    detail.title = incomingRow?.name || incomingRow?.id || 'Reise';
+    detail.local = `${localRow?.name || 'Unbenannt'} · ${formatDate(localRow?.startDate)} bis ${formatDate(localRow?.endDate)}`;
+    detail.incoming = `${incomingRow?.name || 'Unbenannt'} · ${formatDate(incomingRow?.startDate)} bis ${formatDate(incomingRow?.endDate)}`;
+  } else if (type === 'person') {
+    detail.title = incomingRow?.name || incomingRow?.id || 'Person';
+    detail.local = `${localRow?.name || 'Unbenannt'} · ${packageName(localRow?.packageId || 'none')} · ${eur(localRow?.packagePrice)}`;
+    detail.incoming = `${incomingRow?.name || 'Unbenannt'} · ${packageName(incomingRow?.packageId || 'none')} · ${eur(incomingRow?.packagePrice)}`;
+  } else if (type === 'log') {
+    detail.title = incomingRow?.drinkName || incomingRow?.id || 'Buchung';
+    detail.local = `${localRow?.personName || 'Unbekannt'} · ${formatDateTime(localRow?.ts)} · ${eur(localRow?.price)} · ${statusLabel(localRow?.packageStatus)}`;
+    detail.incoming = `${incomingRow?.personName || 'Unbekannt'} · ${formatDateTime(incomingRow?.ts)} · ${eur(incomingRow?.price)} · ${statusLabel(incomingRow?.packageStatus)}`;
+  } else {
+    detail.title = incomingRow?.drinkName || incomingRow?.name || incomingRow?.id || 'Datensatz';
+    detail.local = localRow ? 'lokaler Datensatz vorhanden' : 'nicht vorhanden';
+    detail.incoming = message || 'Import kann nicht sicher zugeordnet werden';
   }
-
-  const local = await readAllStoresSnapshot();
+  return detail;
+}
+function tripImportPlanSignature(plan) {
+  return stableStringify({
+    localFingerprint: plan.localFingerprint,
+    summary: plan.summary,
+    files: plan.fileSummaries.map(row => ({ fileName: row.fileName, added: row.added, duplicates: row.duplicates, conflicts: row.conflicts })),
+    additions: {
+      trips: (plan.rows.trips || []).map(row => row.id).sort(),
+      persons: (plan.rows.persons || []).map(row => row.id).sort(),
+      logs: (plan.rows.logs || []).map(row => logMergeKey(row, row.trackedByDeviceId || '')).sort()
+    },
+    conflicts: plan.conflicts.map(row => ({ type: row.type, fileName: row.fileName, title: row.title, local: row.local, incoming: row.incoming }))
+  });
+}
+function tripImportLocalFingerprint(local) {
+  return stableStringify({
+    trips: (local.trips || []).map(row => meaningfulRow('trips', row)).sort((a, b) => String(a.id).localeCompare(String(b.id))),
+    persons: (local.persons || []).map(row => meaningfulRow('persons', row)).sort((a, b) => String(a.id).localeCompare(String(b.id))),
+    logs: (local.logs || []).map(row => ({ key: logMergeKey(row, row.trackedByDeviceId || ''), data: canonicalTripLog(row) })).sort((a, b) => String(a.key).localeCompare(String(b.key)))
+  });
+}
+async function buildTripImportPlan(parsed, local) {
   const rows = Object.fromEntries(STORE_NAMES.map(store => [store, []]));
   const tripById = new Map((local.trips || []).map(row => [row.id, row]));
   const personById = new Map((local.persons || []).map(row => [row.id, row]));
   const logByKey = new Map((local.logs || []).map(row => [logMergeKey(row, state.settings.deviceId || ''), row]));
   const usedLogIds = new Set((local.logs || []).map(row => row.id));
   const summary = { files: parsed.length, trips: 0, persons: 0, logs: 0, duplicates: 0, conflicts: 0, nameWarnings: 0, legacyFiles: 0 };
+  const fileSummaries = [];
+  const conflicts = [];
+  const warnings = [];
   const importedTripIds = [];
 
-  for (const { file, payload, validation } of parsed) {
+  for (const { fileName, payload, validation } of parsed) {
     if (!validation.isV2) summary.legacyFiles += 1;
+    warnings.push(...validation.warnings);
     const trip = cloneRow(payload.trip);
     const tripId = trip.id;
     importedTripIds.push(tripId);
     const existingTrip = tripById.get(tripId);
-    let fileConflicts = 0;
-    let fileAddedLogs = 0;
-    let fileDuplicates = 0;
+    const fileSummary = {
+      fileName,
+      deviceId: payload.device?.id || '',
+      deviceName: payload.device?.name || 'Unbekanntes Gerät',
+      tripId,
+      exportId: payload.exportId || '',
+      tripName: trip.name || 'Unbenannte Reise',
+      exportedAt: payload.exportedAt || '',
+      persons: (payload.persons || []).length,
+      logs: (payload.logs || []).length,
+      addedTrips: 0,
+      addedPersons: 0,
+      addedLogs: 0,
+      duplicates: 0,
+      conflicts: 0,
+      legacy: !validation.isV2
+    };
+    const blockedPersonIds = new Set();
     if (!existingTrip) {
       trip.createdAt = trip.createdAt || nowIso();
       trip.updatedAt = trip.updatedAt || nowIso();
       rows.trips.push(trip);
       tripById.set(tripId, trip);
       summary.trips += 1;
+      fileSummary.addedTrips += 1;
     } else if (!rowsMeaningfullyEqual('trips', existingTrip, trip)) {
       summary.conflicts += 1;
-      fileConflicts += 1;
+      fileSummary.conflicts += 1;
+      conflicts.push(tripConflictDetail('trip', fileName, payload, existingTrip, trip, 'Reise mit gleicher ID besitzt abweichende Stammdaten.'));
     }
 
     for (const incomingPerson of payload.persons || []) {
@@ -2765,15 +2839,23 @@ async function importTripFiles(files) {
       const existingPerson = personById.get(person.id);
       if (!existingPerson) {
         const sameName = Array.from(personById.values()).find(row => row.tripId === tripId && normalize(row.name) === normalize(person.name) && row.id !== person.id);
-        if (sameName) summary.nameWarnings += 1;
+        if (sameName) {
+          summary.nameWarnings += 1;
+          warnings.push(`${fileName}: „${person.name || 'Unbenannt'}“ hat denselben Namen wie eine vorhandene Person, aber eine andere ID. Beide Personen bleiben getrennt.`);
+        }
         person.createdAt = person.createdAt || nowIso();
         person.updatedAt = person.updatedAt || nowIso();
         rows.persons.push(person);
         personById.set(person.id, person);
         summary.persons += 1;
+        fileSummary.addedPersons += 1;
       } else if (existingPerson.tripId !== tripId || !rowsMeaningfullyEqual('persons', existingPerson, person)) {
         summary.conflicts += 1;
-        fileConflicts += 1;
+        fileSummary.conflicts += 1;
+        if (existingPerson.tripId !== tripId) blockedPersonIds.add(person.id);
+        conflicts.push(tripConflictDetail('person', fileName, payload, existingPerson, person, existingPerson.tripId !== tripId
+          ? 'Die Personen-ID ist lokal einer anderen Reise zugeordnet. Buchungen für diese Person werden aus dieser Datei nicht übernommen.'
+          : 'Person mit gleicher ID besitzt abweichende Stammdaten. Der lokale Personenstand bleibt erhalten; neue Buchungen können weiterhin dieser Person zugeordnet werden.'));
       }
     }
 
@@ -2783,16 +2865,30 @@ async function importTripFiles(files) {
       if (existingLog) {
         if (tripLogsEqual(existingLog, incomingLog)) {
           summary.duplicates += 1;
-          fileDuplicates += 1;
+          fileSummary.duplicates += 1;
         } else {
           summary.conflicts += 1;
-          fileConflicts += 1;
+          fileSummary.conflicts += 1;
+          conflicts.push(tripConflictDetail('log', fileName, payload, existingLog, incomingLog, 'Buchung mit gleichem Merge-Key besitzt abweichende Inhalte.'));
         }
         continue;
       }
-      if (!tripById.has(tripId) || !personById.has(incomingLog.personId)) {
+      if (blockedPersonIds.has(incomingLog.personId)) {
         summary.conflicts += 1;
-        fileConflicts += 1;
+        fileSummary.conflicts += 1;
+        conflicts.push(tripConflictDetail('reference', fileName, payload, personById.get(incomingLog.personId), incomingLog, 'Die Personen-ID ist lokal einer anderen Reise zugeordnet. Diese Buchung wird nicht übernommen.'));
+        continue;
+      }
+      if (!tripById.has(tripId)) {
+        summary.conflicts += 1;
+        fileSummary.conflicts += 1;
+        conflicts.push(tripConflictDetail('reference', fileName, payload, null, incomingLog, 'Die zugehörige Reise ist nicht verfügbar.'));
+        continue;
+      }
+      if (!personById.has(incomingLog.personId)) {
+        summary.conflicts += 1;
+        fileSummary.conflicts += 1;
+        conflicts.push(tripConflictDetail('reference', fileName, payload, null, incomingLog, 'Die zugehörige Person ist nicht verfügbar.'));
         continue;
       }
       const log = normalizeIncomingLog(incomingLog, payload.device?.id || '', usedLogIds);
@@ -2805,34 +2901,110 @@ async function importTripFiles(files) {
       logByKey.set(key, log);
       usedLogIds.add(log.id);
       summary.logs += 1;
-      fileAddedLogs += 1;
+      fileSummary.addedLogs += 1;
     }
-
-    rows.imports.push({
-      id: `import_${uid()}`,
-      kind: 'Geräteabgleich',
-      fileName: file.name,
-      importedAt: nowIso(),
-      sourceDeviceId: payload.device?.id || '',
-      sourceDeviceName: payload.device?.name || '',
-      tripId,
-      added: fileAddedLogs,
-      duplicates: fileDuplicates,
-      conflicts: fileConflicts,
-      exportId: payload.exportId || ''
-    });
+    fileSummary.added = fileSummary.addedTrips + fileSummary.addedPersons + fileSummary.addedLogs;
+    fileSummaries.push(fileSummary);
   }
 
   const currentId = activeTripId();
   if (!currentId && importedTripIds[0]) rows.settings.push({ id: 'currentTripId', value: importedTripIds[0], updatedAt: nowIso() });
-  await putRowsAtomic(rows);
+  return { rows, summary, fileSummaries, conflicts, warnings: Array.from(new Set(warnings)), parsed, localFingerprint: tripImportLocalFingerprint(local) };
+}
+async function parseTripImportFiles(files) {
+  const parsed = [];
+  for (const file of files) {
+    let payload;
+    try { payload = JSON.parse(await file.text()); }
+    catch (_) { throw new Error(`Die Datei „${file.name}“ enthält kein gültiges JSON.`); }
+    const validation = await validateTripExportPayload(payload, file.name);
+    if (validation.errors.length) throw new Error(validation.errors[0]);
+    parsed.push({ fileName: file.name, payload, validation });
+  }
+  return parsed;
+}
+async function prepareTripImportFiles(files) {
+  const parsed = await parseTripImportFiles(files);
+  const plan = await buildTripImportPlan(parsed, await readAllStoresSnapshot());
+  state.pendingTripImport = { parsed, plan, signature: tripImportPlanSignature(plan), preparedAt: nowIso() };
+  render();
+  requestAnimationFrame(() => $('#tripImportPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  toast('Geräteexporte geprüft – noch keine Daten importiert');
+}
+function tripImportFileHtml(row) {
+  const exportedAt = Number.isFinite(Date.parse(row.exportedAt || '')) ? new Date(row.exportedAt).toLocaleString('de-DE') : 'Zeitpunkt unbekannt';
+  return `<div class="tripImportFile">
+    <div class="tripImportFileHead"><div><b>${esc(row.deviceName)}</b><small>${esc(row.tripName)} · ${esc(exportedAt)}</small></div><span class="diagnosticSummary ${row.conflicts ? 'warn' : 'ok'}">${row.conflicts ? `${row.conflicts} Konflikt${row.conflicts === 1 ? '' : 'e'}` : 'Geprüft'}</span></div>
+    <div class="tripImportFileCounts"><span><b>+${row.addedPersons}</b> Personen</span><span><b>+${row.addedLogs}</b> Buchungen</span><span><b>${row.duplicates}</b> vorhanden</span></div>
+    <small class="tripImportFileName">${esc(row.fileName)}${row.legacy ? ' · älteres Exportformat' : ''}</small>
+  </div>`;
+}
+function tripConflictHtml(row) {
+  const typeLabel = row.type === 'trip' ? 'Reise' : row.type === 'person' ? 'Person' : row.type === 'log' ? 'Buchung' : 'Zuordnung';
+  return `<details class="tripConflictItem"><summary><span><b>${esc(typeLabel)}: ${esc(row.title)}</b><small>${esc(row.deviceName)} · ${esc(row.fileName)}</small></span><strong>lokal bleibt</strong></summary><div class="tripConflictCompare"><div><span>Lokal</span><p>${esc(row.local)}</p></div><div><span>Export</span><p>${esc(row.incoming)}</p></div></div><p class="tripConflictMessage">${esc(row.message)}</p></details>`;
+}
+function tripImportPreviewHtml() {
+  const pending = state.pendingTripImport;
+  if (!pending) return '';
+  const { plan } = pending;
+  const { summary } = plan;
+  return `<div class="tripImportPreview" id="tripImportPreview">
+    <div class="backupPreviewHead"><div><b>Importvorschau</b><small>${summary.files} Datei${summary.files === 1 ? '' : 'en'} geprüft · Noch keine lokalen Daten verändert</small></div><span class="diagnosticSummary ${summary.conflicts ? 'warn' : 'ok'}">${summary.conflicts ? 'Konflikte erkannt' : 'Bereit zum Zusammenführen'}</span></div>
+    <div class="tripImportSummary">
+      <span><b>+${summary.trips}</b> Reisen</span><span><b>+${summary.persons}</b> Personen</span><span><b>+${summary.logs}</b> Buchungen</span><span><b>${summary.duplicates}</b> bereits vorhanden</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte</span>
+    </div>
+    <div class="tripImportFiles">${plan.fileSummaries.map(tripImportFileHtml).join('')}</div>
+    ${plan.warnings.length ? `<div class="backupMessages warn">${plan.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
+    ${plan.conflicts.length ? `<div class="tripConflictSection"><div class="sectionHead"><div><h3>Konflikte</h3><p class="hint">Konfliktbehaftete Datensätze werden nicht übernommen. Der vorhandene lokale Datensatz bleibt unverändert.</p></div><span class="subtle">${plan.conflicts.length}</span></div>${plan.conflicts.slice(0, 50).map(tripConflictHtml).join('')}${plan.conflicts.length > 50 ? `<p class="hint">Weitere ${plan.conflicts.length - 50} Konflikte werden aus Platzgründen nicht einzeln angezeigt.</p>` : ''}</div>` : ''}
+    <div class="backupModeCard"><b>Geprüfte Daten zusammenführen</b><p>Nur neue Reisen, Personen und Buchungen werden ergänzt. Dubletten und Konflikte werden übersprungen; vorhandene lokale Daten werden nicht gelöscht oder überschrieben.</p><button class="primary" data-action="applyTripImport">Geprüfte Exporte jetzt zusammenführen</button></div>
+    <button class="secondary" data-action="cancelTripImport">Importvorschau schließen</button>
+  </div>`;
+}
+function deviceSyncCardHtml() {
+  return `<div class="card deviceSyncCard"><div class="sectionHead"><div><h2>Geräteabgleich</h2><p class="hint">Reisedaten mehrerer Geräte manuell über JSON-Dateien zusammenführen.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="importTrip">Geräteexporte auswählen und prüfen</button></div><p class="hint">Bis zu 20 Reiseexporte können gemeinsam ausgewählt werden. Vor dem Import zeigt CruiseSip neue Personen und Buchungen, Dubletten sowie Konflikte an.</p>${tripImportPreviewHtml()}</div>`;
+}
+async function applyPreparedTripImport() {
+  const pending = state.pendingTripImport;
+  if (!pending) throw new Error('Keine geprüften Geräteexporte ausgewählt.');
+  for (const row of pending.parsed) {
+    const validation = await validateTripExportPayload(row.payload, row.fileName);
+    if (validation.errors.length) throw new Error(validation.errors[0]);
+    row.validation = validation;
+  }
+  const plan = await buildTripImportPlan(pending.parsed, await readAllStoresSnapshot());
+  const currentSignature = tripImportPlanSignature(plan);
+  if (currentSignature !== pending.signature) {
+    state.pendingTripImport = { ...pending, plan, signature: currentSignature, preparedAt: nowIso() };
+    render();
+    alert('Der lokale Datenbestand hat sich seit der Vorschau geändert. Die Importvorschau wurde aktualisiert. Bitte prüfe die Werte erneut.');
+    return;
+  }
+  if (plan.summary.conflicts && !confirm(`${plan.summary.conflicts} Konflikt${plan.summary.conflicts === 1 ? '' : 'e'} wurde${plan.summary.conflicts === 1 ? '' : 'n'} erkannt. Konfliktbehaftete Datensätze werden übersprungen; lokale Daten bleiben erhalten. Trotzdem zusammenführen?`)) return;
+  const importedAt = nowIso();
+  for (const fileSummary of plan.fileSummaries) {
+    plan.rows.imports.push({
+      id: `import_${uid()}`,
+      kind: 'Geräteabgleich',
+      fileName: fileSummary.fileName,
+      importedAt,
+      sourceDeviceId: fileSummary.deviceId,
+      sourceDeviceName: fileSummary.deviceName,
+      tripId: fileSummary.tripId,
+      exportId: fileSummary.exportId || '',
+      added: fileSummary.addedLogs,
+      duplicates: fileSummary.duplicates,
+      conflicts: fileSummary.conflicts
+    });
+  }
+  await putRowsAtomic(plan.rows);
+  state.pendingTripImport = null;
   await loadState();
   render();
   const notices = [];
-  if (summary.nameWarnings) notices.push(`${summary.nameWarnings} gleichnamige Person(en) mit unterschiedlicher ID wurden getrennt beibehalten.`);
-  if (summary.legacyFiles) notices.push(`${summary.legacyFiles} ältere Exportdatei(en) wurden kompatibel importiert.`);
-  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${summary.files}\nNeue Reisen: ${summary.trips}\nNeue Personen: ${summary.persons}\nNeue Buchungen: ${summary.logs}\nBereits vorhanden: ${summary.duplicates}\nKonflikte: ${summary.conflicts}${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
-  toast(`${summary.logs} neue Buchungen · ${summary.duplicates} doppelt`);
+  if (plan.summary.nameWarnings) notices.push(`${plan.summary.nameWarnings} gleichnamige Person(en) mit unterschiedlicher ID wurden getrennt beibehalten.`);
+  if (plan.summary.legacyFiles) notices.push(`${plan.summary.legacyFiles} ältere Exportdatei(en) wurden kompatibel importiert.`);
+  alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${plan.summary.files}\nNeue Reisen: ${plan.summary.trips}\nNeue Personen: ${plan.summary.persons}\nNeue Buchungen: ${plan.summary.logs}\nBereits vorhanden: ${plan.summary.duplicates}\nKonflikte übersprungen: ${plan.summary.conflicts}${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
+  toast(`${plan.summary.logs} neue Buchungen · ${plan.summary.duplicates} bereits vorhanden`);
 }
 
 function normalizeDrinks(drinks) {
@@ -2931,6 +3103,13 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.4.3</h2>
+  <ul>
+    <li>Geräteexporte werden vor dem Schreiben vollständig geprüft und als Importvorschau mit neuen Reisen, Personen, Buchungen, Dubletten und Konflikten angezeigt.</li>
+    <li>Konflikte können mit lokalem und importiertem Inhalt aufgeklappt verglichen werden; lokale Datensätze bleiben unverändert.</li>
+    <li>Jede Buchung zeigt im Verlauf und in der personenbezogenen Analyse das erfassende Gerät an.</li>
+    <li>Die Vorschau wird vor dem tatsächlichen Import erneut gegen den aktuellen lokalen Datenbestand geprüft.</li>
+  </ul>
   <h2>Version 4.4.2</h2>
   <ul>
     <li>Bis zu 20 Reiseexporte können in einem Schritt ausgewählt und sicher zusammengeführt werden.</li>

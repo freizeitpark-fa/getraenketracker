@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.4.2**
+Aktuelle Entwicklungsfassung: **4.4.3**
 
-Version 4.4.2 erweitert den manuellen Geräteabgleich: Bis zu 20 Reiseexporte können gleichzeitig ausgewählt werden. Reisen und Personen werden anhand stabiler IDs zusammengeführt; Buchungsdubletten werden über den Merge-Key erkannt. Reiseexporte besitzen zusätzlich eine SHA-256-Integritätsprüfung. Beim iOS-Teilen wird nur noch die JSON-Datei übergeben, sodass keine zusätzliche Textdatei entsteht. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.4.3 ergänzt vor dem Geräteabgleich eine vollständige Importvorschau. Neue Reisen, Personen und Buchungen, bereits vorhandene Buchungen sowie Konflikte werden angezeigt, bevor lokale Daten verändert werden. Konflikte lassen sich mit lokalem und importiertem Inhalt vergleichen und werden nicht überschrieben. Im Verlauf und in der personenbezogenen Analyse ist außerdem je Buchung das erfassende Gerät sichtbar. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,7 +20,7 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.4.2 Geräteabgleich`.
+4. Commit erstellen, z. B. `CruiseSip v4.4.3 Importvorschau`.
 5. Push durchführen.
 6. GitHub Pages kurz online öffnen, damit der Service Worker die neuen Dateien cachen kann.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
@@ -58,7 +58,8 @@ CruiseSip/
 - Auswertungen nach Person, Getränk, Kategorie, Tag und Reise inklusive Paket-Break-even und Bordrechnung außerhalb Paket
 - Personen-Detailanalyse mit Restbetrag zum Paketpreis, rechnerischer Ersparnis und vollständigem Getränkeverlauf
 - Export/Import je Reise
-- Zusammenführen mehrerer Geräte mit Dublettenerkennung
+- Zusammenführen mehrerer Geräte mit Importvorschau, Dubletten- und Konflikterkennung
+- sichtbare Geräteherkunft je Buchung im Verlauf und in der Personenanalyse
 - Importprotokoll
 - Barkartenimport mit Preis- und Paketvergleich
 - Artikelverwaltung für manuelle Preis- und Paketstatus-Anpassungen je Getränkepaket

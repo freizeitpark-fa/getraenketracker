@@ -101,57 +101,55 @@ Vor jeder Buchung muss lediglich die tatsächlich konsumierende Person ausgewäh
 
 ## Teil 6: Spätere Daten vom zweiten Gerät auf das Hauptgerät übertragen
 
-Für den laufenden Abgleich wird grundsätzlich `Daten ergänzen` verwendet.
+Für den laufenden Abgleich wird der kompakte Reiseexport verwendet.
 
 ### Auf dem zweiten Gerät
 
 1. CruiseSip öffnen.
-2. `Setup` → `Vollständige Datensicherung` öffnen.
-3. `Vollständiges Backup exportieren` wählen.
+2. Unter `Setup` den Bereich `Geräteabgleich` öffnen.
+3. `Aktuelle Reise exportieren` wählen.
 4. Die JSON-Datei in der Dateien-App oder in iCloud Drive speichern beziehungsweise per AirDrop an das Hauptgerät übertragen.
 
 ### Auf dem Hauptgerät
 
 1. CruiseSip öffnen.
-2. Vor dem Import vorsorglich ein aktuelles Vollbackup des Hauptgeräts erstellen.
-3. `Setup` → `Vollständige Datensicherung` öffnen.
-4. `Vollbackup auswählen und prüfen` wählen.
-5. Die Backupdatei des zweiten Geräts auswählen.
-6. Die Importvorschau prüfen.
-7. `Daten ergänzen` auswählen.
+2. Unter `Setup` den Bereich `Geräteabgleich` öffnen.
+3. `Geräteexporte auswählen und prüfen` wählen.
+4. Eine oder mehrere Reiseexportdateien auswählen.
+5. Die Importvorschau prüfen. Sie zeigt:
+   - Quellgerät und Reise,
+   - neue Personen,
+   - neue Buchungen,
+   - bereits vorhandene Buchungen,
+   - Konflikte.
+6. Konflikte bei Bedarf aufklappen und den lokalen mit dem importierten Stand vergleichen.
+7. `Geprüfte Exporte jetzt zusammenführen` wählen.
 8. Das Importergebnis kontrollieren.
 
-Beim Ergänzen gilt:
+Beim Zusammenführen gilt:
 
 - fehlende Reisen werden ergänzt,
 - fehlende Personen werden anhand ihrer stabilen ID ergänzt,
 - bereits vorhandene Personen werden wiederverwendet,
 - neue Buchungen werden ergänzt,
 - bereits importierte Buchungen werden übersprungen,
-- vorhandene lokale Daten werden nicht gelöscht,
+- Konflikte werden nicht überschrieben; der lokale Stand bleibt erhalten,
 - Geräte-ID und Gerätename des Hauptgeräts bleiben unverändert.
 
 ## Teil 7: Daten in beide Richtungen abgleichen
 
 Wenn auf beiden Geräten neue Buchungen entstanden sind, sollte der Abgleich nacheinander in beide Richtungen erfolgen:
 
-1. Gerät 2 exportiert ein Vollbackup.
-2. Gerät 1 importiert dieses mit `Daten ergänzen`.
-3. Gerät 1 erstellt anschließend ein neues Vollbackup mit dem zusammengeführten Bestand.
-4. Gerät 2 importiert dieses neue Backup ebenfalls mit `Daten ergänzen`.
+1. Gerät 2 exportiert die aktuelle Reise.
+2. Gerät 1 prüft und importiert diesen Reiseexport über `Geräteabgleich`.
+3. Gerät 1 exportiert anschließend die zusammengeführte Reise.
+4. Gerät 2 prüft und importiert diesen neuen Reiseexport ebenfalls über `Geräteabgleich`.
 
 Danach verfügen beide Geräte über denselben zusammengeführten Buchungsbestand. Ein erneuter Import derselben Datei erzeugt keine doppelten Buchungen.
 
-## Wann `Daten ergänzen` verwendet wird
+## Wann der Geräteabgleich verwendet wird
 
-`Daten ergänzen` ist die Standardauswahl für:
-
-- den laufenden Geräteabgleich,
-- neue Buchungen eines anderen Geräts,
-- neue Personen eines anderen Geräts,
-- den Import einer Datei, die möglicherweise bereits teilweise importiert wurde.
-
-Diese Option löscht keine vorhandenen Reisen oder Buchungen.
+Der Bereich `Geräteabgleich` ist die Standardauswahl für den laufenden Austausch von Reise-, Personen- und Buchungsdaten zwischen parallel genutzten Geräten. Die Vorschau verändert noch keine Daten. Erst `Geprüfte Exporte jetzt zusammenführen` ergänzt die geprüften neuen Datensätze. Bereits vorhandene Buchungen und Konflikte werden übersprungen.
 
 ## Wann `Vollständig ersetzen` verwendet wird
 
@@ -166,7 +164,7 @@ Vor einem vollständigen Ersetzen immer zuerst den aktuellen lokalen Stand expor
 ## Wichtige Sicherheitsregeln
 
 1. Vor jedem vollständigen Ersetzen ein aktuelles Backup des Zielgeräts erstellen.
-2. Beim normalen Datenaustausch immer `Daten ergänzen` verwenden.
+2. Beim normalen Datenaustausch den Bereich `Geräteabgleich` mit Importvorschau verwenden.
 3. Die Backup-Geräte-ID auf einem parallel genutzten zweiten Gerät niemals übernehmen.
 4. Backupdateien nicht manuell in einem Texteditor verändern.
 5. Die Importvorschau vor jeder Bestätigung kontrollieren.
@@ -176,8 +174,8 @@ Vor einem vollständigen Ersetzen immer zuerst den aktuellen lokalen Stand expor
 ## Empfohlener Ablauf während der Kreuzfahrt
 
 - Beide Geräte tracken vollständig offline.
-- Einmal täglich oder bei Bedarf wird ein Vollbackup des zweiten Geräts erstellt.
-- Das Hauptgerät importiert dieses Backup mit `Daten ergänzen`.
+- Einmal täglich oder bei Bedarf wird auf jedem Gerät die aktuelle Reise exportiert.
+- Das Hauptgerät prüft die Exportdateien in der Importvorschau und führt sie anschließend zusammen.
 - Anschließend kann das Hauptgerät einen neuen Gesamtstand exportieren und auf das zweite Gerät zurückspielen.
 - Eine Internetverbindung ist hierfür nicht erforderlich, wenn die Datei per AirDrop übertragen wird.
 
@@ -201,9 +199,10 @@ Ab Version 4.4.2 können bis zu 20 Reiseexporte gleichzeitig ausgewählt werden:
 
 1. Auf den beteiligten Geräten jeweils `Setup → Geräteabgleich → Aktuelle Reise exportieren` wählen.
 2. Die JSON-Dateien in einem gemeinsamen Ordner der Dateien-App ablegen.
-3. Auf dem Zielgerät `Setup → Geräteabgleich → Geräteexporte auswählen und zusammenführen` antippen.
+3. Auf dem Zielgerät `Setup → Geräteabgleich → Geräteexporte auswählen und prüfen` antippen.
 4. In der Dateien-App mehrere JSON-Dateien markieren und öffnen.
-5. Die Abschlussmeldung zu neuen Reisen, Personen, Buchungen, Dubletten und Konflikten prüfen.
+5. Die Importvorschau zu neuen Reisen, Personen, Buchungen, Dubletten und Konflikten prüfen.
+6. Erst danach `Geprüfte Exporte jetzt zusammenführen` wählen und die Abschlussmeldung kontrollieren.
 
 Reisen und Personen werden anhand ihrer internen IDs erkannt. Dieselbe Person wird daher auch dann korrekt verwendet, wenn die Buchung auf einem anderen Gerät erfasst wurde. Gleichnamige Personen mit unterschiedlichen IDs werden bewusst nicht automatisch zusammengeführt.
 

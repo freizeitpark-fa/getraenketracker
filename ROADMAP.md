@@ -1,5 +1,13 @@
 # Roadmap CruiseSip
 
+## Version 4.4.3 Importvorschau und Herkunftsanzeige
+
+- Ausgewählte Reiseexporte zunächst vollständig prüfen, ohne lokale Daten zu verändern.
+- Neue Reisen, Personen und Buchungen sowie Dubletten und Konflikte vor dem Import anzeigen.
+- Konflikte mit lokalem und importiertem Inhalt vergleichbar darstellen; lokale Datensätze bleiben vorrangig.
+- Vorschau vor dem tatsächlichen Schreiben erneut gegen den aktuellen lokalen Datenbestand prüfen.
+- Erfassenes Gerät je Buchung im Verlauf, in der Bearbeitungsansicht und in der personenbezogenen Analyse anzeigen.
+
 ## Version 4.4.2 Geräteabgleich
 
 - Bis zu 20 Reiseexporte in einem Arbeitsschritt auswählen und atomar zusammenführen.

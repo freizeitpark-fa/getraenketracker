@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.4.3 – Importvorschau, Konflikterkennung und Buchungsherkunft
+
+### Neu
+
+- Reiseexporte werden nach der Dateiauswahl zunächst vollständig geprüft; zu diesem Zeitpunkt werden noch keine lokalen Daten verändert.
+- Die Importvorschau zeigt je Datei Quellgerät, Reise, Exportzeitpunkt, neue Personen und Buchungen, bereits vorhandene Buchungen sowie Konflikte.
+- Konflikte können aufgeklappt und als Vergleich zwischen lokalem und importiertem Datensatz geprüft werden.
+- Konfliktbehaftete Reisen, Personen oder Buchungen werden nicht übernommen; der vorhandene lokale Datensatz bleibt unverändert.
+- Vor dem tatsächlichen Schreiben wird die Vorschau nochmals gegen den aktuellen lokalen Datenbestand geprüft. Bei zwischenzeitlichen Änderungen muss die aktualisierte Vorschau erneut bestätigt werden.
+- Im Verlauf zeigt jede Buchung das erfassende Gerät an. Die Herkunft ist außerdem in der Verlaufskorrektur und im personenbezogenen Getränkeverlauf sichtbar.
+- Das Importprotokoll zeigt bei Geräteabgleichen zusätzlich den Namen des Quellgeräts.
+
+### Technisch
+
+- App-Version auf `4.4.3` erhöht.
+- Service-Worker-Cache auf `cruisesip-v4-4-3-20260714a` erhöht.
+- IndexedDB-Name `cruisesip_v4` und Datenbankversion `1` bleiben unverändert.
+- Keine Änderung an Barkarte, Paketdaten, stabilen Reise-, Personen- oder Buchungs-IDs.
+
 ## 4.4.2 – Mehrere Geräteexporte sicher zusammenführen
 
 ### Hotfix Setup-Anordnung

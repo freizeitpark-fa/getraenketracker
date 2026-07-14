@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 4.4.2**. Geräteexporte werden weiterhin vollständig offline als lokale JSON-Dateien erstellt und manuell über die Dateien-App zusammengeführt. auf dem iPhone
+Aktueller Stand: **CruiseSip 4.4.3**. Geräteexporte werden vollständig offline als lokale JSON-Dateien erstellt, vor dem Import geprüft und anschließend bewusst über die Dateien-App zusammengeführt.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -26,7 +26,8 @@ Aktueller Stand: **CruiseSip 4.4.2**. Geräteexporte werden weiterhin vollständ
 - Daten liegen nur auf dem jeweiligen Gerät.
 - Wird Safari-Websitedaten gelöscht, können lokale Daten verloren gehen.
 - Vor Reiseende regelmäßig exportieren.
-- Beim Zusammenführen mehrerer Geräte immer je Gerät eine Exportdatei erzeugen und auf dem Hauptgerät importieren.
+- Beim Zusammenführen mehrerer Geräte immer je Gerät eine Exportdatei erzeugen, die Importvorschau prüfen und erst danach auf dem Hauptgerät zusammenführen.
+- Konflikte werden nicht automatisch überschrieben; CruiseSip zeigt den lokalen und den importierten Stand vergleichbar an.
 
 
 
@@ -61,5 +62,5 @@ Das Löschen von Safari-Websitedaten ist keine bevorzugte Update-Methode, da dad
 
 Der Abgleich erfolgt bewusst manuell über JSON-Dateien. CruiseSip lädt keine Daten automatisch in eine Cloud. Beim Export öffnet CruiseSip auf unterstützten iPhones und iPads das Teilen-Menü. Über „In Dateien sichern“ kann der gewünschte Ordner lokal unter „Auf meinem iPhone“, in iCloud Drive oder bei einem eingebundenen Dateidienst ausgewählt werden. Anschließend kann die Datei bei Bedarf auf einem anderen Gerät ausgewählt werden. Offline erfasste Buchungen bleiben vollständig in IndexedDB gespeichert, bis sie manuell exportiert werden.
 
-Eine vollständige Anleitung zur Ersteinrichtung, zur korrekten Auswahl von `Vollständig ersetzen` und zum späteren Abgleich über `Daten ergänzen` steht in `docs/ZWEITES_GERAET.md`.
+Eine vollständige Anleitung zur Ersteinrichtung, zur korrekten Auswahl von `Vollständig ersetzen` und zum späteren Reiseabgleich mit Importvorschau steht in `docs/ZWEITES_GERAET.md`.
 
