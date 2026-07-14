@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 4.5.2**, Build **4.5.2b**. Reisen können vollständig offline abgeschlossen und anschließend je Person, je Reisetag sowie insgesamt ausgewertet werden. Sämtliche Berichtskennzahlen werden direkt aus den lokal gespeicherten Buchungen berechnet; es werden keine Daten an einen Server übertragen.
+Aktueller Stand: **CruiseSip 4.5.2**, Build **4.5.2d**. Neue Reisen können vollständig offline über einen Assistenten aus einer Reiseverlaufsdatei oder manuell angelegt werden. Danach werden Personen lokal eingerichtet und die Reise kann als JSON-Datei für ein zweites Gerät bereitgestellt werden. Tracking, Berichte und sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 

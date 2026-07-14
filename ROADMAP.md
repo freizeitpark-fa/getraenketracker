@@ -1,5 +1,20 @@
 # Roadmap CruiseSip
 
+## Version 4.5.2d Assistent zur Reiseeinrichtung
+
+- neue Reise über einen geführten Ablauf anlegen
+- wahlweise Reiseverlaufsdatei importieren oder Reise manuell erfassen
+- Reiseverlauf-Import erzeugt immer eine neue Reise mit stabiler ID
+- anschließend Personen und Paketpreise einrichten
+- Reise einschließlich Verlauf und Personen für ein zweites Gerät exportieren
+- vorhandene Reisen beim Reiseverlauf-Import nicht verändern
+
+## Version 4.5.2c Offline-Cache-Diagnose
+
+- Cache-Prüfung automatisch an die aktuelle Build-Kennung koppeln
+- Fehlanzeige `3/5 Kerndateien` nach einem Build-Update verhindern
+- Offline-Installation, IndexedDB und bestehende Reisedaten unverändert lassen
+
 ## Version 4.5.2b Importierter Reiseverlauf
 
 - tatsächlichen Reiseverlauf als lokale JSON-Datei importieren

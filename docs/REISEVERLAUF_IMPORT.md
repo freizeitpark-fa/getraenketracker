@@ -1,6 +1,8 @@
-# Reiseverlauf importieren
+# Neue Reise aus einem Reiseverlauf anlegen
 
-CruiseSip kann Häfen, Seetage und optionale Liegezeiten als lokale JSON-Datei importieren. Diese Daten dienen ausschließlich als Kontext im Tages- und Reisebericht. Getränkebuchungen werden weiterhin nur anhand ihres Datums und ihrer Uhrzeit zugeordnet.
+CruiseSip kann vor Reisebeginn eine vorbereitete JSON-Datei mit Häfen, Seetagen und optionalen Liegezeiten einlesen. Der Import erzeugt **immer eine neue Reise mit eigener stabiler Reise-ID**. Bereits vorhandene Reisen, Personen und Buchungen werden nicht verändert.
+
+Die Routendaten dienen ausschließlich als Kontext im Tages- und Reisebericht. Getränkebuchungen werden weiterhin nur anhand ihres Datums und ihrer Uhrzeit zugeordnet.
 
 ## Importformat
 
@@ -52,19 +54,32 @@ Zulässige Werte für `type`:
 - `disembarkation`
 - `unknown`
 
-Datumswerte müssen `YYYY-MM-DD`, Uhrzeiten möglichst `HH:MM` entsprechen. Pro Datum ist genau ein Reisetag zulässig.
+Datumswerte müssen `YYYY-MM-DD`, Uhrzeiten möglichst `HH:MM` entsprechen. Pro Datum ist genau ein Reisetag zulässig. Der Reisename im Bereich `trip` ist verpflichtend. CruiseSip verwendet als Reisezeitraum den ersten und letzten gültigen Routentag.
 
-## Import auf dem iPhone
+## Geführte Einrichtung auf dem iPhone
 
 1. JSON-Datei in der Dateien-App speichern.
-2. In CruiseSip die betreffende Reise öffnen.
-3. `Reisen` aufrufen.
-4. Unter `Reiseverlauf` auf `Reiseverlauf importieren` tippen.
-5. Datei auswählen und die Importvorschau prüfen.
-6. Import bestätigen.
+2. In CruiseSip `Setup` → `Reisen verwalten` öffnen.
+3. `Neue Reise anlegen` antippen.
+4. `Reiseverlauf importieren` wählen und die JSON-Datei öffnen.
+5. Importvorschau, Reisename, Schiff, Zeitraum, Häfen und Seetage prüfen.
+6. `Neue Reise anlegen` bestätigen.
+7. Im zweiten Schritt alle Personen, Getränkepakete und Paketpreise erfassen.
+8. Im dritten Schritt die Reise optional für ein zweites Gerät exportieren.
 
-Ein bereits gespeicherter Verlauf wird nur nach einer zusätzlichen Bestätigung ersetzt. Buchungen, Personen, Preise und Paketdaten bleiben unverändert.
+Die importierte Datei wird niemals in eine bereits vorhandene Reise geschrieben. Eine versehentliche Veränderung oder Ersetzung eines bisherigen Reiseverlaufs ist damit ausgeschlossen.
 
-## Mehrere Geräte
+## Manuelle Alternative
 
-Wird eine Reise erstmals über einen Reiseexport auf einem zweiten Gerät angelegt, wird ein bereits enthaltener Reiseverlauf mit übertragen. Existiert dieselbe Reise dort schon, wird der lokale Reiseverlauf aus Sicherheitsgründen nicht automatisch überschrieben. In diesem Fall dieselbe Reiseverlaufsdatei auf dem zweiten Gerät separat importieren.
+Im ersten Assistentenschritt kann statt des Imports `Manuell anlegen` gewählt werden. In diesem Fall werden Reisename, Schiff sowie Start- und Enddatum direkt eingegeben. Anschließend folgt dieselbe Personen- und Exportstrecke.
+
+## Zweites Gerät
+
+Der Reiseexport enthält:
+
+- die neu angelegte Reise mit stabiler Reise-ID,
+- den vollständigen importierten Reiseverlauf,
+- alle angelegten Personen mit stabilen Personen-IDs,
+- vorhandene Buchungen und Favoriten.
+
+Auf dem zweiten Gerät wird die Datei unter `Setup` → `Geräteabgleich` importiert. Wird die Reise dort erstmals angelegt, werden Reiseverlauf und Personen gemeinsam übernommen. Danach können beide Geräte mit identischen Reise- und Personen-IDs tracken.

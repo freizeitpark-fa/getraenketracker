@@ -1,3 +1,21 @@
+# CruiseSip – Änderungsprotokoll
+
+## Version 4.5.2d – Assistent zur Reiseeinrichtung
+
+- Neue Reisen werden über einen dreistufigen Assistenten eingerichtet: Reise anlegen, Personen erfassen, optionaler Export für ein zweites Gerät.
+- Im ersten Schritt kann zwischen einer Reiseverlaufsdatei und der manuellen Erfassung gewählt werden.
+- Der Import einer `CruiseSipItinerary`-Datei erzeugt immer eine neue Reise mit eigener stabiler Reise-ID. Vorhandene Reisen, Personen und Buchungen werden nicht verändert.
+- Reisename und Schiff können in der Importvorschau geprüft und angepasst werden; der Reisezeitraum wird aus dem ersten und letzten Routentag abgeleitet.
+- Nach dem Import oder der manuellen Anlage führt CruiseSip direkt zur Personen- und Paketverwaltung.
+- Der abschließende Reiseexport enthält Reise, Reiseverlauf und sämtliche angelegten Personen mit identischen IDs für das zweite Gerät.
+- IndexedDB-Version, Stores, Tracking, Buchungen, Barkarte, Vollbackup und bestehender Geräteabgleich bleiben unverändert.
+
+## Version 4.5.2c – Offline-Cache-Diagnose
+
+- Offline-App-Cache-Prüfung verwendet für CSS und JavaScript automatisch die aktuelle Build-Kennung.
+- Fehlanzeige `3/5 Kerndateien` nach dem Update auf Build 4.5.2b behoben.
+- Keine Änderung an IndexedDB, Reisen, Buchungen, Personen, Barkarte, Backup oder Geräteabgleich.
+
 # Changelog
 
 ## 4.5.2b – Importierter Reiseverlauf

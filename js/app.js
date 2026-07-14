@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '4.5.2';
-const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714b';
-const APP_BUILD = '4.5.2b';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.2b';
+const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714d';
+const APP_BUILD = '4.5.2d';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.2d';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -64,7 +64,8 @@ let state = {
   pendingBackup: null,
   pendingTripImport: null,
   pendingTripClosure: null,
-  pendingItineraryImport: null
+  pendingItineraryImport: null,
+  tripSetupWizard: { step: null, tripId: null, exported: false }
 };
 
 const actionLocks = Object.create(null);
@@ -631,8 +632,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.5.2a',
-    './js/app.js?v=4.5.2a',
+    `./css/styles.css?v=${APP_BUILD}`,
+    `./js/app.js?v=${APP_BUILD}`,
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -815,6 +816,19 @@ function clearDraft(section) {
   if (!state.formDraft) state.formDraft = { trip: {}, person: {}, device: {}, onboardingTrip: {}, log: {} };
   state.formDraft[section] = {};
 }
+function resetTripSetupWizard() {
+  state.tripSetupWizard = { step: null, tripId: null, exported: false };
+  state.pendingItineraryImport = null;
+}
+function startTripSetupWizard(step = 'choice') {
+  state.editingTripId = null;
+  clearDraft('trip');
+  state.pendingItineraryImport = null;
+  state.tripSetupWizard = { step, tripId: null, exported: false };
+  state.route = 'trips';
+  render();
+  requestAnimationFrame(() => ($('#tripSetupWizard') || $('#tripForm'))?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
 
 async function handleClick(event) {
   if (event.target.closest('input, textarea, select, option')) return;
@@ -842,6 +856,7 @@ async function handleClick(event) {
   if (action === 'setTrip') {
     const trip = tripById(id);
     if (!trip) { alert('Die Reise wurde nicht gefunden.'); return; }
+    if (state.tripSetupWizard?.tripId && state.tripSetupWizard.tripId !== id) resetTripSetupWizard();
     await putSetting('currentTripId', id);
     state.currentTripId = id;
     state.selectedPersonId = preferredPersonIdForTrip(id);
@@ -859,16 +874,37 @@ async function handleClick(event) {
     haptic();
     return;
   }
-  if (action === 'editTrip') { fillTripForm(id); return; }
+  if (action === 'startTripWizard') { startTripSetupWizard('choice'); return; }
+  if (action === 'chooseTripImport') { state.tripSetupWizard = { step: 'import', tripId: null, exported: false }; openFile('itinerary'); return; }
+  if (action === 'chooseTripManual') { startTripSetupWizard('manual'); return; }
+  if (action === 'cancelTripWizard') { resetTripSetupWizard(); state.editingTripId = null; clearDraft('trip'); render(); return; }
+  if (action === 'tripWizardExport') {
+    if (!currentPersons().length) { alert('Bitte lege mindestens eine Person an, bevor du die Reise bereitstellst.'); return; }
+    state.tripSetupWizard = { ...state.tripSetupWizard, step: 'export' };
+    render();
+    requestAnimationFrame(() => $('#tripSetupAssistant')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    return;
+  }
+  if (action === 'tripWizardBackToPersons') { state.tripSetupWizard = { ...state.tripSetupWizard, step: 'persons' }; render(); return; }
+  if (action === 'finishTripWizard') {
+    if (state.tripSetupWizard?.step === 'persons' && !currentPersons().length) { alert('Bitte lege mindestens eine Person an, bevor du die Reiseeinrichtung abschließt.'); return; }
+    resetTripSetupWizard(); state.route = 'dashboard'; render(); toast('Reiseeinrichtung abgeschlossen'); return;
+  }
+  if (action === 'focusPersonForm') { $('#personForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); $('#personNameInput')?.focus(); return; }
+  if (action === 'editTrip') { resetTripSetupWizard(); fillTripForm(id); return; }
   if (action === 'archiveTrip') { const trip = tripById(id); if (trip?.archived) await reactivateTrip(id); else prepareTripClosure(id); return; }
   if (action === 'cancelTripClosure') { state.pendingTripClosure = null; render(); return; }
   if (action === 'confirmTripClosure') { await runActionOnce('confirmTripClosure', () => confirmTripClosure(id)); return; }
   if (action === 'deleteTrip') { await deleteTrip(id); return; }
-  if (action === 'importItinerary') { openFile('itinerary'); return; }
-  if (action === 'cancelItineraryImport') { state.pendingItineraryImport = null; render(); return; }
+  if (action === 'importItinerary') { startTripSetupWizard('import'); openFile('itinerary'); return; }
+  if (action === 'cancelItineraryImport') { state.pendingItineraryImport = null; state.tripSetupWizard = { step: 'choice', tripId: null, exported: false }; render(); return; }
   if (action === 'applyItineraryImport') { await runActionOnce('applyItineraryImport', applyPreparedItineraryImport); return; }
   if (action === 'clearItinerary') { await clearCurrentItinerary(); return; }
-  if (action === 'resetTripForm') { fillTripForm(null); return; }
+  if (action === 'resetTripForm') {
+    if (state.editingTripId) { state.editingTripId = null; clearDraft('trip'); render(); }
+    else { clearDraft('trip'); render(); requestAnimationFrame(() => $('#tripNameInput')?.focus()); }
+    return;
+  }
   if (action === 'saveTrip') { await runActionOnce('saveTrip', () => saveTripForm($('#tripForm'))); return; }
   if (action === 'selectPerson') {
     const person = currentPersons().find(row => row.id === id);
@@ -2067,7 +2103,7 @@ function normalizeItineraryDay(raw, index) {
     notes
   };
 }
-function itineraryImportValidation(payload, trip = currentTrip(), fileName = 'Reiseverlauf') {
+function itineraryImportValidation(payload, trip = null, fileName = 'Reiseverlauf') {
   const errors = [];
   const warnings = [];
   if (!isPlainRecord(payload)) errors.push('Die Datei enthält kein gültiges JSON-Objekt.');
@@ -2085,31 +2121,58 @@ function itineraryImportValidation(payload, trip = currentTrip(), fileName = 'Re
     if (day.departure && !/^\d{2}:\d{2}$/.test(day.departure)) warnings.push(`${day.date}: Abfahrtszeit „${day.departure}“ entspricht nicht HH:MM.`);
   });
   days.sort((a, b) => a.date.localeCompare(b.date));
-  if (trip?.startDate && days[0]?.date && days[0].date !== trip.startDate) warnings.push(`Der Verlauf beginnt am ${formatDate(days[0].date)}, die Reise ist ab ${formatDate(trip.startDate)} hinterlegt.`);
-  if (trip?.endDate && days[days.length - 1]?.date && days.at(-1).date !== trip.endDate) warnings.push(`Der Verlauf endet am ${formatDate(days.at(-1).date)}, die Reise ist bis ${formatDate(trip.endDate)} hinterlegt.`);
-  if (payload?.trip?.name && trip?.name && normalize(payload.trip.name) !== normalize(trip.name)) warnings.push(`Datei-Reise „${payload.trip.name}“ weicht von „${trip.name}“ ab.`);
-  if (payload?.trip?.ship && trip?.ship && normalize(payload.trip.ship) !== normalize(trip.ship)) warnings.push(`Datei-Schiff „${payload.trip.ship}“ weicht von „${trip.ship}“ ab.`);
+  days.forEach((day, index) => { day.dayNumber = index + 1; });
+
+  const tripMeta = isPlainRecord(payload?.trip) ? payload.trip : {};
+  const importedName = String(tripMeta.name || '').trim();
+  const importedShip = String(tripMeta.ship || '').trim();
+  const metaStart = String(tripMeta.startDate || '').trim();
+  const metaEnd = String(tripMeta.endDate || '').trim();
+  const routeStart = days[0]?.date || '';
+  const routeEnd = days[days.length - 1]?.date || '';
+  if (!importedName) errors.push('Im Bereich „trip“ fehlt der Reisename.');
+  if (metaStart && !validItineraryDate(metaStart)) errors.push('Das Startdatum der Reise ist ungültig.');
+  if (metaEnd && !validItineraryDate(metaEnd)) errors.push('Das Enddatum der Reise ist ungültig.');
+  if (metaStart && metaEnd && metaStart > metaEnd) errors.push('Das Startdatum liegt nach dem Enddatum.');
+  if (metaStart && routeStart && metaStart !== routeStart) warnings.push(`Das Dateifeld startDate nennt ${formatDate(metaStart)}. CruiseSip verwendet den ersten Routentag ${formatDate(routeStart)}.`);
+  if (metaEnd && routeEnd && metaEnd !== routeEnd) warnings.push(`Das Dateifeld endDate nennt ${formatDate(metaEnd)}. CruiseSip verwendet den letzten Routentag ${formatDate(routeEnd)}.`);
+
+  if (trip?.startDate && routeStart && routeStart !== trip.startDate) warnings.push(`Der Verlauf beginnt am ${formatDate(routeStart)}, die Reise ist ab ${formatDate(trip.startDate)} hinterlegt.`);
+  if (trip?.endDate && routeEnd && routeEnd !== trip.endDate) warnings.push(`Der Verlauf endet am ${formatDate(routeEnd)}, die Reise ist bis ${formatDate(trip.endDate)} hinterlegt.`);
+  if (tripMeta.name && trip?.name && normalize(tripMeta.name) !== normalize(trip.name)) warnings.push(`Datei-Reise „${tripMeta.name}“ weicht von „${trip.name}“ ab.`);
+  if (tripMeta.ship && trip?.ship && normalize(tripMeta.ship) !== normalize(trip.ship)) warnings.push(`Datei-Schiff „${tripMeta.ship}“ weicht von „${trip.ship}“ ab.`);
+
   const summary = {
     days: days.length,
     ports: days.filter(day => ['port', 'embarkation', 'disembarkation', 'overnight'].includes(day.type) && day.port).length,
     seaDays: days.filter(day => day.type === 'sea').length,
-    startDate: days[0]?.date || '',
-    endDate: days[days.length - 1]?.date || ''
+    startDate: routeStart,
+    endDate: routeEnd
   };
-  return { errors: Array.from(new Set(errors)), warnings: Array.from(new Set(warnings)), days, summary, fileName, source: String(payload?.source || payload?.meta?.source || '').trim() };
+  return {
+    errors: Array.from(new Set(errors)),
+    warnings: Array.from(new Set(warnings)),
+    days,
+    summary,
+    fileName,
+    source: String(payload?.source || payload?.meta?.source || '').trim(),
+    trip: { name: importedName, ship: importedShip, startDate: routeStart || metaStart, endDate: routeEnd || metaEnd }
+  };
 }
 async function prepareItineraryImport(text, fileName) {
-  const trip = currentTrip();
-  if (!trip) throw new Error('Bitte zuerst eine Reise anlegen oder öffnen.');
   let payload;
   try { payload = JSON.parse(text); }
   catch (_) { throw new Error('Die Datei enthält kein gültiges JSON.'); }
-  const validation = itineraryImportValidation(payload, trip, fileName);
+  const validation = itineraryImportValidation(payload, null, fileName);
   if (validation.errors.length) throw new Error(validation.errors[0]);
-  state.pendingItineraryImport = { tripId: trip.id, payload, validation, preparedAt: nowIso() };
+  state.editingTripId = null;
+  clearDraft('trip');
+  state.pendingItineraryImport = { payload, validation, preparedAt: nowIso() };
+  state.tripSetupWizard = { step: 'importPreview', tripId: null, exported: false };
+  state.route = 'trips';
   render();
   requestAnimationFrame(() => $('#itineraryImportPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  toast('Reiseverlauf geprüft – noch nicht importiert');
+  toast('Reisedatei geprüft – neue Reise noch nicht angelegt');
 }
 function itineraryDayRowHtml(day) {
   const location = itineraryLocationLabel(day);
@@ -2117,35 +2180,67 @@ function itineraryDayRowHtml(day) {
   const details = [itineraryTypeLabel(day.type), time, day.notes].filter(Boolean).join(' · ');
   return `<div class="itineraryDayRow"><div class="itineraryDate"><b>${esc(formatDate(day.date))}</b><small>Tag ${esc(day.dayNumber || '')}</small></div><div class="itineraryLocation"><b>${esc(location || itineraryTypeLabel(day.type))}</b><small>${esc(details)}</small></div></div>`;
 }
+function tripWizardProgressHtml(activeStep = 1) {
+  return `<div class="tripWizardProgress" aria-label="Einrichtungsfortschritt"><span class="${activeStep >= 1 ? 'active' : ''}"><b>1</b> Reise</span><span class="${activeStep >= 2 ? 'active' : ''}"><b>2</b> Personen</span><span class="${activeStep >= 3 ? 'active' : ''}"><b>3</b> Export</span></div>`;
+}
 function itineraryImportPreviewHtml() {
   const pending = state.pendingItineraryImport;
   if (!pending) return '';
-  const trip = tripById(pending.tripId);
-  if (!trip) return '';
   const { validation } = pending;
-  return `<div class="itineraryImportPreview" id="itineraryImportPreview"><div class="backupPreviewHead"><div><b>Importvorschau Reiseverlauf</b><small>${esc(validation.fileName)} · Noch keine Daten verändert</small></div><span class="diagnosticSummary ${validation.warnings.length ? 'warn' : 'ok'}">${validation.warnings.length ? 'Hinweise prüfen' : 'Bereit'}</span></div><div class="tripImportSummary"><span><b>${validation.summary.days}</b> Reisetage</span><span><b>${validation.summary.ports}</b> Hafentage</span><span><b>${validation.summary.seaDays}</b> Seetage</span><span><b>${esc(formatDate(validation.summary.startDate))}</b> bis ${esc(formatDate(validation.summary.endDate))}</span></div>${validation.warnings.length ? `<div class="backupMessages warn">${validation.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}<div class="itineraryPreviewList">${validation.days.map(itineraryDayRowHtml).join('')}</div><div class="backupModeCard"><b>Verlauf für „${esc(trip.name)}“ übernehmen</b><p>Ein bereits vorhandener Reiseverlauf wird vollständig ersetzt. Getränkebuchungen, Personen, Preise und Paketdaten bleiben unverändert.</p><button class="primary" data-action="applyItineraryImport">Geprüften Verlauf importieren</button></div><button class="secondary" data-action="cancelItineraryImport">Importvorschau schließen</button></div>`;
+  return `<div class="itineraryImportPreview" id="itineraryImportPreview">
+    ${tripWizardProgressHtml(1)}
+    <div class="backupPreviewHead"><div><b>Importvorschau – neue Reise</b><small>${esc(validation.fileName)} · Noch keine Daten verändert</small></div><span class="diagnosticSummary ${validation.warnings.length ? 'warn' : 'ok'}">${validation.warnings.length ? 'Hinweise prüfen' : 'Bereit'}</span></div>
+    <div class="formField"><label for="importTripNameInput">Reisename</label><input id="importTripNameInput" value="${esc(validation.trip.name)}" placeholder="Reisename"></div>
+    <div class="formField"><label for="importTripShipInput">Schiff</label><input id="importTripShipInput" value="${esc(validation.trip.ship)}" placeholder="Schiffsname"></div>
+    <div class="tripImportSummary"><span><b>${validation.summary.days}</b> Reisetage</span><span><b>${validation.summary.ports}</b> Hafentage</span><span><b>${validation.summary.seaDays}</b> Seetage</span><span><b>${esc(formatDate(validation.summary.startDate))}</b> bis ${esc(formatDate(validation.summary.endDate))}</span></div>
+    ${validation.warnings.length ? `<div class="backupMessages warn">${validation.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
+    <details class="itineraryDetails" open><summary>Geprüften Verlauf anzeigen</summary><div class="itineraryPreviewList">${validation.days.map(itineraryDayRowHtml).join('')}</div></details>
+    <div class="backupModeCard"><b>Neue Reise aus dieser Datei anlegen</b><p>CruiseSip erzeugt eine neue Reise mit eigener stabiler ID. Bereits vorhandene Reisen, Personen und Buchungen bleiben unverändert.</p><button class="primary" data-action="applyItineraryImport">Neue Reise anlegen</button></div>
+    <button class="secondary" data-action="cancelItineraryImport">Zurück zur Auswahl</button>
+  </div>`;
 }
 function itineraryManagementHtml(trip = currentTrip()) {
-  if (!trip) return `<div class="card"><h2>Reiseverlauf</h2><p class="emptyText">Lege zuerst eine Reise an.</p></div>`;
+  if (!trip) return '';
   const days = tripItinerary(trip);
   const ports = days.filter(day => ['port', 'embarkation', 'disembarkation', 'overnight'].includes(day.type) && day.port).length;
   const seaDays = days.filter(day => day.type === 'sea').length;
-  return `<div class="card itineraryCard"><div class="sectionHead"><div><h2>Reiseverlauf</h2><p class="hint">Häfen und Seetage werden ausschließlich für den späteren Reisebericht verwendet. Das Tracking richtet sich weiterhin nur nach Datum und Uhrzeit.</p></div><span class="backupFormatBadge">JSON · offline</span></div><div class="buttonStack"><button class="primary" data-action="importItinerary">Reiseverlauf importieren</button>${days.length ? '<button class="secondary dangerText" data-action="clearItinerary">Verlauf entfernen</button>' : ''}</div>${days.length ? `<div class="itinerarySummary"><span><b>${days.length}</b> Reisetage</span><span><b>${ports}</b> Hafentage</span><span><b>${seaDays}</b> Seetage</span></div><details class="itineraryDetails"><summary>Gespeicherten Verlauf anzeigen</summary><div class="itineraryPreviewList">${days.map(itineraryDayRowHtml).join('')}</div></details>` : '<p class="emptyText">Noch kein Reiseverlauf hinterlegt.</p>'}${itineraryImportPreviewHtml()}</div>`;
+  return `<div class="card itineraryCard"><div class="sectionHead"><div><h2>Reiseverlauf</h2><p class="hint">Der Verlauf gehört zur Reise und dient nur dem späteren Bericht. Neue Reiseverläufe werden über den Assistenten als eigene neue Reise importiert.</p></div><span class="backupFormatBadge">JSON · offline</span></div>${days.length ? `<div class="itinerarySummary"><span><b>${days.length}</b> Reisetage</span><span><b>${ports}</b> Hafentage</span><span><b>${seaDays}</b> Seetage</span></div><details class="itineraryDetails"><summary>Gespeicherten Verlauf anzeigen</summary><div class="itineraryPreviewList">${days.map(itineraryDayRowHtml).join('')}</div></details><div class="buttonStack"><button class="secondary dangerText" data-action="clearItinerary">Verlauf entfernen</button></div>` : '<p class="emptyText">Für diese Reise ist kein importierter Reiseverlauf hinterlegt.</p>'}</div>`;
 }
 async function applyPreparedItineraryImport() {
   const pending = state.pendingItineraryImport;
   if (!pending) throw new Error('Keine geprüfte Reiseverlaufsdatei vorhanden.');
-  const trip = tripById(pending.tripId);
-  if (!trip) throw new Error('Die Zielreise wurde nicht gefunden.');
-  const validation = itineraryImportValidation(pending.payload, trip, pending.validation.fileName);
+  const validation = itineraryImportValidation(pending.payload, null, pending.validation.fileName);
   if (validation.errors.length) throw new Error(validation.errors[0]);
-  const existingCount = tripItinerary(trip).length;
-  if (existingCount && !confirm(`Der vorhandene Reiseverlauf mit ${existingCount} Reisetagen wird vollständig ersetzt. Fortfahren?`)) return;
-  await put('trips', { ...trip, itinerary: validation.days, itineraryImportedAt: nowIso(), itinerarySource: validation.source || pending.validation.fileName, updatedAt: nowIso() });
+  const name = String($('#importTripNameInput')?.value || validation.trip.name || '').trim();
+  const ship = String($('#importTripShipInput')?.value || validation.trip.ship || '').trim();
+  if (!name) { alert('Bitte gib einen Reisenamen ein.'); $('#importTripNameInput')?.focus(); return; }
+  const id = `trip_${uid()}`;
+  const timestamp = nowIso();
+  const trip = {
+    id,
+    name,
+    ship,
+    startDate: validation.summary.startDate,
+    endDate: validation.summary.endDate,
+    archived: false,
+    itinerary: validation.days,
+    itineraryImportedAt: timestamp,
+    itinerarySource: validation.source || pending.validation.fileName,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+  await put('trips', trip);
+  await put('imports', { id: `import_${uid()}`, kind: 'Neue Reise / Reiseverlauf', fileName: pending.validation.fileName, importedAt: timestamp, added: validation.days.length, duplicates: 0 });
+  await putSetting('currentTripId', id);
   state.pendingItineraryImport = null;
+  state.tripSetupWizard = { step: 'persons', tripId: id, exported: false };
+  state.currentTripId = id;
+  state.selectedPersonId = null;
+  state.route = 'devices';
   await loadState();
+  state.currentTripId = id;
   render();
-  toast(`${validation.days.length} Reisetage importiert`);
+  toast(`Neue Reise „${name}“ angelegt – jetzt Personen einrichten`);
   haptic();
 }
 async function clearCurrentItinerary() {
@@ -2160,24 +2255,43 @@ async function clearCurrentItinerary() {
   render();
   toast('Reiseverlauf entfernt');
 }
-
+function tripSetupWizardHtml() {
+  const wizard = state.tripSetupWizard || {};
+  if (!wizard.step) {
+    return `<div class="card tripSetupLaunch"><div><p class="eyebrow">Vor der Reise</p><h2>Neue Reise einrichten</h2><p class="hint">Der Assistent legt zuerst die Reise an, führt anschließend zu den Personen und bietet zum Abschluss den Reiseexport für ein zweites Gerät an.</p></div><button class="primary" data-action="startTripWizard">Neue Reise anlegen</button></div>`;
+  }
+  if (wizard.step === 'choice' || wizard.step === 'import') {
+    return `<div class="card tripSetupWizard" id="tripSetupWizard">${tripWizardProgressHtml(1)}<div><p class="eyebrow">Schritt 1 von 3</p><h2>Wie möchtest du die Reise anlegen?</h2><p class="hint">Eine Reiseverlaufsdatei enthält bereits Reisename, Zeitraum, Häfen und Seetage. Alternativ kannst du die Reise ohne Route manuell erfassen.</p></div><div class="tripSetupChoices"><button class="primary" data-action="chooseTripImport"><span>📄</span><b>Reiseverlauf importieren</b><small>Neue Reise aus JSON-Datei anlegen</small></button><button class="secondary" data-action="chooseTripManual"><span>✍️</span><b>Manuell anlegen</b><small>Name, Schiff und Zeitraum eingeben</small></button></div><button class="secondary" data-action="cancelTripWizard">Assistent abbrechen</button></div>`;
+  }
+  if (wizard.step === 'importPreview') return `<div class="card tripSetupWizard" id="tripSetupWizard">${itineraryImportPreviewHtml()}</div>`;
+  return '';
+}
+function tripFormHtml(edit = null) {
+  const manualWizard = !edit && state.tripSetupWizard?.step === 'manual';
+  if (!edit && !manualWizard) return '';
+  return `<form id="tripForm" class="card formCard tripSetupWizard" autocomplete="off">
+    ${manualWizard ? tripWizardProgressHtml(1) : ''}
+    <input id="tripIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
+    <p class="eyebrow">${edit ? 'Reiseverwaltung' : 'Schritt 1 von 3'}</p>
+    <h2>${edit ? 'Reise bearbeiten' : 'Reise manuell anlegen'}</h2>
+    <div class="formField"><label for="tripNameInput">Name</label><input id="tripNameInput" name="name" placeholder="z. B. AIDA Metropolen 2026" value="${esc(draftValue('trip', 'name', edit?.name || ''))}"></div>
+    <div class="formField"><label for="tripShipInput">Schiff</label><input id="tripShipInput" name="ship" placeholder="z. B. AIDAprima" value="${esc(draftValue('trip', 'ship', edit?.ship || ''))}"></div>
+    <div class="twoCols"><div class="formField"><label for="tripStartInput">Start</label><input id="tripStartInput" name="startDate" type="date" value="${esc(draftValue('trip', 'startDate', edit?.startDate || ''))}"></div><div class="formField"><label for="tripEndInput">Ende</label><input id="tripEndInput" name="endDate" type="date" value="${esc(draftValue('trip', 'endDate', edit?.endDate || ''))}"></div></div>
+    <button id="tripSaveButton" class="primary" type="submit" data-action="saveTrip">${edit ? 'Änderungen speichern' : 'Reise anlegen und weiter'}</button>
+    <button class="secondary" type="button" data-action="resetTripForm">${edit ? 'Bearbeitung abbrechen' : 'Eingaben leeren'}</button>
+    ${manualWizard ? '<button class="secondary" type="button" data-action="cancelTripWizard">Zurück zur Auswahl</button>' : ''}
+  </form>`;
+}
 function viewTrips() {
   const edit = state.editingTripId ? state.trips.find(t => t.id === state.editingTripId) : null;
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Reisen</h1><span class="subtle">${state.trips.length}</span></div>
       ${tripClosurePreviewHtml()}
-      ${itineraryManagementHtml(currentTrip())}
-      <form id="tripForm" class="card formCard" autocomplete="off">
-        <input id="tripIdInput" type="hidden" name="id" value="${esc(edit?.id || '')}">
-        <h2>${edit ? 'Reise bearbeiten' : 'Reise anlegen'}</h2>
-        <div class="formField"><label for="tripNameInput">Name</label><input id="tripNameInput" name="name" placeholder="z. B. AIDA Metropolen 2026" value="${esc(draftValue('trip', 'name', edit?.name || ''))}"></div>
-        <div class="formField"><label for="tripShipInput">Schiff</label><input id="tripShipInput" name="ship" placeholder="z. B. AIDAprima" value="${esc(draftValue('trip', 'ship', edit?.ship || ''))}"></div>
-        <div class="twoCols"><div class="formField"><label for="tripStartInput">Start</label><input id="tripStartInput" name="startDate" type="date" value="${esc(draftValue('trip', 'startDate', edit?.startDate || ''))}"></div><div class="formField"><label for="tripEndInput">Ende</label><input id="tripEndInput" name="endDate" type="date" value="${esc(draftValue('trip', 'endDate', edit?.endDate || ''))}"></div></div>
-        <button id="tripSaveButton" class="primary" type="submit" data-action="saveTrip">${edit ? 'Änderungen speichern' : 'Speichern'}</button>
-        <button class="secondary" type="button" data-action="resetTripForm">Formular leeren</button>
-      </form>
-      <div class="card"><h2>Vorhandene Reisen</h2><div class="itemList">${state.trips.map(tripCardHtml).join('')}</div></div>
+      ${edit || state.pendingTripClosure ? '' : tripSetupWizardHtml()}
+      ${tripFormHtml(edit)}
+      ${state.tripSetupWizard?.step ? '' : itineraryManagementHtml(currentTrip())}
+      <div class="card"><h2>Vorhandene Reisen</h2><div class="itemList">${state.trips.map(tripCardHtml).join('') || '<p class="emptyText">Noch keine Reise angelegt.</p>'}</div></div>
     </section>`;
 }
 function tripCardHtml(trip) {
@@ -2375,6 +2489,16 @@ async function reactivateTrip(id) {
   haptic();
 }
 
+function tripSetupAssistantHtml(trip = currentTrip()) {
+  const wizard = state.tripSetupWizard || {};
+  if (!trip || wizard.tripId !== trip.id || !['persons', 'export'].includes(wizard.step)) return '';
+  const persons = currentPersons();
+  if (wizard.step === 'persons') {
+    return `<div class="card tripSetupWizard" id="tripSetupAssistant">${tripWizardProgressHtml(2)}<p class="eyebrow">Schritt 2 von 3</p><h2>Personen und Getränkepakete</h2><p class="hint">Lege jetzt alle Personen dieser Reise an. Die stabilen Personen-IDs werden anschließend im Reiseexport für das zweite Gerät mitgegeben.</p><div class="tripSetupSummary"><span><b>${esc(trip.name)}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))}</small></span><strong>${persons.length} Personen</strong></div><div class="buttonStack"><button class="secondary" data-action="focusPersonForm">${persons.length ? 'Weitere Person anlegen' : 'Erste Person anlegen'}</button><button class="primary" data-action="tripWizardExport" ${persons.length ? '' : 'disabled'}>Weiter zum Export</button><button class="secondary" data-action="finishTripWizard" ${persons.length ? '' : 'disabled'}>Assistent ohne Export beenden</button></div>${persons.length ? '' : '<p class="tripWizardHint">Für das Tracking muss mindestens eine Person vorhanden sein.</p>'}</div>`;
+  }
+  return `<div class="card tripSetupWizard" id="tripSetupAssistant">${tripWizardProgressHtml(3)}<p class="eyebrow">Schritt 3 von 3</p><h2>Reise für ein zweites Gerät bereitstellen</h2><p class="hint">Der Reiseexport enthält die neue Reise, den importierten Verlauf und alle angelegten Personen mit identischen IDs. Auf dem zweiten Gerät wird die Datei unter Geräteabgleich importiert.</p><div class="tripSetupSummary"><span><b>${esc(trip.name)}</b><small>${currentPersons().length} Personen · ${tripItinerary(trip).length} Routentage</small></span><strong>${wizard.exported ? 'Export erstellt' : 'Bereit'}</strong></div>${wizard.exported ? '<div class="backupMessages ok"><p>Der Reiseexport wurde bereitgestellt. Speichere ihn in der Dateien-App oder übertrage ihn per AirDrop.</p></div>' : ''}<div class="buttonStack"><button class="primary" data-action="exportTrip">Aktuelle Reise exportieren</button><button class="secondary" data-action="tripWizardBackToPersons">Zurück zu Personen</button><button class="secondary" data-action="finishTripWizard">Einrichtung abschließen</button></div></div>`;
+}
+
 function viewDevices() {
   const trip = currentTrip();
   const locked = isTripCompleted(trip);
@@ -2383,6 +2507,7 @@ function viewDevices() {
     <section class="screen">
       <div class="sectionHead"><h1>Geräte & Personen</h1><span class="subtle">${currentPersons().length} Personen</span></div>
       ${tripStatusNoticeHtml('persons', trip)}
+      ${tripSetupAssistantHtml(trip)}
       <form id="deviceForm" class="card formCard">
         <h2>Gerät</h2>
         <div class="formField"><label for="deviceNameInput">Gerätename</label><input id="deviceNameInput" name="deviceName" value="${esc(draftValue('device', 'deviceName', state.settings.deviceName || ''))}"></div>
@@ -2802,13 +2927,19 @@ async function saveTripForm(form = null) {
     const savedTrip = await get('trips', id);
     if (!savedTrip || savedTrip.id !== id) throw new Error('IndexedDB hat den Reisedatensatz nicht bestätigt.');
     await putSetting('currentTripId', id);
+    const createdViaWizard = !existing.id && state.tripSetupWizard?.step === 'manual';
     clearDraft('trip');
     state.currentTripId = id;
     state.editingTripId = null;
+    if (createdViaWizard) {
+      state.tripSetupWizard = { step: 'persons', tripId: id, exported: false };
+      state.selectedPersonId = null;
+      state.route = 'devices';
+    }
     await loadState();
     state.currentTripId = id;
     render();
-    toast(existing.id ? 'Reiseänderungen gespeichert' : 'Reise angelegt');
+    toast(createdViaWizard ? 'Reise angelegt – jetzt Personen einrichten' : (existing.id ? 'Reiseänderungen gespeichert' : 'Reise angelegt'));
   } catch (error) {
     alert(`Reise konnte nicht gespeichert werden: ${error.message || error}`);
   } finally {
@@ -2834,6 +2965,7 @@ async function deleteTrip(id) {
   for (const p of state.persons.filter(p => p.tripId === id)) await del('persons', p.id);
   for (const l of state.logs.filter(l => l.tripId === id)) await del('logs', l.id);
   await del('trips', id);
+  if (state.tripSetupWizard?.tripId === id) resetTripSetupWizard();
   const remaining = (await all('trips')).filter(t => !t.archived);
   await putSetting('currentTripId', remaining[0]?.id || (await all('trips'))[0]?.id || null);
   await loadState(); render();
@@ -3351,7 +3483,14 @@ async function exportTrip() {
     title: `CruiseSip Reiseexport – ${trip.name}`
   });
   if (result.cancelled) toast('Speichern des Reiseexports abgebrochen');
-  else toast(result.method === 'share' ? 'Reiseexport zum Speichern bereitgestellt' : 'Reiseexport wurde heruntergeladen');
+  else {
+    toast(result.method === 'share' ? 'Reiseexport zum Speichern bereitgestellt' : 'Reiseexport wurde heruntergeladen');
+    if (state.tripSetupWizard?.step === 'export' && state.tripSetupWizard?.tripId === trip.id) {
+      state.tripSetupWizard = { ...state.tripSetupWizard, exported: true };
+      render();
+    }
+  }
+  return result;
 }
 async function backupTest() {
   const createdAt = nowIso();
@@ -3846,6 +3985,17 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.2d</h2>
+  <ul>
+    <li>Neuer Assistent für die Reiseeinrichtung: Reise importieren oder manuell anlegen, Personen erfassen und optional für ein zweites Gerät exportieren.</li>
+    <li>Ein Reiseverlauf-Import erzeugt immer eine neue Reise mit eigener stabiler ID und verändert keine vorhandene Reise.</li>
+    <li>Importierter Reiseverlauf, Personen und Reise-ID werden im bestehenden Reiseexport gemeinsam bereitgestellt.</li>
+  </ul>
+  <h2>Version 4.5.2c</h2>
+  <ul>
+    <li>Offline-App-Cache-Prüfung verwendet nun automatisch die aktuelle Build-Kennung.</li>
+    <li>Fehlanzeige „3/5 Kerndateien“ nach Build-Updates behoben.</li>
+  </ul>
   <h2>Version 4.5.2b</h2>
   <ul>
     <li>Tatsächlicher Reiseverlauf mit Häfen, Seetagen und optionalen Liegezeiten kann als lokale JSON-Datei importiert werden.</li>
