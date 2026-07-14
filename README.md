@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.5.4** (Build **4.5.4d**)
+Aktuelle Entwicklungsfassung: **5.0.0** (Build **5.0.0a**)
 
-Version 4.5.4 ergänzt die Analyse um Paket-Amortisation, tatsächlichen Break-even und eine konservative Hochrechnung bis zum Reiseende. Build 4.5.4d kennzeichnet die aktuell geöffnete Reise in Analyse und Einstellungen einheitlich mit einer grünen Reiseleiste. Die Bedienoberfläche verwendet weiterhin „Erfassen“ statt „Tracken“; der Berichtsexport bleibt am Ende der Analyse. Die Hauptnavigation öffnet jede Zielseite wieder am Seitenanfang. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 5.0.0 integriert den Reiseverlauf direkt in Home und neue Buchungen, ergänzt Mehrfacherfassung und „Noch einmal erfassen“ sowie zusätzliche grafische Auswertungen. Vor der ersten v5-Migration wird eine lokale Sicherheitskopie der v4-Kerndaten angelegt. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v4.5.4 Paketprognose`.
+4. Commit erstellen, z. B. `CruiseSip v5.0.0 Reiseintelligenz und Mehrfacherfassung`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v4.5.4` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.0.0` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur
@@ -50,8 +50,10 @@ CruiseSip/
 - Assistent für neue Reisen mit wahlweisem Reiseverlauf-Import oder manueller Anlage, anschließender Personeneinrichtung und optionalem Geräteexport
 - Personenverwaltung mit Getränkepaket und optionalem Paketpreis
 - Geräte-ID und Gerätename
-- extrem schnelles Tracking: Person wählen, Getränk antippen, speichern
-- Personen-Schnellwechsel direkt oberhalb der Getränkekacheln
+- extrem schnelles Erfassen: eine oder mehrere Personen wählen, Getränk antippen, speichern
+- Personen-Schnellwechsel und optionale Mehrfachauswahl direkt oberhalb der Getränkekacheln
+- „Noch einmal erfassen“ je Person auf Home und in der Erfassungsansicht
+- Reiseverlaufskarte für den heutigen beziehungsweise nächsten Reisetag
 - dauerhaft sichtbarer Rückgängig-Dock
 - stabile Suche ohne Fokusverlust
 - Favoriten, Kategorien und zuletzt verwendete Getränke

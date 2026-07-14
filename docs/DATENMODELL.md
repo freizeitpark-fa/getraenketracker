@@ -11,6 +11,7 @@ CruiseSip speichert Daten lokal in IndexedDB.
 - `logs`: getrackte Getränke
 - `imports`: Importprotokoll
 - `barkarten`: Barkarten-Metadaten
+- `snapshots`: interne, nicht exportierte Sicherheitskopien vor Datenmigrationen
 
 ## Logik Ersparnis
 
@@ -59,3 +60,11 @@ Der bestehende boolesche Wert `trips.archived` dient als Abschluss- und Schreibs
 - Abschluss und Reaktivierung ändern keine Reise-, Personen- oder Buchungs-ID.
 - Beim Geräteabgleich ist `archived` ein lokaler Schutzstatus. Ein abweichender Wert eines anderen Geräts überschreibt den lokalen Status nicht.
 - Vollständige Backups enthalten den Status weiterhin und können ihn beim ausdrücklich gewählten vollständigen Ersetzen wiederherstellen.
+
+
+## Erweiterungen ab 5.0.0
+
+- IndexedDB-Version 2 ergänzt den Store `snapshots`. Die bisherigen sieben Kern-Stores bleiben unverändert.
+- Vor der ersten v5-Migration wird einmalig eine interne Sicherheitskopie der Kern-Stores angelegt. Sie ist nicht Bestandteil normaler Vollbackups und kann im Setup kontrolliert wiederhergestellt werden.
+- Neue Buchungen können zusätzlich den Reiseverlaufs-Kontext (`itineraryDate`, `itineraryType`, `itineraryLocation`, Hafen/Land und Liegezeiten) enthalten. Die finanzielle Berechnung bleibt davon unabhängig.
+- Bei Mehrfacherfassung entsteht je Person ein eigenständiger Buchungssatz mit eigener ID, eigenem Paketstatus und eigenem Merge-Key.

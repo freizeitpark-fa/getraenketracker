@@ -1,3 +1,11 @@
+## Version 5.0.0 Reiseintelligenz und Mehrfacherfassung
+
+- Reiseverlaufs-Karte auf Home
+- Mehrfacherfassung je Person mit getrennten Paketstatus
+- Persönliche Wiederholung „Noch einmal erfassen“
+- Kategorien- und Tageswertdiagramme
+- Interne v5-Migrationssicherung
+
 ## Build 4.5.4d Aktive Reise hervorgehoben
 
 - Grüne Kennzeichnung der aktuell geöffneten Reise in Analyse und Einstellungen

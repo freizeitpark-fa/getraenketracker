@@ -1,13 +1,13 @@
 'use strict';
 
-const APP_VERSION = '4.5.4';
-const APP_CACHE_NAME = 'cruisesip-v4-5-4-20260714d';
-const APP_BUILD = '4.5.4d';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.4d';
+const APP_VERSION = '5.0.0';
+const APP_CACHE_NAME = 'cruisesip-v5-0-0-20260714a';
+const APP_BUILD = '5.0.0a';
+const SERVICE_WORKER_URL = './sw.js?v=5.0.0a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const CACHE_HINT = 'GitHub Pages / PWA / Offline';
 const FULL_BACKUP_TYPE = 'CruiseSipFullBackup';
 const FULL_BACKUP_FORMAT_VERSION = 1;
@@ -22,6 +22,9 @@ const ITINERARY_IMPORT_FORMAT_VERSION = 1;
 const ITINERARY_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
 
 const STORE_NAMES = ['settings', 'trips', 'persons', 'drinks', 'logs', 'imports', 'barkarten'];
+const SNAPSHOT_STORE = 'snapshots';
+const ALL_DB_STORES = [...STORE_NAMES, SNAPSHOT_STORE];
+const V5_MIGRATION_SNAPSHOT_ID = 'migration-v5.0.0';
 const PERSON_COLORS = ['#e0f2fe', '#dcfce7', '#fef3c7', '#fce7f3', '#ede9fe', '#ffedd5', '#ccfbf1', '#f1f5f9'];
 const QUICK_TERMS = ['kaffee', 'cappuccino', 'latte', 'espresso', 'kakao', 'tee', 'cola', 'fanta', 'sprite', 'wasser', 'apfelsaft', 'orangensaft', 'aida iced tea', 'aida lemonade', 'dodo', 'milchshake', 'radeberger', 'aperol', 'hugo', 'sprizz'];
 const DRINK_SORT_OPTIONS = [
@@ -65,7 +68,11 @@ let state = {
   pendingTripImport: null,
   pendingTripClosure: null,
   pendingItineraryImport: null,
-  tripSetupWizard: { step: null, tripId: null, exported: false }
+  tripSetupWizard: { step: null, tripId: null, exported: false },
+  multiPersonMode: false,
+  selectedPersonIds: [],
+  undoLogs: [],
+  migrationSnapshot: null
 };
 
 const actionLocks = Object.create(null);
@@ -105,7 +112,7 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 const deviceUid = () => `dev_${uid()}_${Math.random().toString(36).slice(2, 6)}`;
 const haptic = () => { try { if ('vibrate' in navigator) navigator.vibrate(8); } catch (_) {} };
 
-function openDb(name = DB_NAME, version = DB_VERSION, stores = STORE_NAMES) {
+function openDb(name = DB_NAME, version = DB_VERSION, stores = ALL_DB_STORES) {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(name, version);
     request.onupgradeneeded = (event) => {
@@ -157,6 +164,40 @@ function writeStore(store, operation) {
 function put(store, obj) { return writeStore(store, objectStore => objectStore.put(obj)); }
 function del(store, id) { return writeStore(store, objectStore => objectStore.delete(id)); }
 function clearStore(store) { return writeStore(store, objectStore => objectStore.clear()); }
+function deleteIdsAtomic(store, ids) {
+  const uniqueIds = [...new Set((ids || []).filter(Boolean))];
+  if (!uniqueIds.length) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(store, 'readwrite');
+    const objectStore = transaction.objectStore(store);
+    let settled = false;
+    const fail = error => {
+      if (settled) return;
+      settled = true;
+      reject(error || transaction.error || new Error('Datensätze konnten nicht vollständig entfernt werden.'));
+    };
+    try {
+      for (const id of uniqueIds) {
+        const request = objectStore.delete(id);
+        request.onerror = () => {
+          try { transaction.abort(); } catch (_) {}
+          fail(request.error);
+        };
+      }
+    } catch (error) {
+      try { transaction.abort(); } catch (_) {}
+      fail(error);
+      return;
+    }
+    transaction.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    transaction.onerror = () => fail(transaction.error);
+    transaction.onabort = () => fail(transaction.error);
+  });
+}
 function readAllStoresSnapshot() {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAMES, 'readonly');
@@ -317,9 +358,47 @@ async function tryLegacyMigration() {
   }
 }
 
+async function ensureV5MigrationSnapshot() {
+  if (!db.objectStoreNames.contains(SNAPSHOT_STORE)) return;
+  const existing = await get(SNAPSHOT_STORE, V5_MIGRATION_SNAPSHOT_ID);
+  if (existing) return;
+  const meaningfulCounts = await Promise.all(['trips', 'persons', 'drinks', 'logs'].map(store => all(store).then(rows => rows.length)));
+  if (!meaningfulCounts.some(Boolean)) return;
+  const snapshot = await readAllStoresSnapshot();
+  const previousVersion = settingValueFromRows(snapshot.settings || [], 'appVersion') || '4.x';
+  await put(SNAPSHOT_STORE, {
+    id: V5_MIGRATION_SNAPSHOT_ID,
+    type: 'CruiseSipInternalMigrationSnapshot',
+    fromVersion: previousVersion,
+    toVersion: APP_VERSION,
+    createdAt: nowIso(),
+    counts: Object.fromEntries(STORE_NAMES.map(store => [store, (snapshot[store] || []).length])),
+    data: snapshot
+  });
+}
+
+async function restoreV5MigrationSnapshot() {
+  const snapshot = await get(SNAPSHOT_STORE, V5_MIGRATION_SNAPSHOT_ID);
+  if (!snapshot?.data) {
+    alert('Es ist keine interne Sicherung vor dem v5-Update vorhanden.');
+    return;
+  }
+  const confirmation = prompt('Die lokalen Kerndaten werden auf den Stand vor dem v5-Update zurückgesetzt. Gib zur Bestätigung WIEDERHERSTELLEN ein.');
+  if (confirmation !== 'WIEDERHERSTELLEN') return;
+  await replaceAllStoresAtomic(snapshot.data);
+  await putSetting('appVersion', APP_VERSION);
+  await putSetting('v5MigrationRestoredAt', nowIso());
+  await loadState();
+  state.route = 'dashboard';
+  render();
+  alert('Die interne Sicherung wurde wiederhergestellt. CruiseSip läuft weiterhin mit der App-Version 5.0.0.');
+}
+
 async function bootstrap() {
   db = await openDb();
   await tryLegacyMigration();
+  try { await ensureV5MigrationSnapshot(); }
+  catch (error) { console.warn('Interne v5-Migrationssicherung konnte nicht erstellt werden.', error); }
   await loadStaticData();
   await ensureDefaults();
   await loadState();
@@ -394,6 +473,7 @@ async function loadState() {
   state.logs = (await all('logs')).sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0));
   state.imports = (await all('imports')).sort((a, b) => String(b.importedAt || '').localeCompare(String(a.importedAt || '')));
   state.barkarten = await all('barkarten');
+  state.migrationSnapshot = db.objectStoreNames.contains(SNAPSHOT_STORE) ? await get(SNAPSHOT_STORE, V5_MIGRATION_SNAPSHOT_ID) : null;
   state.currentTripId = state.settings.currentTripId || state.trips.find(t => !t.archived)?.id || state.trips[0]?.id || null;
   if (!state.trips.find(t => t.id === state.currentTripId) && state.trips[0]) state.currentTripId = state.trips[0].id;
   if (state.currentTripId && state.settings.currentTripId !== state.currentTripId) {
@@ -408,6 +488,8 @@ async function loadState() {
   if (state.selectedPersonId && storedPersonId !== state.selectedPersonId) {
     await putSetting(selectedPersonSettingKey(), state.selectedPersonId);
   }
+  const validSelectionIds = state.selectedPersonIds.filter(id => personsForTrip.some(person => person.id === id));
+  state.selectedPersonIds = validSelectionIds.length ? validSelectionIds : (state.selectedPersonId ? [state.selectedPersonId] : []);
 }
 
 async function registerServiceWorker() {
@@ -843,6 +925,10 @@ async function handleClick(event) {
   if (target.dataset.route) {
     state.route = target.dataset.route;
     state.query = '';
+    if (state.route !== 'track') {
+      state.multiPersonMode = false;
+      state.selectedPersonIds = state.selectedPersonId ? [state.selectedPersonId] : [];
+    }
     if (state.route !== 'history') { state.editingLogId = null; clearDraft('log'); }
     render();
     requestAnimationFrame(() => requestAnimationFrame(scrollCurrentRouteToTop));
@@ -866,6 +952,8 @@ async function handleClick(event) {
     await putSetting('currentTripId', id);
     state.currentTripId = id;
     state.selectedPersonId = preferredPersonIdForTrip(id);
+    state.selectedPersonIds = state.selectedPersonId ? [state.selectedPersonId] : [];
+    state.multiPersonMode = false;
     state.editingLogId = null;
     clearDraft('log');
     if (trip.archived) {
@@ -912,10 +1000,38 @@ async function handleClick(event) {
     return;
   }
   if (action === 'saveTrip') { await runActionOnce('saveTrip', () => saveTripForm($('#tripForm'))); return; }
+  if (action === 'toggleMultiPersonMode') {
+    state.multiPersonMode = !state.multiPersonMode;
+    state.selectedPersonIds = state.multiPersonMode ? [...new Set([state.selectedPersonId].filter(Boolean))] : [state.selectedPersonId].filter(Boolean);
+    renderTrackPersonContext();
+    haptic();
+    return;
+  }
+  if (action === 'toggleMultiPersonSelection') {
+    const person = currentPersons().find(row => row.id === id);
+    if (!person) return;
+    const selected = new Set(state.selectedPersonIds);
+    if (selected.has(id)) {
+      if (selected.size === 1) { toast('Mindestens eine Person muss ausgewählt bleiben'); return; }
+      selected.delete(id);
+    } else selected.add(id);
+    state.selectedPersonIds = [...selected];
+    state.selectedPersonId = state.selectedPersonIds[0] || state.selectedPersonId;
+    renderTrackPersonContext();
+    haptic();
+    return;
+  }
+  if (action === 'repeatPersonLast') {
+    const last = lastLogForPerson(id);
+    if (!last) { toast('Für diese Person gibt es noch keine Erfassung'); return; }
+    await trackDrink(last.drinkId, [id]);
+    return;
+  }
   if (action === 'selectPerson') {
     const person = currentPersons().find(row => row.id === id);
     if (!person || person.id === state.selectedPersonId) return;
     state.selectedPersonId = person.id;
+    state.selectedPersonIds = [person.id];
     await putSetting(selectedPersonSettingKey(), person.id);
     renderTrackPersonContext();
     toast(`Getränke für ${person.name}`);
@@ -952,6 +1068,7 @@ async function handleClick(event) {
   if (action === 'mergeFullBackup') { await runActionOnce('mergeFullBackup', mergeFullBackup); return; }
   if (action === 'replaceFullBackup') { await runActionOnce('replaceFullBackup', replaceFullBackup); return; }
   if (action === 'backupTest') { await runActionOnce('backupTest', backupTest); return; }
+  if (action === 'restoreV5MigrationSnapshot') { await runActionOnce('restoreV5MigrationSnapshot', restoreV5MigrationSnapshot); return; }
   if (action === 'importTrip') { openFile('trip'); return; }
   if (action === 'cancelTripImport') { state.pendingTripImport = null; render(); return; }
   if (action === 'applyTripImport') { await runActionOnce('applyTripImport', applyPreparedTripImport); return; }
@@ -1045,6 +1162,45 @@ function itineraryTimeLabel(day) {
   if (arrival) return `Ankunft ${arrival}`;
   if (departure) return `Abfahrt ${departure}`;
   return '';
+}
+function itineraryContextForTimestamp(timestamp = Date.now(), trip = currentTrip()) {
+  const dateKey = localLogDayKey(timestamp);
+  const day = itineraryDayForDate(dateKey, trip);
+  if (!day) return { itineraryDate: dateKey };
+  return {
+    itineraryDate: dateKey,
+    itineraryType: day.type || 'unknown',
+    itineraryLocation: itineraryLocationLabel(day),
+    itineraryPort: day.port || day.location || '',
+    itineraryCountry: day.country || '',
+    itineraryArrival: day.arrival || '',
+    itineraryDeparture: day.departure || ''
+  };
+}
+function selectedTrackingPersons() {
+  const persons = currentPersons();
+  if (!state.multiPersonMode) {
+    const person = persons.find(row => row.id === state.selectedPersonId) || persons[0];
+    return person ? [person] : [];
+  }
+  const selected = new Set(state.selectedPersonIds);
+  return persons.filter(person => selected.has(person.id));
+}
+function lastLogForPerson(personId) {
+  return currentLogs().find(log => log.personId === personId) || null;
+}
+function selectedPersonLabel() {
+  const persons = selectedTrackingPersons();
+  if (!persons.length) return 'keine Person';
+  if (persons.length === 1) return persons[0].name;
+  return `${persons.length} Personen`;
+}
+function selectedDrinkStatus(drink) {
+  const persons = selectedTrackingPersons();
+  if (!persons.length) return { status: 'unclear', label: 'Person wählen' };
+  const statuses = [...new Set(persons.map(person => statusForDrink(drink, person.packageId)))];
+  if (statuses.length === 1) return { status: statuses[0], label: statusLabel(statuses[0]) };
+  return { status: 'mixed', label: 'je Person unterschiedlich' };
 }
 function isTripCompleted(trip = currentTrip()) { return !!trip?.archived; }
 function activeTripContextHtml() {
@@ -1308,10 +1464,46 @@ function viewDashboard() {
         ${kpi('Ersparnis', eur(total.saved), total.unclear ? `${eur(total.unclear)} unklar` : 'konservativ')}
         ${kpi('Zu zahlen', eur(total.paid), 'nicht enthalten/unklar')}
       </div>
+      ${todayItineraryCardHtml()}
       ${dailyOverviewHtml()}
+      ${personalRepeatCardHtml()}
       <div id="dashboardQuick">${dashboardQuickHtml()}</div>
       ${setupWarningsHtml()}
     </section>`;
+}
+
+function todayItineraryCardHtml() {
+  const trip = currentTrip();
+  const days = tripItinerary(trip).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  if (!days.length) return '';
+  const todayKey = localLogDayKey(Date.now());
+  const today = days.find(day => day.date === todayKey);
+  const next = days.find(day => String(day.date) > todayKey);
+  const day = today || next;
+  if (!day) return '';
+  const index = days.findIndex(row => row.date === day.date);
+  const isToday = day.date === todayKey;
+  const label = isToday ? 'Heute an Bord' : 'Nächster Reisetag';
+  const time = itineraryTimeLabel(day);
+  return `<article class="card todayRouteCard ${isToday ? 'isToday' : 'isUpcoming'}">
+    <div class="todayRouteIcon" aria-hidden="true">${day.type === 'sea' ? '≈' : '⚓'}</div>
+    <div class="todayRouteContent">
+      <div class="todayRouteTop"><span>${esc(label)}</span><small>Tag ${index + 1} von ${days.length} · ${esc(formatDate(day.date))}</small></div>
+      <h2>${esc(itineraryLocationLabel(day))}</h2>
+      <p>${esc([itineraryTypeLabel(day.type), time, day.notes].filter(Boolean).join(' · '))}</p>
+    </div>
+    <button class="mini" data-route="stats">Auswerten</button>
+  </article>`;
+}
+
+function personalRepeatCardHtml() {
+  const trip = currentTrip();
+  const rows = currentPersons().map(person => ({ person, log: lastLogForPerson(person.id) })).filter(row => row.log);
+  if (!rows.length) return '';
+  return `<article class="card personalRepeatCard">
+    <div class="sectionHead"><div><h2>Noch einmal erfassen</h2><p class="hint">Das zuletzt erfasste Getränk je Person mit einem Tipp wiederholen.</p></div><span class="subtle">${rows.length} Personen</span></div>
+    <div class="personalRepeatList">${rows.map(({ person, log }) => `<button class="personalRepeatRow" data-action="repeatPersonLast" data-id="${esc(person.id)}" style="--person:${esc(person.color || '#e0f2fe')}" ${trip?.archived ? 'disabled' : ''}><span class="personQuickAvatar" aria-hidden="true">${esc(personInitials(person.name))}</span><span><b>${esc(person.name)}</b><small>${esc(log.drinkName || 'Getränk')} · ${esc(formatDateTime(log.ts))}</small></span><strong>${esc(eur(log.price))}</strong></button>`).join('')}</div>
+  </article>`;
 }
 
 function dailyOverviewHtml() {
@@ -1388,6 +1580,7 @@ function viewTrack() {
         <label class="searchBox searchBoxLarge searchBoxNative" for="drinkSearch"><span aria-hidden="true">⌕</span><input id="drinkSearch" class="searchInputNative" type="search" inputmode="search" enterkeyhint="search" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="Getränk suchen …" value="${esc(state.query)}"></label>
         <div id="categoryChips">${categoryChipsHtml()}</div>
         <div id="personQuickSwitch">${persons.length ? personQuickSwitchHtml(persons) : ''}</div>
+        <div id="trackContextActions">${persons.length ? trackContextActionsHtml() : ''}</div>
       </div>
       <div id="drinkList">${drinkListHtml()}</div>
     </section>`;
@@ -1400,14 +1593,28 @@ function personInitials(name = '') {
 function personQuickSwitchHtml(persons = currentPersons()) {
   if (!persons.length) return '';
   const selectedPerson = personById(state.selectedPersonId) || persons[0];
+  const selectedIds = new Set(state.multiPersonMode ? state.selectedPersonIds : [selectedPerson.id]);
+  const selectedPersons = persons.filter(person => selectedIds.has(person.id));
   const logCounts = new Map();
   currentLogs().forEach(log => logCounts.set(log.personId, (logCounts.get(log.personId) || 0) + 1));
-  return `<div class="personQuickDock"><div class="personQuickHeading"><span>Getränk erfassen für <b>${esc(selectedPerson.name)}</b></span><small>${esc(packageName(selectedPerson.packageId))}</small></div><div class="personQuickScroller" role="group" aria-label="Person für die Erfassung auswählen">${persons.map((person, index) => {
-    const active = person.id === selectedPerson.id;
+  const heading = state.multiPersonMode ? `${selectedPersons.length} Person${selectedPersons.length === 1 ? '' : 'en'} ausgewählt` : `Getränk erfassen für <b>${esc(selectedPerson.name)}</b>`;
+  const packageLabel = state.multiPersonMode ? 'Paketstatus wird je Person gespeichert' : packageName(selectedPerson.packageId);
+  return `<div class="personQuickDock ${state.multiPersonMode ? 'multiMode' : ''}"><div class="personQuickHeading"><span>${heading}</span><span class="personQuickHeadingActions"><small>${esc(packageLabel)}</small>${persons.length > 1 ? `<button class="multiPersonToggle ${state.multiPersonMode ? 'active' : ''}" data-action="toggleMultiPersonMode" aria-pressed="${state.multiPersonMode ? 'true' : 'false'}">${state.multiPersonMode ? 'Fertig' : 'Mehrere'}</button>` : ''}</span></div><div class="personQuickScroller" role="group" aria-label="Person für die Erfassung auswählen">${persons.map((person, index) => {
+    const active = selectedIds.has(person.id);
     const color = person.color || PERSON_COLORS[index % PERSON_COLORS.length];
     const count = logCounts.get(person.id) || 0;
-    return `<button class="personQuickButton ${active ? 'active' : ''}" style="--person:${esc(color)}" data-action="selectPerson" data-id="${esc(person.id)}" aria-pressed="${active ? 'true' : 'false'}" aria-label="${esc(person.name)} auswählen, ${count} erfasste Getränke"><span class="personQuickAvatar" aria-hidden="true">${esc(personInitials(person.name))}</span><span class="personQuickName">${esc(person.name)}</span><small>${count}×</small></button>`;
+    const action = state.multiPersonMode ? 'toggleMultiPersonSelection' : 'selectPerson';
+    return `<button class="personQuickButton ${active ? 'active' : ''}" style="--person:${esc(color)}" data-action="${action}" data-id="${esc(person.id)}" aria-pressed="${active ? 'true' : 'false'}" aria-label="${esc(person.name)} ${state.multiPersonMode ? (active ? 'abwählen' : 'auswählen') : 'auswählen'}, ${count} erfasste Getränke"><span class="personQuickAvatar" aria-hidden="true">${esc(personInitials(person.name))}</span><span class="personQuickName">${esc(person.name)}</span><small>${count}×</small></button>`;
   }).join('')}</div></div>`;
+}
+function trackContextActionsHtml() {
+  const persons = selectedTrackingPersons();
+  if (!persons.length) return `<div class="trackContextBar warning"><span>Mindestens eine Person auswählen.</span></div>`;
+  if (persons.length > 1) return `<div class="trackContextBar multi"><span>Eine Getränkekachel speichert je einen Eintrag für <b>${persons.length} Personen</b>.</span></div>`;
+  const person = persons[0];
+  const last = lastLogForPerson(person.id);
+  if (!last) return '';
+  return `<div class="trackContextBar"><span>Zuletzt für <b>${esc(person.name)}</b>: ${esc(last.drinkName || 'Getränk')}</span><button class="mini" data-action="repeatPersonLast" data-id="${esc(person.id)}">Noch einmal</button></div>`;
 }
 function categoryChipsHtml() {
   const favoriteCount = favoriteIds().length;
@@ -1465,6 +1672,8 @@ function renderTrackList({ preserveScroll = false } = {}) {
 function renderTrackPersonContext() {
   const quickSwitch = $('#personQuickSwitch');
   if (quickSwitch) quickSwitch.innerHTML = personQuickSwitchHtml();
+  const contextActions = $('#trackContextActions');
+  if (contextActions) contextActions.innerHTML = trackContextActionsHtml();
   renderTrackList({ preserveScroll: true });
   renderCategoryChips();
   requestAnimationFrame(() => centerActivePersonQuickSwitch(quickSwitch || document));
@@ -1566,17 +1775,19 @@ function drinkListHtml() {
   const persons = currentPersons();
   const person = personById(state.selectedPersonId);
   const fav = new Set(favoriteIds());
-  const usage = drinkUsageMap(state.selectedPersonId || null);
+  const trackingPersons = selectedTrackingPersons();
+  const usage = drinkUsageMap(state.multiPersonMode ? null : (state.selectedPersonId || null));
   const drinks = filteredDrinks();
   if (!persons.length) return '';
   if (!drinks.length) return '<div class="card emptyText">Keine passenden Getränke gefunden.</div>';
   const listTitle = state.query ? 'Suchergebnisse' : state.category === 'Alle' ? 'Alle Getränke' : state.category;
-  return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Getränk antippen und direkt für ${esc(person?.name || 'die aktive Person')} speichern.</p></div><span class="subtle">${drinks.length}</span></div><label class="drinkSortControl" for="drinkSort"><span>Sortieren</span><select id="drinkSort" aria-label="Getränkekacheln sortieren">${drinkSortOptionsHtml()}</select></label><div class="drinkGrid">${drinks.map(d => {
-    const status = person ? statusForDrink(d, person.packageId) : 'unclear';
+  return `<div class="trackContent"><section class="trackListSection"><div class="sectionHead trackListHead"><div><h2>${esc(listTitle)}</h2><p class="trackSectionNote">Getränk antippen und direkt für ${esc(selectedPersonLabel())} speichern.</p></div><span class="subtle">${drinks.length}</span></div><label class="drinkSortControl" for="drinkSort"><span>Sortieren</span><select id="drinkSort" aria-label="Getränkekacheln sortieren">${drinkSortOptionsHtml()}</select></label><div class="drinkGrid">${drinks.map(d => {
+    const statusInfo = selectedDrinkStatus(d);
+    const status = statusInfo.status;
     const count = usage.get(d.id)?.count || 0;
     const isFavorite = fav.has(d.id);
     const recommendationBadge = state.category === 'Empfohlen' ? '<span class="drinkTileBadge">Empfohlen</span>' : (isFavorite ? '<span class="drinkTileBadge favoriteBadge">Favorit</span>' : '');
-    return `<article class="drinkCard ${isFavorite ? 'isFavorite' : ''}"><button class="favButton ${isFavorite ? 'active' : ''}" data-action="toggleFavorite" data-id="${esc(d.id)}" aria-label="${isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}" aria-pressed="${isFavorite ? 'true' : 'false'}">★</button><button class="drinkMain" data-action="trackDrink" data-id="${esc(d.id)}" aria-label="${esc(d.name)} für ${esc(person?.name || 'aktive Person')} erfassen"><span class="drinkTileTop"><span class="drinkIcon" aria-hidden="true">${categoryIcon(d.category, d.name)}</span>${recommendationBadge}</span><span class="drinkBody"><span class="drinkTitle">${esc(d.name)}</span><span class="drinkMeta">${esc(d.category || 'Getränk')}${d.volume ? ` · ${esc(d.volume)}` : ''}</span></span><span class="drinkTileBottom"><span class="statusBadge ${statusClass(status)}">${esc(statusLabel(status))}</span><span class="priceButton pricePill">${eur(d.price)}</span></span>${count ? `<span class="drinkUsage">Schon ${count}× gewählt</span>` : ''}</button></article>`;
+    return `<article class="drinkCard ${isFavorite ? 'isFavorite' : ''}"><button class="favButton ${isFavorite ? 'active' : ''}" data-action="toggleFavorite" data-id="${esc(d.id)}" aria-label="${isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}" aria-pressed="${isFavorite ? 'true' : 'false'}">★</button><button class="drinkMain" data-action="trackDrink" data-id="${esc(d.id)}" aria-label="${esc(d.name)} für ${esc(selectedPersonLabel())} erfassen"><span class="drinkTileTop"><span class="drinkIcon" aria-hidden="true">${categoryIcon(d.category, d.name)}</span>${recommendationBadge}</span><span class="drinkBody"><span class="drinkTitle">${esc(d.name)}</span><span class="drinkMeta">${esc(d.category || 'Getränk')}${d.volume ? ` · ${esc(d.volume)}` : ''}</span></span><span class="drinkTileBottom"><span class="statusBadge ${status === 'mixed' ? 'mixed' : statusClass(status)}">${esc(statusInfo.label)}</span><span class="priceButton pricePill">${eur(d.price)}</span></span>${count ? `<span class="drinkUsage">Schon ${count}× gewählt</span>` : ''}</button></article>`;
   }).join('')}</div></section></div>`;
 }
 
@@ -1685,6 +1896,8 @@ function viewStats() {
         ${kpi('Unklar', eur(total.unclear), `${total.unclearCount} an Bord prüfen`)}
       </div>
       ${statusDonutChartHtml(logs)}
+      ${categoryDistributionChartHtml(logs)}
+      ${dailyValueChartHtml(logs)}
       ${isTripView ? overallCompletionSummaryHtml(persons, allTripLogs) : ''}
       ${isTripView ? packageForecastOverviewHtml(persons, allTripLogs) : ''}
       ${isTripView ? tripTravelReportHtml(persons, allTripLogs) : ''}
@@ -2025,6 +2238,46 @@ function statusDonutChartHtml(logs) {
     </div>
   </article>`;
 }
+function categoryDistributionChartHtml(logs) {
+  const rawRows = categoryDetailedStats(logs).sort((a, b) => b.count - a.count || b.value - a.value);
+  if (!rawRows.length) return `<article class="card analysisChartCard"><h2>Getränkekategorien</h2><p class="emptyText">Keine Kategorien im gewählten Zeitraum vorhanden.</p></article>`;
+  const primary = rawRows.slice(0, 5).map(row => ({ ...row }));
+  if (rawRows.length > 5) {
+    const other = rawRows.slice(5).reduce((acc, row) => ({ key: 'Weitere Kategorien', count: acc.count + row.count, value: acc.value + row.value }), { count: 0, value: 0 });
+    primary.push(other);
+  }
+  const totalCount = primary.reduce((sum, row) => sum + row.count, 0);
+  let offset = 0;
+  const circles = primary.map((row, index) => {
+    const share = totalCount ? row.count / totalCount * 100 : 0;
+    const circle = `<circle class="donutSegment categorySegment category-${index}" cx="50" cy="50" r="38" pathLength="100" stroke-dasharray="${share.toFixed(3)} ${(100 - share).toFixed(3)}" stroke-dashoffset="${(-offset).toFixed(3)}"></circle>`;
+    offset += share;
+    return circle;
+  }).join('');
+  return `<article class="card analysisChartCard">
+    <div class="sectionHead"><div><h2>Getränkekategorien</h2><p class="hint">Verteilung nach Anzahl der erfassten Getränke.</p></div><span class="subtle">Top ${Math.min(5, rawRows.length)}</span></div>
+    <div class="analysisChartLayout">
+      <div class="donutChartWrap"><svg class="donutChart" viewBox="0 0 100 100" role="img" aria-label="${esc(totalCount)} Getränke nach Kategorie"><g transform="rotate(-90 50 50)"><circle class="donutTrack" cx="50" cy="50" r="38"></circle>${circles}</g><text class="donutValue" x="50" y="48" text-anchor="middle">${totalCount}</text><text class="donutLabel" x="50" y="59" text-anchor="middle">Getränke</text></svg></div>
+      <div class="chartLegend">${primary.map((row, index) => `<div class="chartLegendRow"><span class="chartLegendDot category-${index}"></span><div><b>${esc(row.key)}</b><small>${row.count}× · ${totalCount ? Math.round(row.count / totalCount * 100) : 0} % · ${eur(row.value)}</small></div></div>`).join('')}</div>
+    </div>
+  </article>`;
+}
+function dailyValueChartHtml(logs) {
+  const report = tripDailyReport(logs, currentTrip());
+  const rows = report.rows.filter(row => row.count > 0 || row.value > 0);
+  if (!rows.length) return `<article class="card dailyChartCard"><h2>Tagesentwicklung</h2><p class="emptyText">Keine Tageswerte im gewählten Zeitraum vorhanden.</p></article>`;
+  const maxValue = Math.max(...rows.map(row => row.value), 1);
+  return `<article class="card dailyChartCard">
+    <div class="sectionHead"><div><h2>Tagesentwicklung</h2><p class="hint">Barkartenwert pro Konsumtag; die Zahlen bleiben unabhängig vom Paketstatus.</p></div><span class="subtle">${rows.length} Tage</span></div>
+    <div class="dailyBarChart">${rows.map(row => {
+      const day = itineraryDayForDate(row.key);
+      const width = Math.max(row.value > 0 ? 4 : 0, row.value / maxValue * 100);
+      const label = day ? `${formatDate(row.key)} · ${itineraryLocationLabel(day)}` : formatDate(row.key);
+      return `<div class="dailyBarRow"><div class="dailyBarLabel"><span>${esc(label)}</span><small>${row.count} Getränk${row.count === 1 ? '' : 'e'}</small></div><div class="dailyBarTrack"><i style="width:${width.toFixed(1)}%"></i></div><strong>${eur(row.value)}</strong></div>`;
+    }).join('')}</div>
+  </article>`;
+}
+
 function groupStats(logs, keyFn) {
   const map = new Map();
   logs.forEach(log => {
@@ -3198,6 +3451,13 @@ function comparisonHtml(cmp) {
   return `<div class="card"><h2>Letzter Preis-/Paketvergleich</h2><div class="kpiGrid compact">${kpi('Neu', String(cmp.newDrinks || 0), 'Getränke')}${kpi('Preisänderungen', String(cmp.priceChanges || 0), 'Positionen')}${kpi('Paketänderungen', String(cmp.packageChanges || 0), 'Status')}${kpi('Importiert', cmp.applied ? 'Ja' : 'Nein', cmp.version || '')}</div>${cmp.details?.length ? `<div class="miniList">${cmp.details.slice(0, 12).map(d => `<div><b>${esc(d.name)}</b><small>${esc(d.text)}</small></div>`).join('')}</div>` : ''}</div>`;
 }
 
+function migrationSnapshotCardHtml() {
+  const snapshot = state.migrationSnapshot;
+  if (!snapshot) return '';
+  const counts = snapshot.counts || {};
+  return `<div class="card migrationSnapshotCard"><div class="sectionHead"><div><h2>v5-Sicherheitskopie</h2><p class="hint">Vor der ersten v5-Datenmigration automatisch lokal erstellt. Sie wird nicht mit der normalen App-Nutzung verändert.</p></div><span class="diagnosticSummary ok">vorhanden</span></div><div class="migrationSnapshotMeta"><span>${esc(snapshot.fromVersion || 'v4')} → ${esc(snapshot.toVersion || APP_VERSION)}</span><span>${esc(formatDateTime(snapshot.createdAt))}</span><span>${Number(counts.logs || 0)} Buchungen · ${Number(counts.persons || 0)} Personen</span></div><button class="secondary dangerText" data-action="restoreV5MigrationSnapshot">Stand vor v5 wiederherstellen</button></div>`;
+}
+
 function viewSettings() {
   const b = activeBarkarteVersion();
   return `
@@ -3219,6 +3479,7 @@ function viewSettings() {
         <button id="offlineDiagnosticsButton" class="secondary" data-action="runOfflineDiagnostics" ${offlineDiagnosticsRunning ? 'disabled' : ''}>${offlineDiagnosticsRunning ? 'Prüfung läuft …' : 'Offline-Status prüfen'}</button>
         <p class="hint">Die Diagnose löscht oder verändert keine Reisen und Buchungen. Für den endgültigen Praxistest CruiseSip einmal im Flugmodus vollständig neu öffnen.</p>
       </div>
+      ${migrationSnapshotCardHtml()}
       ${fullBackupCardHtml()}
       ${deviceSyncCardHtml()}
       <div class="card themeCard"><div class="sectionHead"><h2>Darstellung</h2><span class="subtle">${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}</span></div>
@@ -3239,37 +3500,68 @@ function viewChangelog() {
   return `<section class="screen"><div class="sectionHead"><h1>Changelog</h1><button class="mini" data-route="settings">Zurück</button></div><div class="card changelog">${CHANGELOG_HTML}</div></section>`;
 }
 
-async function trackDrink(drinkId) {
+async function trackDrink(drinkId, personIdsOverride = null) {
   const trip = currentTrip();
   if (!trip || !ensureTripWritable(trip.id, 'Das Erfassen eines Getränks')) return;
-  const person = personById(state.selectedPersonId);
   const drink = drinkById(drinkId);
-  if (!person) { alert('Bitte zuerst eine Person auswählen oder anlegen.'); state.route = 'devices'; render(); return; }
-  if (person.tripId !== trip.id) { alert('Die ausgewählte Person gehört nicht zur geöffneten Reise. Bitte wähle eine gültige Person.'); return; }
   if (!drink) return;
-  const status = statusForDrink(drink, person.packageId);
-  const id = `log_${uid()}`;
-  const log = { id, mergeKey: `${state.settings.deviceId}:${id}`, tripId: trip.id, personId: person.id, personName: person.name, drinkId: drink.id, drinkName: drink.name, category: drink.category || '', price: Number(drink.price) || 0, packageId: person.packageId || 'none', packageStatus: status, ts: Date.now(), trackedByDeviceId: state.settings.deviceId, trackedByDeviceName: state.settings.deviceName, createdAt: nowIso(), updatedAt: nowIso() };
-  await put('logs', log);
-  state.undoLog = log;
+  const overrideIds = Array.isArray(personIdsOverride) ? new Set(personIdsOverride) : null;
+  const persons = overrideIds
+    ? currentPersons().filter(person => overrideIds.has(person.id))
+    : selectedTrackingPersons();
+  if (!persons.length) { alert('Bitte mindestens eine Person auswählen oder anlegen.'); state.route = 'devices'; render(); return; }
+  if (persons.some(person => person.tripId !== trip.id)) { alert('Mindestens eine ausgewählte Person gehört nicht zur geöffneten Reise.'); return; }
+  const timestamp = Date.now();
+  const itineraryContext = itineraryContextForTimestamp(timestamp, trip);
+  const logs = persons.map(person => {
+    const status = statusForDrink(drink, person.packageId);
+    const id = `log_${uid()}`;
+    return {
+      id,
+      mergeKey: `${state.settings.deviceId}:${id}`,
+      tripId: trip.id,
+      personId: person.id,
+      personName: person.name,
+      drinkId: drink.id,
+      drinkName: drink.name,
+      category: drink.category || '',
+      price: Number(drink.price) || 0,
+      packageId: person.packageId || 'none',
+      packageStatus: status,
+      ts: timestamp,
+      ...itineraryContext,
+      trackedByDeviceId: state.settings.deviceId,
+      trackedByDeviceName: state.settings.deviceName,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    };
+  });
+  await putRowsAtomic({ logs });
+  state.undoLogs = logs;
+  state.undoLog = logs[0] || null;
   await loadState();
-  state.selectedPersonId = person.id;
+  if (persons.length === 1) {
+    state.selectedPersonId = persons[0].id;
+    state.selectedPersonIds = [persons[0].id];
+  }
   updateUndoDock();
   scheduleUndoAutoHide();
-  toast(`${drink.name} gespeichert`);
+  toast(persons.length === 1 ? `${drink.name} gespeichert` : `${drink.name} für ${persons.length} Personen gespeichert`);
   haptic();
-  if (state.route === 'track') { renderTrackPersonContext(); }
+  if (state.route === 'track') renderTrackPersonContext();
   else render();
 }
 async function undoLast() {
-  if (!state.undoLog) return;
-  if (!ensureTripWritable(state.undoLog.tripId || activeTripId(), 'Das Rückgängigmachen einer Buchung')) { clearUndoAutoHide(); state.undoLog = null; updateUndoDock(); return; }
+  const logs = state.undoLogs?.length ? state.undoLogs : (state.undoLog ? [state.undoLog] : []);
+  if (!logs.length) return;
+  if (!ensureTripWritable(logs[0].tripId || activeTripId(), 'Das Rückgängigmachen einer Buchung')) { clearUndoAutoHide(); state.undoLog = null; state.undoLogs = []; updateUndoDock(); return; }
   clearUndoAutoHide();
-  await del('logs', state.undoLog.id);
+  await deleteIdsAtomic('logs', logs.map(log => log.id));
   state.undoLog = null;
+  state.undoLogs = [];
   await loadState();
   render();
-  toast('Letzter Eintrag wurde entfernt');
+  toast(logs.length === 1 ? 'Letzter Eintrag wurde entfernt' : `${logs.length} Einträge wurden entfernt`);
 }
 function clearUndoAutoHide() {
   if (undoAutoHideTimer) {
@@ -3281,6 +3573,7 @@ function scheduleUndoAutoHide() {
   clearUndoAutoHide();
   undoAutoHideTimer = setTimeout(() => {
     state.undoLog = null;
+    state.undoLogs = [];
     updateUndoDock();
     undoAutoHideTimer = null;
   }, 3000);
@@ -3288,10 +3581,13 @@ function scheduleUndoAutoHide() {
 function updateUndoDock() {
   const dock = $('#undoDock');
   if (!dock) return;
-  if (!state.undoLog) { dock.hidden = true; dock.innerHTML = ''; return; }
+  const logs = state.undoLogs?.length ? state.undoLogs : (state.undoLog ? [state.undoLog] : []);
+  if (!logs.length) { dock.hidden = true; dock.innerHTML = ''; return; }
+  const first = logs[0];
   dock.hidden = false;
-  dock.innerHTML = `<div><b>${esc(state.undoLog.drinkName)}</b><span>${esc(state.undoLog.personName)} · gerade erfasst</span></div><button class="mini" data-action="undo">Rückgängig</button>`;
+  dock.innerHTML = `<div><b>${esc(first.drinkName)}</b><span>${logs.length === 1 ? `${esc(first.personName)} · gerade erfasst` : `${logs.length} Personen · gerade erfasst`}</span></div><button class="mini" data-action="undo">Rückgängig</button>`;
 }
+
 
 async function toggleFavorite(drinkId) {
   const favs = new Set(favoriteIds());
@@ -4552,6 +4848,16 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.0.0</h2>
+  <ul>
+    <li>Reiseverlauf ist nun direkt auf Home präsent: CruiseSip zeigt den heutigen beziehungsweise nächsten Reisetag mit Hafen, Land, Tagesart und Liegezeiten.</li>
+    <li>Neue Mehrfacherfassung: Ein Getränk kann in einem Schritt für mehrere ausgewählte Personen gespeichert werden; Paketstatus und Buchung bleiben je Person getrennt.</li>
+    <li>„Noch einmal erfassen“ wiederholt das zuletzt gebuchte Getränk je Person auf Home und in der Erfassungsansicht.</li>
+    <li>Neue grafische Auswertungen für Getränkekategorien und Barkartenwert je Konsumtag ergänzen die bestehende Paketstatus-Verteilung.</li>
+    <li>Neue Buchungen speichern automatisch den passenden Reiseverlaufs-Kontext des Buchungstags, soweit ein importierter Reiseverlauf vorhanden ist.</li>
+    <li>Vor der ersten v5-Migration wird eine interne lokale Sicherheitskopie der v4-Kerndaten angelegt und im Setup kontrolliert wiederherstellbar gemacht.</li>
+    <li>IndexedDB-Datenmodell auf Version 2 erweitert; bestehende Reisen, Personen, Barkarten und Buchungen bleiben erhalten.</li>
+  </ul>
   <h2>Build 4.5.4d</h2>
   <ul>
     <li>Die aktuell geöffnete Reise wird in Analyse und Einstellungen durch eine grüne Reiseleiste eindeutig hervorgehoben.</li>

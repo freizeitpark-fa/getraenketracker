@@ -1,3 +1,15 @@
+# Changelog
+
+## 5.0.0 – Reiseintelligenz und Mehrfacherfassung
+
+- Home zeigt den heutigen oder nächsten Reisetag mit Hafen, Land, Tagesart und Liegezeiten.
+- Mehrfacherfassung speichert ein ausgewähltes Getränk in einem Schritt separat für mehrere Personen.
+- „Noch einmal erfassen“ ergänzt persönliche Ein-Tipp-Wiederholungen.
+- Neue Diagramme zeigen Kategorienverteilung und Barkartenwert je Konsumtag.
+- Neue Buchungen erhalten automatisch den passenden Reiseverlaufs-Kontext.
+- Interne v5-Migrationssicherung mit kontrollierter Wiederherstellung im Setup.
+- IndexedDB-Version 2 ergänzt den separaten Snapshot-Store.
+
 ## Build 4.5.4d – Aktive Reise grün hervorgehoben
 
 - In Analyse und Einstellungen wird die aktuell geöffnete Reise durch eine kompakte grüne Reiseleiste eindeutig angezeigt.
