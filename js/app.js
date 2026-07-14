@@ -1,7 +1,7 @@
 'use strict';
 
 const APP_VERSION = '4.5.0';
-const APP_CACHE_NAME = 'cruisesip-v4-5-0-20260714a';
+const APP_CACHE_NAME = 'cruisesip-v4-5-0-20260714b';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -625,8 +625,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.5.0a',
-    './js/app.js?v=4.5.0a',
+    './css/styles.css?v=4.5.0b',
+    './js/app.js?v=4.5.0b',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -1023,6 +1023,9 @@ function calc(logs = currentLogs()) {
 }
 function personById(id) { return state.persons.find(p => p.id === id); }
 function drinkById(id) { return state.drinks.find(d => d.id === id); }
+function resolvedLogCategory(log) {
+  return String(log?.category || drinkById(log?.drinkId)?.category || '').trim();
+}
 
 function render() {
   const view = $('#view');
@@ -1570,7 +1573,7 @@ function viewStats() {
       ${outsidePackageHtml(logs)}
       ${statsSection('Pro Person', groupStats(logs, l => personById(l.personId)?.name || l.personName || 'Unbekannt'))}
       ${statsSection('Pro Getränk', groupStats(logs, l => l.drinkName || 'Unbekannt'), 20)}
-      ${statsSection('Pro Kategorie', groupStats(logs, l => l.category || 'Ohne Kategorie'))}
+      ${statsSection('Pro Kategorie', groupStats(logs, l => resolvedLogCategory(l) || 'Ohne Kategorie'))}
       ${statsSection('Pro Tag', groupStats(logs, l => formatDateKey(l.ts)))}
       ${statsSection('Lieblingsgetränke', groupStats(logs, l => l.drinkName || 'Unbekannt').sort((a, b) => b.count - a.count).slice(0, 10), 10)}
     </section>`;
@@ -1659,7 +1662,7 @@ function viewStatsPersonDetail(person, logs) {
   const drinkRows = data.personLogs
     .slice()
     .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
-    .map(log => `<div class="personDrinkRow"><div><b>${statusDot(log.packageStatus)}${esc(log.drinkName || 'Unbekannt')}</b><small>${esc(formatDateTime(log.ts))}${log.category ? ` · ${esc(log.category)}` : ''} · ${esc(statusLabel(log.packageStatus))}</small><span class="personDrinkOrigin">${logOriginHtml(log, true)}</span></div><strong>${esc(eur(log.price))}</strong></div>`)
+    .map(log => `<div class="personDrinkRow"><div><b>${statusDot(log.packageStatus)}${esc(log.drinkName || 'Unbekannt')}</b><small>${esc(formatDateTime(log.ts))}${resolvedLogCategory(log) ? ` · ${esc(resolvedLogCategory(log))}` : ''} · ${esc(statusLabel(log.packageStatus))}</small><span class="personDrinkOrigin">${logOriginHtml(log, true)}</span></div><strong>${esc(eur(log.price))}</strong></div>`)
     .join('');
   return `
     <section class="screen">
@@ -1819,7 +1822,7 @@ function validateTripForClosure(tripId) {
 
     if (!log.drinkId || !drinksById.has(log.drinkId)) addTripClosureIssue(warnings, 'drink_reference_missing', 'Getränk nicht in aktueller Barkarte', 'Die gespeicherten Buchungswerte bleiben erhalten, der Stammdatensatz fehlt jedoch.', label);
     if (!String(log.drinkName || '').trim()) addTripClosureIssue(warnings, 'drink_name_missing', 'Getränkename fehlt', 'Eine Buchung besitzt keinen gespeicherten Getränkenamen.', log.id || 'Buchung ohne ID');
-    if (!String(log.category || '').trim()) addTripClosureIssue(warnings, 'category_missing', 'Kategorie fehlt', 'Der spätere Kategorienvergleich kann unvollständig sein.', label);
+    if (!resolvedLogCategory(log)) addTripClosureIssue(warnings, 'category_missing', 'Kategorie fehlt', 'Weder die Buchung noch der zugehörige Barkartenartikel enthält eine Kategorie.', label);
     if (!String(log.trackedByDeviceId || '').trim()) addTripClosureIssue(warnings, 'origin_missing', 'Geräteherkunft fehlt', 'Die Herkunft dieser Buchung ist beim Mehrgeräteabgleich nicht vollständig nachvollziehbar.', label);
   }
 

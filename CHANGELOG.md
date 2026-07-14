@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.5.0b – Hotfix Kategorienauflösung
+
+### Behoben
+
+- Die Abschlussprüfung meldet eine fehlende Kategorie nur noch, wenn weder die gespeicherte Buchung noch der über `drinkId` zugeordnete Barkartenartikel eine Kategorie enthält.
+- Die Kategorienauswertung und die Kategorieanzeige im personenbezogenen Verlauf verwenden dieselbe rückwärtskompatible Fallback-Logik. Ältere Buchungen werden dadurch korrekt ausgewertet, ohne ihre gespeicherten Daten zu verändern.
+- Service-Worker-Cache und Asset-Versionen wurden auf `cruisesip-v4-5-0-20260714b` beziehungsweise `4.5.0b` erhöht.
+
 ## 4.5.0 – Kontrollierter Reiseabschluss und Schreibschutz
 
 ### Neu
