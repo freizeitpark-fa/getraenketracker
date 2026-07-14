@@ -1,3 +1,13 @@
+## Version 4.5.2h – Responsives Design
+
+- Mobile Referenzansicht für das iPhone unverändert beibehalten.
+- Layout für schmale Android-Geräte, iPad, Tablets sowie Desktop- und Notebook-Browser ergänzt.
+- App-Breite, Abstände, Kennzahlenraster, Getränkekacheln, Personen- und Analysebereiche passen sich an die verfügbare Breite an.
+- Ab 1024 Pixeln wird die Hauptnavigation als kompakte Seitenleiste dargestellt; auf Mobilgeräten bleibt sie unten fixiert.
+- Tracken-Ansicht nutzt auf größeren Displays drei beziehungsweise vier Getränkekacheln pro Zeile.
+- Viewport-Berechnung der Tracken-Liste berücksichtigt die seitliche Desktopnavigation.
+- Keine Änderung an IndexedDB, Reisen, Personen, Buchungen, Backup oder Geräteabgleich.
+
 # CruiseSip – Änderungsprotokoll
 
 ## Version 4.5.2g – Analyse-Design und grafische Auswertung

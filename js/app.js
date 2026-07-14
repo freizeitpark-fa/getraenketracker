@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '4.5.2';
-const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714g';
-const APP_BUILD = '4.5.2g';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.2g';
+const APP_CACHE_NAME = 'cruisesip-v4-5-2-20260714h';
+const APP_BUILD = '4.5.2h';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.2h';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -746,16 +746,20 @@ function scheduleViewportLayout() {
 
 function syncViewportLayout() {
   const nav = $('.bottomNav');
+  const desktopLayout = window.matchMedia?.('(min-width: 1024px)').matches === true;
   if (nav) {
-    const navHeight = Math.ceil(nav.getBoundingClientRect().height || nav.offsetHeight || 78);
-    document.documentElement.style.setProperty('--bottomNavHeight', `${navHeight}px`);
+    const measuredHeight = Math.ceil(nav.getBoundingClientRect().height || nav.offsetHeight || 78);
+    document.documentElement.style.setProperty('--bottomNavHeight', `${desktopLayout ? 0 : measuredHeight}px`);
   }
   if (state.route !== 'track') return;
   const drinkList = $('#drinkList');
   const navRect = nav ? nav.getBoundingClientRect() : null;
   if (!drinkList || !navRect) return;
   const listTop = drinkList.getBoundingClientRect().top;
-  const available = Math.floor(navRect.top - listTop - 10);
+  const viewport = window.visualViewport;
+  const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  const lowerBoundary = desktopLayout ? viewportBottom : navRect.top;
+  const available = Math.floor(lowerBoundary - listTop - (desktopLayout ? 18 : 10));
   const height = Math.max(180, available);
   document.documentElement.style.setProperty('--trackListHeight', `${height}px`);
 }
@@ -4020,6 +4024,12 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 4.5.2h</h2>
+  <ul>
+    <li>Responsives Layout für iPhone, schmale Android-Geräte, iPad sowie Desktop- und Notebook-Browser ergänzt.</li>
+    <li>Größere Displays nutzen zusätzliche Spalten für Kennzahlen, Getränkekacheln und Personenauswertungen.</li>
+    <li>Ab Desktopbreite wechselt die Hauptnavigation platzsparend an den linken Rand; die iPhone-Navigation bleibt unverändert unten fixiert.</li>
+  </ul>
   <h2>Version 4.5.2g</h2>
   <ul>
     <li>Die Analyseansicht nutzt jetzt über alle Kacheln dieselbe verfügbare Breite wie Verlauf und die übrigen Bereiche.</li>

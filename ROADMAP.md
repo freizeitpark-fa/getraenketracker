@@ -1,3 +1,9 @@
+## Version 4.5.2h Responsives Design
+
+- Responsive Darstellung für Smartphone, Tablet und Desktop umgesetzt.
+- Desktopnavigation und mehrspaltige Raster ergänzt.
+- Mobile iPhone-Bedienung bleibt Referenz und unverändert.
+
 # Roadmap CruiseSip
 
 ## Version 4.5.2g Analyse-Design und grafische Auswertung

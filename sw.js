@@ -1,10 +1,10 @@
-const CACHE_NAME = 'cruisesip-v4-5-2-20260714g';
+const CACHE_NAME = 'cruisesip-v4-5-2-20260714h';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json?v=4.5.2g',
-  './css/styles.css?v=4.5.2g',
-  './js/app.js?v=4.5.2g',
+  './manifest.json?v=4.5.2h',
+  './css/styles.css?v=4.5.2h',
+  './js/app.js?v=4.5.2h',
   './data/barkarte.json',
   './data/pakete.json',
   './icons/icon-192.png',
