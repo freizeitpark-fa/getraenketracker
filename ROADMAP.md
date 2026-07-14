@@ -1,3 +1,12 @@
+## Version 5.6.0 Reiseübergreifende Statistiken
+
+- Vergleich aller lokal gespeicherten Reisen
+- Barkartenwert, Reisedauer und Tagesdurchschnitt je Reise
+- konservatives Paketergebnis je Reise und über alle Reisen
+- Lieblingsgetränke, Kategorien und Personen über mehrere Reisen
+- direkte Navigation aus dem Vergleich in die einzelne Reiseanalyse
+- CSV-Export für Excel
+
 ## Version 5.3.1 Barkartenversion je Reise
 
 - direkte Versionsauswahl beim manuellen Anlegen einer Reise

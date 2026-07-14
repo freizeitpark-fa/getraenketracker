@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.5.1';
-const APP_CACHE_NAME = 'cruisesip-v5-5-1-20260714a';
-const APP_BUILD = '5.5.1a';
-const SERVICE_WORKER_URL = './sw.js?v=5.5.1a';
+const APP_VERSION = '5.6.0';
+const APP_CACHE_NAME = 'cruisesip-v5-6-0-20260714a';
+const APP_BUILD = '5.6.0a';
+const SERVICE_WORKER_URL = './sw.js?v=5.6.0a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -78,6 +78,7 @@ let state = {
   category: 'Empfohlen',
   historyFilter: 'today',
   statsFilter: 'trip',
+  statsView: 'current',
   statsPersonId: null,
   articleQuery: '',
   editingDrinkId: null,
@@ -1176,6 +1177,7 @@ async function handleClick(event) {
     state.expandedItineraryTripId = null;
     clearDraft('log');
     if (trip.archived) {
+      state.statsView = 'current';
       state.statsFilter = 'trip';
       state.statsPersonId = null;
       state.route = 'stats';
@@ -1267,9 +1269,28 @@ async function handleClick(event) {
   if (action === 'saveDevice') { await runActionOnce('saveDevice', () => saveDeviceForm($('#deviceForm'))); return; }
   if (action === 'setCategory') { state.category = id; renderTrackList(); renderCategoryChips(); return; }
   if (action === 'setHistoryFilter') { state.historyFilter = id; state.editingLogId = null; clearDraft('log'); render(); return; }
+  if (action === 'setStatsView') { state.statsView = id === 'comparison' ? 'comparison' : 'current'; state.statsPersonId = null; render(); requestAnimationFrame(() => requestAnimationFrame(scrollCurrentRouteToTop)); return; }
   if (action === 'setStatsFilter') { state.statsFilter = id; render(); return; }
   if (action === 'showStatsPerson') { state.statsPersonId = id; render(); return; }
   if (action === 'backStatsDashboard') { state.statsPersonId = null; render(); return; }
+  if (action === 'openComparisonTrip') {
+    const trip = tripById(id);
+    if (!trip) { alert('Die Reise wurde nicht gefunden.'); return; }
+    await putSetting('currentTripId', id);
+    state.currentTripId = id;
+    await loadState();
+    state.currentTripId = id;
+    state.selectedPersonId = preferredPersonIdForTrip(id);
+    state.selectedPersonIds = state.selectedPersonId ? [state.selectedPersonId] : [];
+    state.statsView = 'current';
+    state.statsFilter = 'trip';
+    state.statsPersonId = null;
+    state.route = 'stats';
+    render();
+    requestAnimationFrame(() => requestAnimationFrame(scrollCurrentRouteToTop));
+    toast(`${trip.name || 'Reise'} in der Analyse geöffnet`);
+    return;
+  }
   if (action === 'editArticle') { editArticle(id); return; }
   if (action === 'resetArticleForm') { editArticle(null); return; }
   if (action === 'saveArticle') { await runActionOnce('saveArticle', () => saveDrinkArticleForm($('#articleForm'))); return; }
@@ -1282,6 +1303,7 @@ async function handleClick(event) {
   if (action === 'deleteLog') { await deleteLog(id); return; }
   if (action === 'exportTrip') { await runActionOnce('exportTrip', exportTrip); return; }
   if (action === 'exportReportCsv') { await runActionOnce('exportReportCsv', exportTripReportCsv); return; }
+  if (action === 'exportTripComparisonCsv') { await runActionOnce('exportTripComparisonCsv', exportTripComparisonCsv); return; }
   if (action === 'exportReportHtml') { await runActionOnce('exportReportHtml', exportTripReportHtml); return; }
   if (action === 'printTripReport') { printTripReport(); return; }
   if (action === 'exportFullBackup') { await runActionOnce('exportFullBackup', exportFullBackup); return; }
@@ -2186,7 +2208,120 @@ function logEditItemHtml(log, person) {
   </article>`;
 }
 
+function statsViewSwitcherHtml() {
+  const view = state.statsView === 'comparison' ? 'comparison' : 'current';
+  return `<div class="segmented statsViewSwitcher" role="group" aria-label="Auswertungsbereich"><button class="${view === 'current' ? 'active' : ''}" data-action="setStatsView" data-id="current">Aktuelle Reise</button><button class="${view === 'comparison' ? 'active' : ''}" data-action="setStatsView" data-id="comparison">Reisevergleich</button></div>`;
+}
+function tripComparisonPersonRows(tripIds) {
+  const validTripIds = new Set(tripIds);
+  const map = new Map();
+  state.persons.forEach(person => {
+    if (!validTripIds.has(person.tripId)) return;
+    const key = normalize(person.name || '') || `person_${person.id}`;
+    if (!map.has(key)) map.set(key, { key, name: person.name || 'Unbekannte Person', tripIds: new Set(), count: 0, value: 0, included: 0, notIncluded: 0, unclear: 0 });
+    const row = map.get(key);
+    row.tripIds.add(person.tripId);
+    const logs = state.logs.filter(log => log.tripId === person.tripId && log.personId === person.id);
+    const stats = calcDetailed(logs);
+    row.count += stats.count;
+    row.value += stats.value;
+    row.included += stats.included;
+    row.notIncluded += stats.notIncluded;
+    row.unclear += stats.unclear;
+  });
+  return [...map.values()].map(row => ({ ...row, trips: row.tripIds.size })).filter(row => row.count > 0).sort((a, b) => b.value - a.value || b.count - a.count || a.name.localeCompare(b.name, 'de'));
+}
+function tripComparisonModel() {
+  const rows = state.trips.map(trip => {
+    const logs = state.logs.filter(log => log.tripId === trip.id);
+    const persons = state.persons.filter(person => person.tripId === trip.id);
+    const total = calcDetailed(logs);
+    const completion = completionTotals(persons, logs);
+    const dayInfo = tripDayInfo(logs, trip);
+    const favorite = groupStats(logs, log => log.drinkName || 'Unbekannt').sort((a, b) => b.count - a.count || b.value - a.value)[0] || null;
+    const category = groupStats(logs, log => resolvedLogCategory(log) || 'Ohne Kategorie').sort((a, b) => b.count - a.count || b.value - a.value)[0] || null;
+    const result = overallResultPresentation(completion);
+    return {
+      trip, logs, persons, total, completion, result, dayInfo, favorite, category,
+      averageValue: dayInfo.days ? total.value / dayInfo.days : 0,
+      averageCount: dayInfo.days ? total.count / dayInfo.days : 0,
+      referenceVersion: referenceVersionById(trip.barkarteVersionId || '')?.version || 'nicht zugeordnet',
+      active: trip.id === activeTripId()
+    };
+  }).sort((a, b) => String(b.trip.startDate || b.trip.createdAt || '').localeCompare(String(a.trip.startDate || a.trip.createdAt || '')) || String(a.trip.name || '').localeCompare(String(b.trip.name || ''), 'de'));
+  const tripIds = new Set(rows.map(row => row.trip.id));
+  const logs = state.logs.filter(log => tripIds.has(log.tripId));
+  const excludedLogs = state.logs.filter(log => !tripIds.has(log.tripId)).length;
+  const total = calcDetailed(logs);
+  const totalDays = rows.reduce((sum, row) => sum + row.dayInfo.days, 0);
+  const completion = rows.reduce((acc, row) => {
+    acc.packagePriceTotal += row.completion.packagePriceTotal;
+    acc.packageResult += row.completion.packageResult;
+    acc.comparablePersons += row.completion.comparablePersons;
+    acc.incompletePersons += row.completion.incompletePersons;
+    acc.packagePersons += row.completion.packagePersons;
+    acc.missingPricePersons += row.completion.missingPricePersons;
+    acc.unclearPackagePersons += row.completion.unclearPackagePersons;
+    return acc;
+  }, { total, packagePriceTotal: 0, packageResult: 0, comparablePersons: 0, incompletePersons: 0, packagePersons: 0, missingPricePersons: 0, unclearPackagePersons: 0 });
+  const result = overallResultPresentation(completion);
+  const categories = groupStats(logs, log => resolvedLogCategory(log) || 'Ohne Kategorie');
+  const drinks = groupStats(logs, log => log.drinkName || 'Unbekannt').sort((a, b) => b.count - a.count || b.value - a.value);
+  const persons = tripComparisonPersonRows([...tripIds]);
+  return {
+    rows, logs, total, totalDays, completion, result, categories, drinks, persons, excludedLogs,
+    averageValue: totalDays ? total.value / totalDays : 0,
+    averageCount: totalDays ? total.count / totalDays : 0,
+    strongestTrip: rows.slice().sort((a, b) => b.total.value - a.total.value || b.total.count - a.total.count)[0] || null
+  };
+}
+function tripComparisonChartHtml(rows) {
+  const withData = rows.filter(row => row.total.count || row.total.value);
+  if (!withData.length) return `<article class="card tripComparisonChart"><h2>Barkartenwert je Reise</h2><p class="emptyText">Noch keine reiseübergreifenden Buchungen vorhanden.</p></article>`;
+  const maxValue = Math.max(...withData.map(row => row.total.value), 1);
+  return `<article class="card tripComparisonChart"><div class="sectionHead"><div><h2>Barkartenwert je Reise</h2><p class="hint">Absolute Werte und Durchschnitt pro Reisetag. Unterschiedliche Reisedauern bleiben sichtbar.</p></div><span class="subtle">${withData.length} Reisen</span></div><div class="tripComparisonBars">${withData.map(row => {
+    const width = Math.max(row.total.value > 0 ? 4 : 0, row.total.value / maxValue * 100);
+    return `<div class="tripComparisonBarRow ${row.active ? 'active' : ''}"><div class="tripComparisonBarLabel"><b>${esc(row.trip.name || 'Unbenannte Reise')}</b><small>${esc([row.trip.ship, row.trip.startDate ? `${formatDate(row.trip.startDate)} – ${formatDate(row.trip.endDate)}` : '', row.trip.archived ? 'abgeschlossen' : 'laufend'].filter(Boolean).join(' · '))}</small></div><div class="tripComparisonBarTrack"><i style="width:${width.toFixed(1)}%"></i></div><div class="tripComparisonBarValue"><strong>${eur(row.total.value)}</strong><small>Ø ${eur(row.averageValue)} / Tag</small></div></div>`;
+  }).join('')}</div></article>`;
+}
+function tripResultBadgeHtml(row) {
+  if (!row.completion.packagePersons) return `<span class="comparisonResult neutral">kein Paketvergleich</span>`;
+  if (!row.completion.comparablePersons) return `<span class="comparisonResult warning">Ergebnis offen</span>`;
+  const tone = row.completion.packageResult > 0 ? 'positive' : row.completion.packageResult < 0 ? 'negative' : 'neutral';
+  const label = row.completion.packageResult > 0 ? `+${eur(row.completion.packageResult)}` : row.completion.packageResult < 0 ? `−${eur(Math.abs(row.completion.packageResult))}` : eur(0);
+  return `<span class="comparisonResult ${tone}">${label}</span>`;
+}
+function tripComparisonListHtml(rows) {
+  if (!rows.length) return `<article class="card"><h2>Reisen im Vergleich</h2><p class="emptyText">Noch keine Reise vorhanden.</p></article>`;
+  return `<article class="card tripComparisonListCard"><div class="sectionHead"><div><h2>Reisen im Vergleich</h2><p class="hint">Paketresultate sind nur belastbar, soweit Paket und Paketpreis vollständig hinterlegt sind.</p></div><span class="subtle">${rows.length} Reisen</span></div><div class="tripComparisonList">${rows.map(row => `<div class="tripComparisonRow ${row.active ? 'active' : ''}"><div class="tripComparisonRowHead"><div><b>${esc(row.trip.name || 'Unbenannte Reise')}</b><small>${esc([row.trip.ship || 'Ohne Schiff', row.trip.startDate ? `${formatDate(row.trip.startDate)} – ${formatDate(row.trip.endDate)}` : 'Zeitraum offen', row.trip.archived ? 'abgeschlossen' : 'laufend'].join(' · '))}</small></div>${tripResultBadgeHtml(row)}</div><div class="tripComparisonFacts"><span><b>${row.total.count}</b> Getränke</span><span><b>${eur(row.total.value)}</b> Barkartenwert</span><span><b>${row.dayInfo.days || '—'}</b> Reisetage</span><span><b>${eur(row.averageValue)}</b> Ø je Tag</span><span><b>${eur(row.total.notIncluded)}</b> außerhalb</span><span><b>${row.total.unclearCount}</b> unklar</span></div><div class="tripComparisonMeta"><span>${row.favorite ? `Favorit: ${esc(row.favorite.key)} (${row.favorite.count}×)` : 'Noch kein Lieblingsgetränk'}</span><span>Barkarte: ${esc(row.referenceVersion)}</span></div><button class="secondary comparisonOpenButton" data-action="openComparisonTrip" data-id="${esc(row.trip.id)}">In Analyse öffnen</button></div>`).join('')}</div></article>`;
+}
+function tripComparisonPersonsHtml(rows) {
+  if (!rows.length) return `<article class="card"><h2>Personen über alle Reisen</h2><p class="emptyText">Keine Personen mit Buchungen vorhanden.</p></article>`;
+  return `<article class="card comparisonPersonsCard"><div class="sectionHead"><div><h2>Personen über alle Reisen</h2><p class="hint">Gleich geschriebene Namen werden reiseübergreifend zusammengeführt.</p></div><span class="subtle">${rows.length} Namen</span></div><div class="comparisonPersonsList">${rows.slice(0, 20).map(row => `<div class="comparisonPersonRow"><div><b>${esc(row.name)}</b><small>${row.trips} Reise${row.trips === 1 ? '' : 'n'} · ${row.count} Getränke · im Paket ${eur(row.included)}${row.unclear ? ` · unklar ${eur(row.unclear)}` : ''}</small></div><strong>${eur(row.value)}</strong></div>`).join('')}</div></article>`;
+}
+function tripComparisonExportCardHtml() {
+  return `<article class="card reportExportCard comparisonExportCard"><div class="sectionHead"><div><h2>Reisevergleich exportieren</h2><p class="hint">Erstellt eine Excel-taugliche CSV mit einer Zeile je Reise und den wichtigsten Vergleichswerten.</p></div><span class="backupFormatBadge">CSV · offline</span></div><button class="primary" data-action="exportTripComparisonCsv">Reisevergleich als CSV</button></article>`;
+}
+function viewStatsComparison() {
+  const model = tripComparisonModel();
+  const result = model.result;
+  return `<section class="screen statsScreen comparisonStatsScreen"><div class="sectionHead statsTitleRow"><div><h1>Auswertungen</h1><span class="subtle">Alle lokal gespeicherten Reisen</span></div></div>${statsViewSwitcherHtml()}<article class="card comparisonScopeNotice"><div><b>Reiseübergreifende Auswertung</b><p>Die Werte stammen ausschließlich aus den auf diesem Gerät gespeicherten Reisen. Unterschiedliche Barkartenversionen bleiben je Reise erhalten; alle Beträge werden anhand der gespeicherten Buchungspreise verglichen.</p></div><span>${model.rows.length} Reisen</span></article><div class="kpiGrid comparisonKpiGrid">${kpi('Reisen', String(model.rows.length), `${model.rows.filter(row => row.trip.archived).length} abgeschlossen`)}${kpi('Getränke gesamt', String(model.total.count), eur(model.total.value))}${kpi('Ø je Reisetag', model.totalDays ? eur(model.averageValue) : '—', model.totalDays ? `${model.totalDays} Reisetage insgesamt` : 'keine Datumsbasis')}${kpi(result.label, result.value, result.sub)}</div>${model.excludedLogs ? `<div class="card comparisonWarning">${model.excludedLogs} Buchung${model.excludedLogs === 1 ? '' : 'en'} ohne gültige Reisezuordnung wurde${model.excludedLogs === 1 ? '' : 'n'} im Vergleich nicht berücksichtigt.</div>` : ''}${tripComparisonChartHtml(model.rows)}${tripComparisonListHtml(model.rows)}${statsSection('Häufigste Getränke über alle Reisen', model.drinks, 15)}${statsSection('Kategorien über alle Reisen', model.categories, 12)}${tripComparisonPersonsHtml(model.persons)}${tripComparisonExportCardHtml()}</section>`;
+}
+function tripComparisonCsvText(model = tripComparisonModel()) {
+  const headers = ['Reise', 'Schiff', 'Status', 'Beginn', 'Ende', 'Reisetage', 'Personen', 'Getränke', 'Barkartenwert EUR', 'Im Paket EUR', 'Außerhalb Paket EUR', 'Unklar EUR', 'Unklare Getränke', 'Paketkosten EUR', 'Paketergebnis EUR', 'Ergebnisstatus', 'Durchschnitt je Reisetag EUR', 'Durchschnitt Getränke je Reisetag', 'Häufigstes Getränk', 'Häufigste Kategorie', 'Barkartenversion'];
+  const rows = model.rows.map(row => [row.trip.name || '', row.trip.ship || '', row.trip.archived ? 'Abgeschlossen' : 'Laufend', row.trip.startDate || '', row.trip.endDate || '', row.dayInfo.days || '', row.persons.length, row.total.count, csvNumber(row.total.value), csvNumber(row.total.included), csvNumber(row.total.notIncluded), csvNumber(row.total.unclear), row.total.unclearCount, csvNumber(row.completion.packagePriceTotal), row.completion.comparablePersons ? csvNumber(row.completion.packageResult) : '', row.result.label, csvNumber(row.averageValue), Number(row.averageCount || 0).toLocaleString('de-DE', { useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2 }), row.favorite?.key || '', row.category?.key || '', row.referenceVersion]);
+  return '\ufeff' + [headers, ...rows].map(row => row.map(csvSafeCell).join(';')).join('\r\n');
+}
+async function exportTripComparisonCsv() {
+  const model = tripComparisonModel();
+  if (!model.rows.length) { alert('Es sind keine Reisen für den Vergleich vorhanden.'); return; }
+  const result = await saveTextFile(`CruiseSip_Reisevergleich_${localBackupFileStamp()}.csv`, tripComparisonCsvText(model), ['text/csv;charset=utf-8', 'text/plain;charset=utf-8'], { title: 'CruiseSip Reisevergleich' });
+  if (result.cancelled) toast('CSV-Export abgebrochen');
+  else toast(result.method === 'share' ? 'Reisevergleich zum Speichern bereitgestellt' : 'Reisevergleich wurde heruntergeladen');
+  return result;
+}
 function viewStats() {
+  if (state.statsView === 'comparison') return viewStatsComparison();
   const filter = state.statsFilter || 'trip';
   const allTripLogs = currentLogs();
   const logs = logsByFilter(filter, allTripLogs);
@@ -2200,6 +2335,7 @@ function viewStats() {
   return `
     <section class="screen statsScreen">
       <div class="sectionHead statsTitleRow"><h1>Auswertungen</h1></div>
+      ${statsViewSwitcherHtml()}
       ${activeTripContextHtml()}
       ${archiveIntegrityCardHtml()}
       ${tripStatusNoticeHtml('stats')}
@@ -6493,6 +6629,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.6.0</h2>
+  <ul>
+    <li>Neue reiseübergreifende Analyse mit Umschalter zwischen aktueller Reise und Reisevergleich.</li>
+    <li>Vergleich von Barkartenwert, Reisedauer, Tagesdurchschnitt, Paketkosten und Paketergebnis je Reise.</li>
+    <li>Gesamtauswertung für Lieblingsgetränke, Kategorien und gleichnamige Personen über alle lokal gespeicherten Reisen.</li>
+    <li>Direktes Öffnen einer Vergleichsreise in der normalen Reiseanalyse.</li>
+    <li>Excel-tauglicher CSV-Export mit einer Zeile je Reise.</li>
+  </ul>
   <h2>Version 5.5.0</h2>
   <ul>
     <li>Neue zentrale Datenprüfung für die aktuelle Reise oder den gesamten lokalen Datenbestand.</li>

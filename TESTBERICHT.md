@@ -1,3 +1,30 @@
+# Testbericht CruiseSip v5.6.0a
+
+## Automatisierte Prüfungen
+
+- JavaScript-Syntax mit Node.js geprüft.
+- JSON-Dateien validiert.
+- Service-Worker-Ressourcen gegen den Dateibestand geprüft.
+- Versionskennungen in App, HTML und Service Worker abgeglichen.
+- Statische Prüfung der Umschalt-, Navigations- und CSV-Exportaktionen.
+- Synthetische Modellprüfung für zwei Reisen mit unterschiedlichen Reisedauern, Paketresultaten und Kategorien.
+- ZIP-Integrität und SHA-256-Prüfsumme geprüft.
+
+## Fachliche Grenzen
+
+- Der Vergleich nutzt die in jeder Buchung gespeicherten Preise; historische Barkarten werden nicht rückwirkend vereinheitlicht.
+- Paketresultate bleiben konservativ und berücksichtigen nur Personen mit eindeutigem Paket und hinterlegtem Paketpreis.
+- Gleich geschriebene Personennamen werden in der reiseübergreifenden Personenansicht zusammengeführt.
+- Buchungen ohne gültige Reisezuordnung werden sichtbar ausgeschlossen.
+
+## Noch praktisch zu prüfen
+
+- Darstellung der Vergleichsbalken auf dem verwendeten iPhone.
+- CSV-Freigabe über das iOS-Teilen-Menü.
+- Wechsel aus dem Reisevergleich in eine einzelne laufende und abgeschlossene Reise.
+
+---
+
 # Testbericht CruiseSip v5.5.1a
 
 ## Geprüfter Umfang

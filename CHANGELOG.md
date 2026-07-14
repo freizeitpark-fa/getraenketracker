@@ -1,3 +1,14 @@
+## v5.6.0a – reiseübergreifende Statistiken
+
+- Umschalter zwischen aktueller Reise und Reisevergleich in der Analyse ergänzt.
+- Barkartenwert, Getränkeanzahl, Reisetage, Tagesdurchschnitt und Paketresultat je Reise vergleichbar gemacht.
+- Gesamtstatistiken für Getränke, Kategorien und gleichnamige Personen über alle lokalen Reisen ergänzt.
+- Aktive Reise im Vergleich hervorgehoben und direkt in der normalen Analyse öffnungsfähig.
+- Excel-tauglicher CSV-Export mit einer Zeile je Reise ergänzt.
+- Keine Datenmigration und keine Änderung bestehender Buchungs- oder Exportformate.
+- App- und Service-Worker-Build auf `5.6.0a` erhöht.
+- Dokumentation `docs/REISEVERGLEICH_V56.md` ergänzt.
+
 ## v5.5.1a – externe Backup-Erinnerung
 
 - Letztes externes Vollbackup und Zahl der seitdem neuen oder geänderten Erfassungen werden im Setup angezeigt.
