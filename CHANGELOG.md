@@ -1,3 +1,14 @@
+## v5.5.0a – Datenprüfung und Diagnose
+
+- Zentrale Datenprüfung für die aktuelle Reise oder den gesamten lokalen Datenbestand ergänzt.
+- Prüfung von Reisen, Reiseverläufen, Personen, Paketen, Buchungen, Barkartenständen, Referenzversionen und lokaler Speicherbelegung.
+- Fehler, Hinweise, Informationen und erfolgreiche Prüfungen werden nach Bereichen getrennt dargestellt.
+- Fehlende Verknüpfungen, doppelte Merge-Keys, ungültige Zeiträume, nicht auflösbare Getränke und veränderte Archiv-Prüfsummen werden sichtbar markiert.
+- CruiseSip nimmt keine automatischen Korrekturen oder Löschungen vor.
+- Exportierbarer JSON-Prüfbericht ergänzt.
+- App- und Service-Worker-Build auf `5.5.0a` erhöht.
+- Dokumentation `docs/DATENPRUEFUNG_V55.md` ergänzt.
+
 ## v5.4.1d – Reiseverlauf zuverlässig per App-Zustand öffnen
 
 - Der Aufklappbereich verwendet nun eine echte Schaltfläche mit `data-action` statt Checkbox-/Label- oder nativer Details-Logik.

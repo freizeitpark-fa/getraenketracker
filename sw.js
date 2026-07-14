@@ -1,10 +1,10 @@
-const CACHE_NAME = 'cruisesip-v5-4-1-20260714d';
+const CACHE_NAME = 'cruisesip-v5-5-0-20260714a';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json?v=5.4.1d',
-  './css/styles.css?v=5.4.1d',
-  './js/app.js?v=5.4.1d',
+  './manifest.json?v=5.5.0a',
+  './css/styles.css?v=5.5.0a',
+  './js/app.js?v=5.5.0a',
   './data/barkarte.json',
   './data/pakete.json',
   './icons/icon-192.png',
@@ -32,6 +32,7 @@ const ASSETS = [
   './docs/REISE_BARKARTENVERSION_V531.md',
   './docs/REISEABSCHLUSS_V54.md',
   './docs/REISEVERLAUF_BEARBEITEN_V541.md',
+  './docs/DATENPRUEFUNG_V55.md',
   './TESTBERICHT.md'
 ];
 

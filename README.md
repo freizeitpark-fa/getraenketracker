@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.4.1** (Build **5.4.1d**)
+Aktuelle Entwicklungsfassung: **5.5.0** (Build **5.5.0a**)
 
-Version 5.4.1 macht den Reiseverlauf direkt in der Reiseverwaltung bearbeitbar. Einzelne Tage können ergänzt, korrigiert oder gelöscht werden; vor jeder Änderung entsteht automatisch ein lokaler Wiederherstellungspunkt.
+Version 5.5.0 ergänzt eine zentrale Datenprüfung. Reisen, Reiseverläufe, Personen, Buchungen, Barkartenstände, Paketzuordnungen und lokale Speicherbedingungen können kontrolliert geprüft und als JSON-Bericht exportiert werden. Die Prüfung verändert keine Daten.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v5.4.1 Reiseverlauf bearbeiten`.
+4. Commit erstellen, z. B. `CruiseSip v5.5.0 Datenprüfung und Diagnose`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.4.1` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.5.0` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur

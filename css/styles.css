@@ -1546,3 +1546,34 @@ html[data-route="track"] .drinkSortControl.compact select{height:34px!important;
 .itineraryToggle:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
 .itineraryRowActions button{min-height:34px}
 [data-reduced-effects="true"] .itineraryToggleChevron{transition:none}
+
+/* CruiseSip v5.5.0: zentrale Datenpruefung und Diagnose */
+.dataDiagnosticsScreen{max-width:980px}
+.dataDiagnosticControl{display:grid;gap:12px;border-color:color-mix(in srgb,var(--brand) 28%,var(--line))}
+.dataDiagnosticScope{width:100%}
+.dataDiagnosticScope button{flex:1}
+.dataDiagnosticEmpty{display:grid;gap:5px;text-align:center;padding:22px}
+.dataDiagnosticEmpty b{font-size:14px}.dataDiagnosticEmpty p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+.dataDiagnosticRunning{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center}
+.dataDiagnosticRunning b{font-size:13px}.dataDiagnosticRunning p{margin:3px 0 0;color:var(--muted);font-size:10px;line-height:1.45}
+.dataDiagnosticSummaryCard{display:grid;gap:12px}
+.dataDiagnosticKpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.dataDiagnosticKpis span{display:grid;gap:2px;min-height:68px;align-content:center;border:1px solid var(--line);border-radius:14px;background:var(--cardSolid);padding:9px;text-align:center;color:var(--muted);font-size:9px;line-height:1.3}
+.dataDiagnosticKpis b{display:block;color:var(--text);font-size:21px;line-height:1}
+.dataDiagnosticKpis .bad{border-color:color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 7%,var(--cardSolid))}.dataDiagnosticKpis .bad b{color:var(--bad)}
+.dataDiagnosticKpis .warn{border-color:color-mix(in srgb,var(--warn) 44%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--cardSolid))}.dataDiagnosticKpis .warn b{color:var(--text)}
+.dataDiagnosticKpis .info{border-color:color-mix(in srgb,var(--accent) 30%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--cardSolid))}
+.dataDiagnosticGroup{display:grid;gap:10px}
+.dataDiagnosticFindings{display:grid;gap:7px}
+.dataDiagnosticFinding{display:grid;grid-template-columns:30px minmax(0,1fr);gap:9px;align-items:start;border:1px solid var(--line);border-radius:14px;background:var(--cardSolid);padding:9px}
+.dataDiagnosticFinding.bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 6%,var(--cardSolid))}
+.dataDiagnosticFinding.warn{border-color:color-mix(in srgb,var(--warn) 46%,var(--line));background:color-mix(in srgb,var(--warn) 7%,var(--cardSolid))}
+.dataDiagnosticFinding.ok{border-color:color-mix(in srgb,var(--ok) 36%,var(--line));background:color-mix(in srgb,var(--ok) 6%,var(--cardSolid))}
+.dataDiagnosticMark{display:grid;place-items:center;width:28px;height:28px;border-radius:10px;background:var(--accent);color:#fff;font-size:15px;font-weight:900}
+.dataDiagnosticFinding.bad .dataDiagnosticMark{background:var(--bad)}
+.dataDiagnosticFinding.warn .dataDiagnosticMark{background:var(--warn);color:#211700}
+.dataDiagnosticFinding.ok .dataDiagnosticMark{background:var(--ok)}
+.dataDiagnosticFinding b{display:block;font-size:11px;line-height:1.35}
+.dataDiagnosticFinding p{margin:4px 0 0;color:var(--muted);font-size:9px;line-height:1.45;overflow-wrap:anywhere}
+.dataDiagnosticEntity{display:block;margin-top:2px;color:var(--subtle);font-size:8px;line-height:1.35;overflow-wrap:anywhere}
+@media(max-width:620px){.dataDiagnosticKpis{grid-template-columns:repeat(2,minmax(0,1fr))}.dataDiagnosticControl .sectionHead{align-items:flex-start}.dataDiagnosticRunning{grid-template-columns:1fr}.dataDiagnosticFinding{grid-template-columns:28px minmax(0,1fr)}}

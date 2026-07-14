@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.4.1';
-const APP_CACHE_NAME = 'cruisesip-v5-4-1-20260714d';
-const APP_BUILD = '5.4.1d';
-const SERVICE_WORKER_URL = './sw.js?v=5.4.1d';
+const APP_VERSION = '5.5.0';
+const APP_CACHE_NAME = 'cruisesip-v5-5-0-20260714a';
+const APP_BUILD = '5.5.0a';
+const SERVICE_WORKER_URL = './sw.js?v=5.5.0a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -101,7 +101,9 @@ let state = {
   undoLogs: [],
   migrationSnapshot: null,
   restorePoints: [],
-  archiveIntegrity: {}
+  archiveIntegrity: {},
+  dataDiagnostics: null,
+  dataDiagnosticScope: 'current'
 };
 
 const actionLocks = Object.create(null);
@@ -112,6 +114,7 @@ let swControllerChangeHandled = false;
 let swReloadFallbackTimer = null;
 let swUpdateState = 'unknown';
 let offlineDiagnosticsRunning = false;
+let dataDiagnosticsRunning = false;
 
 async function runActionOnce(key, handler) {
   if (actionLocks[key]) return actionLocks[key];
@@ -665,6 +668,7 @@ async function migrateRowsToV4() {
 }
 
 async function loadState() {
+  if (!dataDiagnosticsRunning) state.dataDiagnostics = null;
   const settingsRows = await all('settings');
   state.settings = Object.fromEntries(settingsRows.map(r => [r.id, r.value]));
   state.trips = (await all('trips')).sort((a, b) => Number(a.archived || false) - Number(b.archived || false) || String(b.startDate || '').localeCompare(String(a.startDate || '')));
@@ -1151,6 +1155,9 @@ async function handleClick(event) {
   if (action === 'setReducedEffects') { await setReducedEffects(id === 'true'); return; }
   if (action === 'checkAppUpdate') { await checkForAppUpdate({ silent: false }); return; }
   if (action === 'runOfflineDiagnostics') { await runOfflineDiagnostics({ silent: false }); return; }
+  if (action === 'setDataDiagnosticScope') { state.dataDiagnosticScope = id === 'all' ? 'all' : 'current'; state.dataDiagnostics = null; render(); return; }
+  if (action === 'runDataDiagnostics') { await runDataDiagnostics(); return; }
+  if (action === 'exportDataDiagnostics') { await exportDataDiagnostics(); return; }
   if (action === 'applyAppUpdate') { await applyAppUpdate(); return; }
   if (action === 'skipOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; render(); return; }
   if (action === 'setTrip') {
@@ -1609,6 +1616,7 @@ function render() {
   else if (state.route === 'devices') view.innerHTML = viewDevices();
   else if (state.route === 'barkarte') view.innerHTML = viewBarkarte();
   else if (state.route === 'settings') view.innerHTML = viewSettings();
+  else if (state.route === 'diagnostics') view.innerHTML = viewDataDiagnostics();
   else if (state.route === 'changelog') view.innerHTML = viewChangelog();
   else view.innerHTML = viewDashboard();
   bindInputs();
@@ -1681,7 +1689,7 @@ function updateShell() {
   $('#appVersion').textContent = `v${APP_VERSION}`;
   $('#tripTitle').textContent = state.route === 'track' ? `Erfassen${trip ? ' · ' + short(trip.name, 18) : ''}${trip?.archived ? ' · abgeschlossen' : ''}` : (trip ? `${short(trip.name, 24)}${trip.archived ? ' · abgeschlossen' : ''}` : 'Keine Reise');
   $('#onlineDot').textContent = state.online ? 'Online' : 'Offline';
-  $$('.navButton').forEach(b => b.classList.toggle('active', b.dataset.route === state.route || (state.route === 'onboarding' && b.dataset.route === 'settings')));
+  $$('.navButton').forEach(b => b.classList.toggle('active', b.dataset.route === state.route || ((state.route === 'onboarding' || state.route === 'diagnostics') && b.dataset.route === 'settings')));
   applyTheme();
   document.documentElement.dataset.route = state.route || 'dashboard';
 }
@@ -4155,13 +4163,313 @@ function internalRestorePointsCardHtml() {
   return `<div class="card internalRestoreCard"><div class="sectionHead"><div><h2>Interne Wiederherstellungspunkte</h2><p class="hint">CruiseSip erstellt vor kritischen Änderungen automatisch eine lokale Sicherung. Zusätzlich kann jederzeit manuell gesichert werden.</p></div><span class="diagnosticSummary ${rows.length ? 'ok' : 'neutral'}">${rows.length} / ${INTERNAL_SNAPSHOT_LIMIT}</span></div>${list}<button class="secondary" data-action="createInternalRestorePoint">Jetzt Sicherungspunkt erstellen</button><p class="hint">Gespeichert werden höchstens ${INTERNAL_SNAPSHOT_LIMIT} Stände auf diesem Gerät. Sie werden nicht exportiert und ersetzen kein externes Vollbackup.</p></div>`;
 }
 
+
+const DATA_DIAGNOSTIC_AREAS = ['Reisen & Reiseverlauf', 'Personen & Pakete', 'Buchungen', 'Barkarten & Pakete', 'App & Speicher'];
+const DATA_DIAGNOSTIC_LEVELS = { bad: 0, warn: 1, info: 2, ok: 3 };
+const VALID_ITINERARY_TYPES = new Set(['embarkation', 'port', 'sea', 'overnight', 'disembarkation', 'unknown']);
+const VALID_PACKAGE_STATUSES = new Set(['included', 'not_included', 'unclear']);
+function validIsoDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+function validClockTime(value) { return !value || /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value)); }
+function diagnosticEntityName(value, fallback = 'Datensatz') { return String(value || '').trim() || fallback; }
+function diagnosticScopeTrips() {
+  if (state.dataDiagnosticScope === 'all') return [...state.trips];
+  const trip = currentTrip();
+  return trip ? [trip] : [];
+}
+function diagnosticScopeLabel() {
+  if (state.dataDiagnosticScope === 'all') return 'Gesamter Datenbestand';
+  return currentTrip()?.name ? `Aktuelle Reise: ${currentTrip().name}` : 'Aktuelle Reise';
+}
+function addDataDiagnosticIssue(target, issue) {
+  if (target.items.length >= 500) { target.omitted += 1; return; }
+  target.items.push({
+    id: issue.id || `diag_${target.items.length + 1}`,
+    area: DATA_DIAGNOSTIC_AREAS.includes(issue.area) ? issue.area : 'App & Speicher',
+    level: ['bad', 'warn', 'info', 'ok'].includes(issue.level) ? issue.level : 'info',
+    title: String(issue.title || 'Hinweis'),
+    detail: String(issue.detail || ''),
+    entity: String(issue.entity || '')
+  });
+}
+function duplicateValues(rows, selector) {
+  const map = new Map();
+  for (const row of rows) {
+    const key = selector(row);
+    if (!key) continue;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(row);
+  }
+  return [...map.entries()].filter(([, values]) => values.length > 1);
+}
+function referenceDrinkForLog(log, trip) {
+  const referenceId = log.barkarteVersionId || trip?.barkarteVersionId || tripReferenceVersionId(trip);
+  const version = referenceVersionById(referenceId);
+  if (!version || !Array.isArray(version.drinks)) return { version, drink: null };
+  const drink = version.drinks.find(row => row.id === log.drinkId)
+    || version.drinks.find(row => normalize(row.name) === normalize(log.drinkName));
+  return { version, drink: drink || null };
+}
+async function collectStorageDiagnostic(result) {
+  if (!navigator.storage?.estimate) {
+    addDataDiagnosticIssue(result, { area: 'App & Speicher', level: 'info', title: 'Speicherbelegung nicht messbar', detail: 'Der Browser stellt keine Speicherstatistik bereit.' });
+    return { usage: null, quota: null, persisted: null };
+  }
+  try {
+    const estimate = await navigator.storage.estimate();
+    const usage = Number(estimate.usage) || 0;
+    const quota = Number(estimate.quota) || 0;
+    const ratio = quota > 0 ? usage / quota : 0;
+    let persisted = null;
+    try { persisted = typeof navigator.storage.persisted === 'function' ? await navigator.storage.persisted() : null; } catch (_) {}
+    addDataDiagnosticIssue(result, {
+      area: 'App & Speicher',
+      level: ratio >= 0.9 ? 'bad' : ratio >= 0.75 ? 'warn' : 'ok',
+      title: 'Lokaler Speicher',
+      detail: quota ? `${formatStorageBytes(usage)} von ${formatStorageBytes(quota)} belegt (${percent(ratio * 100)}).` : `${formatStorageBytes(usage)} belegt.`,
+      entity: persisted === true ? 'dauerhaft geschützt' : persisted === false ? 'browserverwaltet' : ''
+    });
+    if (persisted === false) {
+      addDataDiagnosticIssue(result, { area: 'App & Speicher', level: 'warn', title: 'Speicher nicht dauerhaft geschützt', detail: 'iOS verwaltet den lokalen Speicher selbst. Externe Vollbackups bleiben deshalb erforderlich.' });
+    }
+    return { usage, quota, persisted };
+  } catch (error) {
+    addDataDiagnosticIssue(result, { area: 'App & Speicher', level: 'warn', title: 'Speicherprüfung fehlgeschlagen', detail: error?.message || 'Die Browser-Speicherstatistik konnte nicht gelesen werden.' });
+    return { usage: null, quota: null, persisted: null };
+  }
+}
+async function runDataDiagnosticsInternal() {
+  if (dataDiagnosticsRunning) return;
+  dataDiagnosticsRunning = true;
+  state.dataDiagnostics = { running: true, scope: state.dataDiagnosticScope };
+  render();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const startedAt = nowIso();
+  const result = { running: false, scope: state.dataDiagnosticScope, scopeLabel: diagnosticScopeLabel(), checkedAt: '', startedAt, items: [], omitted: 0, counts: {}, totals: {}, storage: null };
+  const trips = diagnosticScopeTrips();
+  const tripIds = new Set(trips.map(row => row.id));
+  const persons = state.dataDiagnosticScope === 'all' ? [...state.persons] : state.persons.filter(row => tripIds.has(row.tripId));
+  const logs = state.dataDiagnosticScope === 'all' ? [...state.logs] : state.logs.filter(row => tripIds.has(row.tripId));
+  const versionsUsed = new Set();
+
+  if (!state.settings.deviceId) addDataDiagnosticIssue(result, { area: 'App & Speicher', level: 'bad', title: 'Geräte-ID fehlt', detail: 'Geräteexporte und Dublettenerkennung sind ohne stabile Geräte-ID nicht zuverlässig.' });
+  if (!state.settings.deviceName) addDataDiagnosticIssue(result, { area: 'App & Speicher', level: 'warn', title: 'Gerätename fehlt', detail: 'Importprotokolle können die Herkunft sonst nicht verständlich anzeigen.' });
+  if (!state.trips.length) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Keine Reise vorhanden', detail: 'CruiseSip benötigt mindestens eine Reise.' });
+  if (state.settings.currentTripId && !state.trips.some(row => row.id === state.settings.currentTripId)) addDataDiagnosticIssue(result, { area: 'App & Speicher', level: 'bad', title: 'Aktive Reise nicht vorhanden', detail: `Die gespeicherte Reise-ID ${state.settings.currentTripId} verweist auf keinen Reisedatensatz.` });
+
+  for (const [id, rows] of duplicateValues(state.trips, row => row.id)) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Doppelte Reise-ID', detail: `${rows.length} Reisedatensätze verwenden dieselbe ID.`, entity: id });
+  for (const trip of trips) {
+    const tripName = diagnosticEntityName(trip.name, trip.id || 'Reise');
+    if (!trip.id) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Reise ohne ID', detail: 'Der Datensatz kann nicht sicher exportiert oder zusammengeführt werden.', entity: tripName });
+    if (!String(trip.name || '').trim()) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'warn', title: 'Reisename fehlt', detail: 'Die Reise ist in Auswertungen und Exporten schwer erkennbar.', entity: trip.id });
+    if (trip.startDate && !validIsoDate(trip.startDate)) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Ungültiges Startdatum', detail: `Wert: ${trip.startDate}`, entity: tripName });
+    if (trip.endDate && !validIsoDate(trip.endDate)) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Ungültiges Enddatum', detail: `Wert: ${trip.endDate}`, entity: tripName });
+    if (validIsoDate(trip.startDate) && validIsoDate(trip.endDate) && trip.startDate > trip.endDate) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Reisezeitraum vertauscht', detail: `${trip.startDate} liegt nach ${trip.endDate}.`, entity: tripName });
+    const referenceId = trip.barkarteVersionId || tripReferenceVersionId(trip);
+    const packageReferenceId = trip.packageVersionId || referenceId;
+    if (referenceId) versionsUsed.add(referenceId);
+    if (packageReferenceId) versionsUsed.add(packageReferenceId);
+    const reference = referenceVersionById(referenceId);
+    const packageReference = referenceVersionById(packageReferenceId);
+    if (!referenceId || !reference) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Barkartenversion der Reise fehlt', detail: `Zugeordnete Version: ${referenceId || 'keine'}.`, entity: tripName });
+    else if (!referenceVersionAvailable(reference)) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Barkartenversion ohne Daten', detail: 'Die zugeordnete Version enthält keine nutzbare Getränkeliste.', entity: `${tripName} · ${reference.version || reference.id}` });
+    if (!packageReferenceId || !packageReference) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Paketversion der Reise fehlt', detail: `Zugeordnete Version: ${packageReferenceId || 'keine'}.`, entity: tripName });
+
+    const itinerary = tripItinerary(trip);
+    const duplicateDates = duplicateValues(itinerary, day => day.date);
+    for (const [date, rows] of duplicateDates) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Reisetag doppelt vorhanden', detail: `${rows.length} Einträge verwenden dasselbe Datum.`, entity: `${tripName} · ${date}` });
+    for (const day of itinerary) {
+      const label = `${tripName} · ${day.date || 'ohne Datum'}`;
+      if (!validIsoDate(day.date)) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Reisetag mit ungültigem Datum', detail: `Wert: ${day.date || 'leer'}.`, entity: label });
+      if (validIsoDate(day.date) && validIsoDate(trip.startDate) && day.date < trip.startDate) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'warn', title: 'Reisetag vor Reisebeginn', detail: `Der Tag liegt vor ${trip.startDate}.`, entity: label });
+      if (validIsoDate(day.date) && validIsoDate(trip.endDate) && day.date > trip.endDate) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'warn', title: 'Reisetag nach Reiseende', detail: `Der Tag liegt nach ${trip.endDate}.`, entity: label });
+      if (!VALID_ITINERARY_TYPES.has(day.type || 'unknown')) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'warn', title: 'Unbekannte Tagesart', detail: `Wert: ${day.type || 'leer'}.`, entity: label });
+      if (!validClockTime(day.arrival)) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'warn', title: 'Ungültige Ankunftszeit', detail: `Wert: ${day.arrival}. Erwartet wird HH:MM.`, entity: label });
+      if (!validClockTime(day.departure)) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'warn', title: 'Ungültige Abfahrtszeit', detail: `Wert: ${day.departure}. Erwartet wird HH:MM.`, entity: label });
+      if (day.type === 'port' && !String(day.port || day.location || '').trim()) addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'warn', title: 'Hafentag ohne Hafen', detail: 'Für die Tagesanzeige fehlt die Station.', entity: label });
+    }
+    if (trip.archived) {
+      const integrity = state.archiveIntegrity[trip.id];
+      if (integrity?.status === 'bad') addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'bad', title: 'Abschlussstand verändert', detail: integrity.detail || 'Die Prüfsumme stimmt nicht mehr.', entity: tripName });
+      else if (integrity?.status === 'warn') addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'warn', title: 'Abschlussprüfung nicht möglich', detail: integrity.detail || '', entity: tripName });
+      else if (integrity?.status === 'legacy') addDataDiagnosticIssue(result, { area: 'Reisen & Reiseverlauf', level: 'info', title: 'Archiv ohne Prüfsumme', detail: 'Die Reise wurde mit einer älteren Version abgeschlossen.', entity: tripName });
+    }
+  }
+
+  for (const [id, rows] of duplicateValues(state.persons, row => row.id)) addDataDiagnosticIssue(result, { area: 'Personen & Pakete', level: 'bad', title: 'Doppelte Personen-ID', detail: `${rows.length} Datensätze verwenden dieselbe ID.`, entity: id });
+  for (const person of persons) {
+    const trip = state.trips.find(row => row.id === person.tripId);
+    const name = diagnosticEntityName(person.name, person.id || 'Person');
+    if (!person.id) addDataDiagnosticIssue(result, { area: 'Personen & Pakete', level: 'bad', title: 'Person ohne ID', detail: 'Buchungen können nicht stabil zugeordnet werden.', entity: name });
+    if (!trip) addDataDiagnosticIssue(result, { area: 'Personen & Pakete', level: 'bad', title: 'Person ohne gültige Reise', detail: `Reise-ID: ${person.tripId || 'leer'}.`, entity: name });
+    if (!String(person.name || '').trim()) addDataDiagnosticIssue(result, { area: 'Personen & Pakete', level: 'warn', title: 'Personenname fehlt', detail: 'Die Person ist in Erfassung und Auswertung nicht eindeutig erkennbar.', entity: person.id });
+    const version = trip ? referenceVersionById(trip.packageVersionId || trip.barkarteVersionId || tripReferenceVersionId(trip)) : null;
+    const packageIds = new Set(normalizePackageDefinitions(version?.packages || []).map(row => row.id));
+    const packageId = person.packageId || 'none';
+    if (!['none', 'unclear'].includes(packageId) && !packageIds.has(packageId)) addDataDiagnosticIssue(result, { area: 'Personen & Pakete', level: 'bad', title: 'Getränkepaket nicht in Reiseversion enthalten', detail: `Paket-ID: ${packageId}.`, entity: `${name}${trip ? ` · ${trip.name}` : ''}` });
+    if (!Number.isFinite(Number(person.packagePrice)) || Number(person.packagePrice) < 0) addDataDiagnosticIssue(result, { area: 'Personen & Pakete', level: 'bad', title: 'Ungültiger Paketpreis', detail: `Wert: ${person.packagePrice}.`, entity: name });
+  }
+  const namesByTrip = duplicateValues(persons, row => `${row.tripId || ''}|${normalize(row.name)}`);
+  for (const [key, rows] of namesByTrip) {
+    const normalizedName = key.split('|')[1];
+    if (!normalizedName) continue;
+    const trip = state.trips.find(row => row.id === rows[0].tripId);
+    addDataDiagnosticIssue(result, { area: 'Personen & Pakete', level: 'warn', title: 'Personenname mehrfach vorhanden', detail: `${rows.length} Personen haben denselben Namen.`, entity: `${trip?.name || rows[0].tripId || 'Reise'} · ${rows[0].name}` });
+  }
+
+  for (const [mergeKey, rows] of duplicateValues(logs, row => row.mergeKey || `${row.trackedByDeviceId || ''}:${row.originId || row.id || ''}`)) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'bad', title: 'Doppelte Buchungsidentität', detail: `${rows.length} Buchungen besitzen denselben Merge-Key.`, entity: mergeKey });
+  for (const log of logs) {
+    const trip = state.trips.find(row => row.id === log.tripId);
+    const person = state.persons.find(row => row.id === log.personId);
+    const label = `${diagnosticEntityName(log.drinkName, log.drinkId || 'Getränk')} · ${formatDateTime(log.ts)}`;
+    if (!log.id) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'bad', title: 'Buchung ohne ID', detail: 'Die Buchung kann nicht sicher exportiert oder zusammengeführt werden.', entity: label });
+    if (!trip) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'bad', title: 'Buchung ohne gültige Reise', detail: `Reise-ID: ${log.tripId || 'leer'}.`, entity: label });
+    if (!person) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'bad', title: 'Buchung ohne gültige Person', detail: `Personen-ID: ${log.personId || 'leer'}.`, entity: label });
+    else if (trip && person.tripId !== trip.id) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'bad', title: 'Person und Reise widersprechen sich', detail: `Die Person gehört zu ${person.tripId}, die Buchung zu ${trip.id}.`, entity: label });
+    const timestamp = Number(log.ts);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'bad', title: 'Ungültiger Buchungszeitpunkt', detail: `Wert: ${log.ts}.`, entity: label });
+    else if (timestamp > Date.now() + 24 * 60 * 60 * 1000) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'warn', title: 'Buchung liegt in der Zukunft', detail: 'Bitte Datum und Uhrzeit des Geräts prüfen.', entity: label });
+    const price = Number(log.price);
+    if (!Number.isFinite(price) || price < 0) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'bad', title: 'Ungültiger Buchungspreis', detail: `Wert: ${log.price}.`, entity: label });
+    if (!VALID_PACKAGE_STATUSES.has(log.packageStatus || 'unclear')) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'bad', title: 'Ungültiger Paketstatus', detail: `Wert: ${log.packageStatus || 'leer'}.`, entity: label });
+    if (!log.mergeKey) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'warn', title: 'Merge-Key fehlt', detail: 'Die Dublettenerkennung beim Geräteabgleich ist eingeschränkt.', entity: label });
+    if (!log.trackedByDeviceId) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'warn', title: 'Herkunftsgerät fehlt', detail: 'Die Herkunft ist im Importprotokoll nicht eindeutig.', entity: label });
+    if (person && log.personName && normalize(person.name) !== normalize(log.personName)) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'info', title: 'Gespeicherter Personenname weicht ab', detail: `Aktuell: ${person.name}; gespeichert: ${log.personName}. Die Personen-ID bleibt maßgeblich.`, entity: label });
+    if (trip && Number.isFinite(timestamp)) {
+      const dateKey = localLogDayKey(timestamp);
+      if (validIsoDate(trip.startDate) && dateKey < trip.startDate) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'warn', title: 'Buchung vor Reisebeginn', detail: `Buchungstag ${dateKey}, Reisebeginn ${trip.startDate}.`, entity: label });
+      if (validIsoDate(trip.endDate) && dateKey > trip.endDate) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'warn', title: 'Buchung nach Reiseende', detail: `Buchungstag ${dateKey}, Reiseende ${trip.endDate}.`, entity: label });
+      if (log.itineraryDate && log.itineraryDate !== dateKey) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'warn', title: 'Reisetagskontext stimmt nicht mit Zeitpunkt überein', detail: `Gespeichert: ${log.itineraryDate}; aus Zeitpunkt: ${dateKey}.`, entity: label });
+    }
+    const reference = referenceDrinkForLog(log, trip);
+    if (!reference.version) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'warn', title: 'Buchungs-Barkartenversion fehlt', detail: `Version: ${log.barkarteVersionId || trip?.barkarteVersionId || 'keine'}. Historischer Preis bleibt gespeichert.`, entity: label });
+    else if (!reference.drink) addDataDiagnosticIssue(result, { area: 'Buchungen', level: 'warn', title: 'Getränk nicht in zugeordneter Barkartenversion', detail: 'Die Buchung bleibt mit ihrem gespeicherten Namen und Preis erhalten.', entity: label });
+  }
+
+  const versions = state.dataDiagnosticScope === 'all'
+    ? [...state.barkarten]
+    : state.barkarten.filter(row => versionsUsed.has(row.id));
+  if (!state.barkarten.length) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Keine Barkartenversion vorhanden', detail: 'Neue Erfassungen können nicht zuverlässig bewertet werden.' });
+  for (const [id, rows] of duplicateValues(state.barkarten, row => row.id)) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Doppelte Barkarten-ID', detail: `${rows.length} Versionen verwenden dieselbe ID.`, entity: id });
+  for (const version of versions) {
+    const versionName = diagnosticEntityName(version.version, version.id || 'Barkartenversion');
+    const drinks = Array.isArray(version.drinks) ? version.drinks : [];
+    const packages = normalizePackageDefinitions(version.packages || []);
+    if (!version.id) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Barkartenversion ohne ID', detail: 'Die Version kann Reisen nicht stabil zugeordnet werden.', entity: versionName });
+    if (!drinks.length) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Barkartenversion ohne Getränke', detail: 'Die Version ist für die Erfassung nicht nutzbar.', entity: versionName });
+    if (!packages.length) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'warn', title: 'Version ohne Paketdefinitionen', detail: 'Paketstatus können nur eingeschränkt geprüft werden.', entity: versionName });
+    for (const [id, rows] of duplicateValues(drinks, row => row.id)) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Doppelte Getränke-ID', detail: `${rows.length} Getränke verwenden dieselbe ID.`, entity: `${versionName} · ${id}` });
+    for (const [key, rows] of duplicateValues(drinks, row => `${normalize(row.name)}|${normalize(row.volume)}`)) {
+      if (!key.split('|')[0]) continue;
+      addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'warn', title: 'Getränk mehrfach benannt', detail: `${rows.length} Einträge haben denselben Namen und dieselbe Größenangabe.`, entity: `${versionName} · ${rows[0].name}` });
+    }
+    const packageIds = new Set(packages.map(row => row.id));
+    for (const drink of drinks) {
+      const drinkLabel = `${versionName} · ${diagnosticEntityName(drink.name, drink.id || 'Getränk')}`;
+      if (!drink.id) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Getränk ohne ID', detail: 'Buchungen und Versionsvergleiche können nicht sicher zuordnen.', entity: drinkLabel });
+      if (!String(drink.name || '').trim()) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Getränkename fehlt', detail: 'Der Artikel kann nicht sinnvoll ausgewählt werden.', entity: drinkLabel });
+      const price = Number(drink.price);
+      if (!Number.isFinite(price) || price < 0) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Ungültiger Getränkepreis', detail: `Wert: ${drink.price}.`, entity: drinkLabel });
+      if (!String(drink.category || '').trim()) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'warn', title: 'Getränk ohne Kategorie', detail: 'Filter und Kategorieauswertung sind eingeschränkt.', entity: drinkLabel });
+      for (const [packageId, status] of Object.entries(drink.packages || {})) {
+        if (!VALID_PACKAGE_STATUSES.has(status)) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'bad', title: 'Ungültiger Paketstatus am Getränk', detail: `${packageId}: ${status}.`, entity: drinkLabel });
+        if (!packageIds.has(packageId) && !['none', 'unclear'].includes(packageId)) addDataDiagnosticIssue(result, { area: 'Barkarten & Pakete', level: 'warn', title: 'Paketstatus ohne Paketdefinition', detail: `Paket-ID: ${packageId}.`, entity: drinkLabel });
+      }
+    }
+  }
+
+  result.storage = await collectStorageDiagnostic(result);
+  result.totals = { trips: trips.length, persons: persons.length, logs: logs.length, versions: versions.length, drinks: versions.reduce((sum, row) => sum + (Array.isArray(row.drinks) ? row.drinks.length : 0), 0) };
+  result.counts = result.items.reduce((acc, item) => { acc[item.level] = (acc[item.level] || 0) + 1; return acc; }, { bad: 0, warn: 0, info: 0, ok: 0 });
+  if (!result.counts.bad && !result.counts.warn) addDataDiagnosticIssue(result, { area: 'App & Speicher', level: 'ok', title: 'Keine kritischen Datenfehler gefunden', detail: 'Die geprüften Beziehungen, IDs, Zeiträume und Referenzstände sind konsistent.' });
+  result.items.sort((a, b) => (DATA_DIAGNOSTIC_LEVELS[a.level] ?? 9) - (DATA_DIAGNOSTIC_LEVELS[b.level] ?? 9) || DATA_DIAGNOSTIC_AREAS.indexOf(a.area) - DATA_DIAGNOSTIC_AREAS.indexOf(b.area) || a.title.localeCompare(b.title, 'de'));
+  result.counts = result.items.reduce((acc, item) => { acc[item.level] = (acc[item.level] || 0) + 1; return acc; }, { bad: 0, warn: 0, info: 0, ok: 0 });
+  result.checkedAt = nowIso();
+  state.dataDiagnostics = result;
+  dataDiagnosticsRunning = false;
+  render();
+  toast(result.counts.bad ? `${result.counts.bad} Datenfehler gefunden` : result.counts.warn ? `${result.counts.warn} Hinweise gefunden` : 'Datenprüfung ohne kritische Fehler abgeschlossen');
+}
+async function runDataDiagnostics() {
+  if (dataDiagnosticsRunning) return;
+  try {
+    await runDataDiagnosticsInternal();
+  } catch (error) {
+    console.error('Datenprüfung fehlgeschlagen.', error);
+    dataDiagnosticsRunning = false;
+    state.dataDiagnostics = {
+      running: false,
+      scope: state.dataDiagnosticScope,
+      scopeLabel: diagnosticScopeLabel(),
+      checkedAt: nowIso(),
+      items: [{ id: 'diagnostic_runtime_error', area: 'App & Speicher', level: 'bad', title: 'Datenprüfung abgebrochen', detail: error?.message || String(error), entity: '' }],
+      omitted: 0,
+      counts: { bad: 1, warn: 0, info: 0, ok: 0 },
+      totals: { trips: 0, persons: 0, logs: 0, versions: 0, drinks: 0 },
+      storage: null
+    };
+    render();
+    alert(`Datenprüfung konnte nicht abgeschlossen werden: ${error?.message || error}`);
+  }
+}
+function dataDiagnosticStatus() {
+  const diagnostic = state.dataDiagnostics;
+  if (!diagnostic) return { level: 'neutral', label: 'Noch nicht geprüft' };
+  if (diagnostic.running) return { level: 'info', label: 'Prüfung läuft' };
+  if (diagnostic.counts?.bad) return { level: 'bad', label: `${diagnostic.counts.bad} Fehler` };
+  if (diagnostic.counts?.warn) return { level: 'warn', label: `${diagnostic.counts.warn} Hinweise` };
+  return { level: 'ok', label: 'Daten konsistent' };
+}
+function dataDiagnosticFindingHtml(item) {
+  const mark = item.level === 'bad' ? '!' : item.level === 'warn' ? '!' : item.level === 'ok' ? '✓' : 'i';
+  return `<article class="dataDiagnosticFinding ${esc(item.level)}"><span class="dataDiagnosticMark" aria-hidden="true">${mark}</span><div><b>${esc(item.title)}</b>${item.entity ? `<small class="dataDiagnosticEntity">${esc(item.entity)}</small>` : ''}<p>${esc(item.detail)}</p></div></article>`;
+}
+function dataDiagnosticResultsHtml() {
+  const diagnostic = state.dataDiagnostics;
+  if (!diagnostic) return `<div class="card dataDiagnosticEmpty"><b>Noch keine Datenprüfung durchgeführt.</b><p>Die Prüfung liest lokale Daten ausschließlich aus und verändert keine Reise, Buchung oder Barkartenversion.</p></div>`;
+  if (diagnostic.running) return `<div class="card dataDiagnosticRunning"><span class="diagnosticSpinner" aria-hidden="true"></span><div><b>Datenbestand wird geprüft …</b><p>Reisen, Personen, Buchungen, Barkartenstände und Speicher werden miteinander abgeglichen.</p></div></div>`;
+  const counts = diagnostic.counts || {};
+  const groups = DATA_DIAGNOSTIC_AREAS.map(area => ({ area, items: diagnostic.items.filter(item => item.area === area) })).filter(group => group.items.length);
+  return `<div class="card dataDiagnosticSummaryCard"><div class="sectionHead"><div><h2>Prüfergebnis</h2><p class="hint">${esc(diagnostic.scopeLabel)} · ${esc(formatDateTime(diagnostic.checkedAt))}</p></div><span class="diagnosticSummary ${esc(dataDiagnosticStatus().level)}">${esc(dataDiagnosticStatus().label)}</span></div><div class="dataDiagnosticKpis"><span class="bad"><b>${Number(counts.bad || 0)}</b>Fehler</span><span class="warn"><b>${Number(counts.warn || 0)}</b>Hinweise</span><span class="info"><b>${Number(counts.info || 0)}</b>Informationen</span><span><b>${Number(diagnostic.totals?.logs || 0)}</b>Buchungen geprüft</span></div><div class="referenceVersionMeta"><span>${Number(diagnostic.totals?.trips || 0)} Reisen</span><span>${Number(diagnostic.totals?.persons || 0)} Personen</span><span>${Number(diagnostic.totals?.versions || 0)} Referenzversionen</span><span>${Number(diagnostic.totals?.drinks || 0)} Getränke</span></div>${diagnostic.omitted ? `<p class="warnText">${diagnostic.omitted} weitere Feststellungen wurden aus Darstellungsgründen nicht aufgelistet.</p>` : ''}</div>${groups.map(group => `<section class="card dataDiagnosticGroup"><div class="sectionHead"><h2>${esc(group.area)}</h2><span class="subtle">${group.items.length}</span></div><div class="dataDiagnosticFindings">${group.items.map(dataDiagnosticFindingHtml).join('')}</div></section>`).join('')}<div class="card"><h2>Prüfbericht</h2><p class="hint">Der JSON-Bericht enthält ausschließlich technische Metadaten und die aufgelisteten Feststellungen. Er verändert keine App-Daten.</p><button class="secondary" data-action="exportDataDiagnostics">Prüfbericht exportieren</button></div>`;
+}
+function viewDataDiagnostics() {
+  const status = dataDiagnosticStatus();
+  return `<section class="screen dataDiagnosticsScreen"><div class="sectionHead"><h1>Datenprüfung & Diagnose</h1><button class="mini" data-route="settings">Zurück</button></div>${activeTripContextHtml()}<div class="card dataDiagnosticControl"><div class="sectionHead"><div><h2>Prüfumfang</h2><p class="hint">CruiseSip prüft Verknüpfungen und Plausibilität. Es werden keine automatischen Korrekturen vorgenommen.</p></div><span class="diagnosticSummary ${esc(status.level)}">${esc(status.label)}</span></div><div class="effectsSwitch dataDiagnosticScope" role="group" aria-label="Prüfumfang wählen"><button class="${state.dataDiagnosticScope === 'current' ? 'active' : ''}" data-action="setDataDiagnosticScope" data-id="current" aria-pressed="${state.dataDiagnosticScope === 'current'}">Aktuelle Reise</button><button class="${state.dataDiagnosticScope === 'all' ? 'active' : ''}" data-action="setDataDiagnosticScope" data-id="all" aria-pressed="${state.dataDiagnosticScope === 'all'}">Alle Daten</button></div><button class="primary" data-action="runDataDiagnostics" ${dataDiagnosticsRunning ? 'disabled' : ''}>${dataDiagnosticsRunning ? 'Prüfung läuft …' : 'Daten jetzt prüfen'}</button><p class="hint">Bei Fehlern zuerst ein vollständiges Backup erstellen. Unklare Datensätze werden nicht automatisch verändert oder gelöscht.</p></div>${dataDiagnosticResultsHtml()}</section>`;
+}
+async function exportDataDiagnostics() {
+  const diagnostic = state.dataDiagnostics;
+  if (!diagnostic || diagnostic.running) { alert('Bitte zuerst eine Datenprüfung durchführen.'); return; }
+  const payload = {
+    type: 'CruiseSipDataDiagnosticReport',
+    formatVersion: 1,
+    createdAt: nowIso(),
+    app: { version: APP_VERSION, build: APP_BUILD, databaseVersion: DB_VERSION },
+    device: { id: state.settings.deviceId || '', name: state.settings.deviceName || '' },
+    scope: diagnostic.scope,
+    scopeLabel: diagnostic.scopeLabel,
+    checkedAt: diagnostic.checkedAt,
+    counts: diagnostic.counts,
+    totals: diagnostic.totals,
+    storage: diagnostic.storage,
+    omitted: diagnostic.omitted || 0,
+    findings: diagnostic.items.map(item => ({ area: item.area, level: item.level, title: item.title, entity: item.entity, detail: item.detail }))
+  };
+  const result = await saveJsonFile(`CruiseSip_Datenpruefung_${new Date().toISOString().slice(0, 10)}.json`, payload, { title: 'CruiseSip Datenprüfung' });
+  if (!result.cancelled) toast(result.method === 'share' ? 'Prüfbericht zum Speichern bereitgestellt' : 'Prüfbericht heruntergeladen');
+}
+
 function viewSettings() {
   const b = activeBarkarteVersion();
   return `
     <section class="screen">
       <div class="sectionHead"><h1>Einstellungen</h1><span class="subtle">${esc(APP_VERSION)}</span></div>
       ${activeTripContextHtml()}
-      <div class="card"><h2>Verwaltung</h2><div class="buttonStack"><button class="secondary" data-route="trips">Reisen verwalten</button><button class="secondary" data-route="devices">Geräte & Personen</button><button class="secondary" data-route="barkarte">Barkarte verwalten</button></div></div>
+      <div class="card"><h2>Verwaltung</h2><div class="buttonStack"><button class="secondary" data-route="trips">Reisen verwalten</button><button class="secondary" data-route="devices">Geräte & Personen</button><button class="secondary" data-route="barkarte">Barkarte verwalten</button><button class="secondary" data-route="diagnostics">Datenprüfung & Diagnose</button></div></div>
       <div class="card"><h2>Status</h2>
         ${infoRow('App-Version', APP_VERSION)}
         ${infoRow('Build', APP_BUILD)}
@@ -6095,6 +6403,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.5.0</h2>
+  <ul>
+    <li>Neue zentrale Datenprüfung für die aktuelle Reise oder den gesamten lokalen Datenbestand.</li>
+    <li>Prüft Reisen, Reiseverläufe, Personen, Paketzuordnungen, Buchungen, Barkartenstände, Referenzversionen und Speicherbelegung.</li>
+    <li>Fehler, Hinweise und Informationen werden nach Bereichen getrennt angezeigt; CruiseSip verändert oder löscht dabei keine Daten.</li>
+    <li>Archiv-Prüfsummen, fehlende Verknüpfungen, Dubletten, ungültige Zeiträume und nicht auflösbare Referenzen werden sichtbar markiert.</li>
+    <li>Das Prüfergebnis kann als lokaler JSON-Bericht exportiert werden.</li>
+  </ul>
   <h2>Version 5.4.1</h2>
   <ul>
     <li>Reisetage können unter Reisen einzeln ergänzt, bearbeitet und gelöscht werden.</li>
