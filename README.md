@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.3.0** (Build **5.3.0a**)
+Aktuelle Entwicklungsfassung: **5.3.1** (Build **5.3.1a**)
 
-Version 5.3.0 versioniert Barkarten und Getränkepakete vollständig. Jede Reise bleibt mit ihrem verwendeten Preis- und Paketstand verknüpft. Neue Dateien werden vor dem Speichern verglichen und können nur abgelegt, für die aktuelle Reise aktiviert oder als Standard für neue Reisen festgelegt werden. Lokale Artikeländerungen erzeugen bei Bedarf eine abgeleitete Arbeitsversion. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 5.3.1 ergänzt die direkte Zuordnung einer Barkarten- und Paketversion beim Anlegen und Bearbeiten einer Reise. Vor der ersten Buchung kann die Version ohne Zusatzdialog gewechselt werden. Bei vorhandenen Buchungen kann entweder nur für neue Erfassungen umgestellt oder zunächst eine konservative Prüfvorschau geöffnet werden. Unklare Buchungen bleiben unangetastet. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v5.3.0 Versionierte Barkarten und Pakete`.
+4. Commit erstellen, z. B. `CruiseSip v5.3.1 Barkartenversion je Reise`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.3.0` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.3.1` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur

@@ -112,3 +112,7 @@ Die Buchungssätze selbst behalten Preis und Paketstatus als historischen Erfass
 
 Reiseexporte können `referenceDataVersion` enthalten. Beim Geräteimport wird eine fehlende vollständige Version in `barkarten` ergänzt. Vollbackups prüfen, dass referenzierte Versionen im Datenbestand vorhanden sind.
 
+
+## Ergänzung v5.3.1 – Versionsbezug von Buchungen
+
+Neue Buchungen und Buchungen, die über die kontrollierte Versionsprüfung aktualisiert werden, können zusätzlich `barkarteVersionId` und `packageVersionId` enthalten. Ältere Buchungen ohne diese optionalen Felder bleiben vollständig gültig; maßgeblich bleiben der direkt gespeicherte Preis und Paketstatus.

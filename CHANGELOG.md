@@ -1,5 +1,17 @@
 # Changelog
 
+## 5.3.1 – Barkartenversion direkt an der Reise
+
+- Beim manuellen Anlegen, beim Onboarding und beim Import eines Reiseverlaufs kann die Barkarten- und Paketversion unmittelbar ausgewählt werden.
+- Unter „Reisen → Bearbeiten“ lässt sich eine falsch zugeordnete Version gezielt für genau diese Reise korrigieren.
+- Ohne vorhandene Buchungen wird die Version ohne zusätzliche Rückfrage gewechselt.
+- Bei vorhandenen Buchungen stehen „nur für neue Erfassungen“ und „bestehende Buchungen prüfen“ zur Auswahl.
+- Die Prüfvorschau trennt eindeutig zuordenbare, geänderte und unklare Buchungen. Unklare Buchungen werden niemals automatisch verändert.
+- Vor einem Wechsel mit vorhandenen Buchungen wird automatisch ein interner Wiederherstellungspunkt erstellt.
+- Bei einer bestätigten Aktualisierung werden nur eindeutig zuordenbare Buchungen auf Preis, Kategorie und Paketstatus der neuen Version umgestellt.
+- Neue und kontrolliert aktualisierte Buchungen speichern zusätzlich die verwendete Barkarten- und Paketversions-ID.
+- IndexedDB-Version bleibt `2`; App- und Service-Worker-Build wurden auf `5.3.1a` erhöht.
+
 ## 5.3.0 – Versionierte Barkarten und Getränkepakete
 
 - Barkarten und Paketdefinitionen werden als vollständige Referenzversionen im bestehenden Store `barkarten` gespeichert.

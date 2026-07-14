@@ -1,50 +1,59 @@
-# Testbericht CruiseSip v5.3.0a
+# Testbericht CruiseSip v5.3.1a
 
 Prüfdatum: 14.07.2026
 
 ## Automatisch erfolgreich geprüft
 
 - JavaScript-Syntax mit Node.js.
-- Versions-, Build- und Cachekennungen auf `5.3.0` / `5.3.0a` abgeglichen.
+- Versions-, Build- und Cachekennungen auf `5.3.1` / `5.3.1a` abgeglichen.
 - Alle JSON-Dateien erfolgreich geparst.
 - Mitgelieferte Barkarte enthält weiterhin 233 Getränke.
-- Sämtliche 30 Service-Worker-Ressourcen sind im Projekt vorhanden.
-- CSS-Klammerstruktur ist ausgeglichen; alle verwendeten v5.3-Farbvariablen sind definiert.
-- Kritische v5.3-Funktionen sind jeweils nur einmal vorhanden.
+- Sämtliche im Service Worker genannten Ressourcen sind im Projekt vorhanden.
+- CSS-Klammerstruktur ist ausgeglichen.
 - ZIP-Integrität wurde ohne Fehler geprüft; eine SHA-256-Prüfsumme wurde erzeugt.
 
-## Funktionstests der Versionierungslogik
+## Funktionstests v5.3.1
 
-Erfolgreich getestet wurden:
+Die tatsächlichen Funktionen zur Prüfvorschau wurden aus `app.js` isoliert ausgeführt. Erfolgreich geprüft wurden:
 
-- Normalisierung deutscher Dezimalpreise und Paketstatus.
-- Ergänzung der systemseitigen Paketdefinitionen `none` und `unclear`.
-- Aufbau einer vollständigen Referenzversion mit Getränken und Paketen.
-- Auswahl der zur aktuellen Reise gehörenden Referenzversion.
-- CSV-Import mit Semikolon und Dezimalkomma.
-- Vergleich neuer und entfallener Getränke.
-- Erkennung von Preis-, Kategorie- und Paketstatusänderungen.
-- Erkennung neuer und geänderter Paketdefinitionen.
-- Paket-only-JSON-Import mit Übernahme der aktuellen Getränkeliste.
-- Barkarten-only-Import mit Übernahme der aktuellen Paketdefinitionen.
-- Kollision zweier inhaltlich unterschiedlicher Referenzversionen mit gleicher ID beim Geräteabgleich: Die importierte Version erhält eine getrennte ID und die importierte Reise verweist auf diese Variante.
-- Kollision einer Referenzversion beim ergänzenden Vollbackup: Die Vorschau behandelt den abweichenden Stand als getrennt zu speichernde Version statt als überschreibbaren Konflikt.
-- Vollbackup-Prüfung berücksichtigt Getränke-IDs aus allen enthaltenen Referenzversionen.
+- Zuordnung einer Buchung über identische Artikel-ID.
+- Ersatzweise eindeutige Zuordnung über den normalisierten Getränkenamen.
+- Kennzeichnung einer geänderten Artikel-ID als kontrollierte Änderung.
+- Erkennung von Preisänderungen.
+- Erkennung von Änderungen des Paketstatus.
+- Erkennung fehlender Getränke als `unklar`.
+- Zusammenfassung in Gesamtzahl, eindeutig zuordenbar, geändert und unklar.
+- Quellcodeprüfung der beiden Entscheidungswege „nur für neue Erfassungen“ und „bestehende Buchungen prüfen“.
+- Quellcodeprüfung der automatischen Wiederherstellung vor einem Wechsel mit vorhandenen Buchungen.
+
+Der Testfall enthielt drei Buchungen:
+
+- zwei eindeutig zuordenbare und geänderte Buchungen,
+- davon eine Zuordnung über die Artikel-ID und eine über den Getränkenamen,
+- eine nicht zuordenbare Buchung, die unverändert bleiben muss.
+
+Erwartetes und ermitteltes Ergebnis: `3 gesamt / 2 eindeutig / 2 geändert / 1 unklar`.
 
 ## Statische Integrationsprüfung
 
-- `index.html`, `app.js` und `sw.js` verwenden denselben Build.
-- Die neue Dokumentation `BARKARTEN_VERSIONIERUNG_V53.md` ist im Offline-Cache enthalten.
-- Reiseexport, Importvorschau, Importprotokoll und Vollbackup enthalten beziehungsweise berücksichtigen Referenzversionen.
-- Bestehende IndexedDB-Version 2 und alle bisherigen Stores bleiben erhalten.
+- Die Versionsauswahl ist im manuellen Reiseformular vorhanden.
+- Die Versionsauswahl ist im Onboarding vorhanden.
+- Die Versionsauswahl ist in der Importvorschau eines Reiseverlaufs vorhanden.
+- Unter „Reisen → Bearbeiten“ werden bei vorhandenen Buchungen beide Wechselmodi angeboten.
+- Neue und kontrolliert aktualisierte Buchungen können die verwendete Barkarten- und Paketversions-ID speichern.
+- Die IndexedDB-Version bleibt `2`; bestehende Stores und Datenformate bleiben erhalten.
+- Die neue Dokumentation `REISE_BARKARTENVERSION_V531.md` ist im Offline-Cache enthalten.
+
+## Einschränkung der Entwicklungsumgebung
+
+Ein vollständiger Browser-Automationstest über einen lokalen Webserver war in der Entwicklungsumgebung nicht möglich, weil lokale Webseiten durch eine Organisationsrichtlinie des bereitgestellten Chromium-Browsers blockiert werden. JavaScript-Syntax, isolierte Funktionslogik, Projektstruktur und Offline-Ressourcen wurden stattdessen automatisiert geprüft.
 
 ## Noch auf dem Zielgerät zu prüfen
 
-- Update einer bereits installierten v5.2-PWA auf v5.3 ohne Verlust lokaler Reisen.
-- Sichtbare Darstellung der Versionskarten auf dem verwendeten iPhone.
-- Import einer realen Barkarten-JSON-, Paket-only-JSON- und CSV-Datei aus der Dateien-App.
-- Wechsel einer Reise auf eine neue Version und anschließende Erfassung.
-- Reiseexport auf ein zweites Gerät einschließlich automatischer Übernahme der Referenzversion.
+- Update einer installierten v5.3.0-PWA auf v5.3.1 ohne Verlust lokaler Daten.
+- Auswahl einer Barkartenversion beim Anlegen einer Testreise.
+- Wechsel einer leeren Reise ohne Zusatzdialog.
+- Wechsel einer Reise mit Buchungen über „nur für neue Erfassungen“.
+- Prüfvorschau mit einer absichtlich geänderten Testkarte.
+- Wiederherstellungspunkt vor der bestätigten Änderung.
 - Start im Flugmodus nach vollständigem Service-Worker-Update.
-
-Die Zielgeräteprüfung ist erforderlich, weil iOS-Safari, Teilen-Menü und PWA-Cache nicht vollständig in der Entwicklungsumgebung simuliert werden können.

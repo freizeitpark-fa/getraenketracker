@@ -1485,3 +1485,25 @@ html[data-route="track"] .drinkSortControl.compact select{height:34px!important;
 .barkarteComparisonDetails{border:1px solid var(--line);border-radius:13px;background:var(--cardSolid);overflow:hidden}.barkarteComparisonDetails summary{padding:10px 11px;cursor:pointer;font-size:11px;font-weight:850}.comparisonList{display:grid;gap:6px;border-top:1px solid var(--line);padding:9px}.comparisonList>div{display:grid;gap:2px;border-radius:10px;background:color-mix(in srgb,var(--bg) 62%,var(--cardSolid));padding:7px}.comparisonList b{font-size:10px;overflow-wrap:anywhere}.comparisonList small{color:var(--muted);font-size:9px;line-height:1.35;overflow-wrap:anywhere}
 @media(max-width:520px){.barkarteComparisonGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.referenceVersionHead{grid-template-columns:1fr}.referenceVersionHead strong{justify-self:start}.referenceVersionActions{display:grid;grid-template-columns:1fr}.referenceVersionActions .mini{width:100%}}
 @media(min-width:800px){.referenceVersionList{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* CruiseSip v5.3.1: Barkartenversion direkt an der Reise verwalten */
+.tripReferenceField small{display:block;color:var(--muted);font-size:10px;line-height:1.4}
+.tripVersionNoLogs{display:grid;gap:3px;border:1px solid color-mix(in srgb,var(--ok) 28%,var(--line));border-radius:15px;background:color-mix(in srgb,var(--ok) 6%,var(--cardSolid));padding:10px}
+.tripVersionNoLogs b{font-size:12px;color:var(--ok)}
+.tripVersionNoLogs span{font-size:10px;color:var(--muted);line-height:1.4}
+.tripVersionMode{display:grid;gap:8px;margin:0;padding:10px;border:1px solid var(--line);border-radius:16px;background:var(--cardSolid)}
+.tripVersionMode legend{padding:0 5px;color:var(--muted);font-size:10px;font-weight:850}
+.tripVersionModeOption{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:start;border:1px solid var(--line);border-radius:13px;padding:9px;background:color-mix(in srgb,var(--bg) 58%,var(--cardSolid));cursor:pointer}
+.tripVersionModeOption input{width:18px;height:18px;margin:1px 0 0;accent-color:var(--brand)}
+.tripVersionModeOption b,.tripVersionModeOption small{display:block}
+.tripVersionModeOption b{font-size:12px;color:var(--text)}
+.tripVersionModeOption small{margin-top:3px;color:var(--muted);font-size:9px;line-height:1.4}
+.tripVersionReviewCard{display:grid;gap:12px;border-color:color-mix(in srgb,var(--brand) 34%,var(--line))}
+.tripVersionReviewCard .eyebrow{color:var(--brand2);margin-bottom:4px}
+.tripVersionReviewCard .sectionHead{align-items:flex-start}
+.tripVersionReviewList{display:grid;gap:7px}
+.tripVersionReviewItem{display:grid;gap:3px;border:1px solid var(--line);border-radius:13px;background:var(--cardSolid);padding:9px}
+.tripVersionReviewItem.changed{border-color:color-mix(in srgb,var(--brand) 28%,var(--line))}
+.tripVersionReviewItem.unclear{border-color:color-mix(in srgb,var(--warn) 36%,var(--line));background:color-mix(in srgb,var(--warn) 5%,var(--cardSolid))}
+.tripVersionReviewItem b{font-size:11px;line-height:1.35}
+.tripVersionReviewItem small{color:var(--muted);font-size:9px;line-height:1.45}

@@ -58,3 +58,7 @@ Eine Version kann nicht gelöscht werden, wenn sie:
 - oder zur mitgelieferten Stammversion gehört.
 
 Nur ungenutzte Import- oder Arbeitsversionen können gelöscht werden.
+
+## Reisebearbeitung ab v5.3.1
+
+Die einer Reise zugeordnete Referenzversion kann direkt unter **Reisen → Bearbeiten** gewählt werden. Ohne Buchungen erfolgt der Wechsel unmittelbar. Bei vorhandenen Buchungen kann entweder nur für zukünftige Erfassungen gewechselt oder eine konservative Prüfvorschau geöffnet werden.

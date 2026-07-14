@@ -1,3 +1,13 @@
+## Version 5.3.1 Barkartenversion je Reise
+
+- direkte Versionsauswahl beim manuellen Anlegen einer Reise
+- direkte Versionsauswahl im Onboarding und beim Reiseverlaufsimport
+- Korrektur einer falschen Version unter „Reisen → Bearbeiten“
+- einfacher Wechsel vor der ersten Buchung
+- konservative Prüfvorschau bei vorhandenen Buchungen
+- automatische Sicherung vor Änderungen bestehender Reisedaten
+- unklare Zuordnungen bleiben unverändert
+
 ## Version 5.3.0 Versionierte Barkarten und Getränkepakete
 
 - vollständige Referenzversionen mit Getränken und Paketdefinitionen

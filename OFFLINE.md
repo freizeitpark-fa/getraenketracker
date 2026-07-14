@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 5.3.0**, Build **5.3.0a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 5.3.1**, Build **5.3.1a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -13,6 +13,11 @@ Aktueller Stand: **CruiseSip 5.3.0**, Build **5.3.0a**. Neue Reisen können voll
 7. Onboarding durchlaufen.
 8. Backup-Test ausführen.
 9. Kurz den Flugmodus aktivieren und CruiseSip erneut öffnen.
+
+
+## Barkartenversion vor der Reise auswählen
+
+Ab Version 5.3.1 kann die passende Barkarten- und Paketversion direkt beim Anlegen einer Reise gewählt werden. Dies funktioniert auch beim Import eines Reiseverlaufs. Liegt vor Reisebeginn eine falsche Zuordnung vor, kann sie unter **Reisen → Bearbeiten** ohne Zusatzdialog korrigiert werden, solange noch keine Getränke erfasst wurden.
 
 ## Nutzung an Bord ohne Internet
 

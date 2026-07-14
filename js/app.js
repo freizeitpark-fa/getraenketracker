@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.3.0';
-const APP_CACHE_NAME = 'cruisesip-v5-3-0-20260714a';
-const APP_BUILD = '5.3.0a';
-const SERVICE_WORKER_URL = './sw.js?v=5.3.0a';
+const APP_VERSION = '5.3.1';
+const APP_CACHE_NAME = 'cruisesip-v5-3-1-20260714a';
+const APP_BUILD = '5.3.1a';
+const SERVICE_WORKER_URL = './sw.js?v=5.3.1a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -90,6 +90,7 @@ let state = {
   pendingBackup: null,
   pendingTripImport: null,
   pendingTripClosure: null,
+  pendingTripVersionChange: null,
   pendingItineraryImport: null,
   pendingBarkarteImport: null,
   tripSetupWizard: { step: null, tripId: null, exported: false },
@@ -1137,6 +1138,9 @@ async function handleClick(event) {
   if (action === 'editTrip') { resetTripSetupWizard(); fillTripForm(id); return; }
   if (action === 'archiveTrip') { const trip = tripById(id); if (trip?.archived) await reactivateTrip(id); else prepareTripClosure(id); return; }
   if (action === 'cancelTripClosure') { state.pendingTripClosure = null; render(); return; }
+  if (action === 'cancelTripVersionChange') { state.pendingTripVersionChange = null; render(); return; }
+  if (action === 'applyTripVersionFuture') { await runActionOnce('applyTripVersionFuture', () => applyPendingTripVersionChange(false)); return; }
+  if (action === 'applyTripVersionUpdate') { await runActionOnce('applyTripVersionUpdate', () => applyPendingTripVersionChange(true)); return; }
   if (action === 'confirmTripClosure') { await runActionOnce('confirmTripClosure', () => confirmTripClosure(id)); return; }
   if (action === 'deleteTrip') { await deleteTrip(id); return; }
   if (action === 'importItinerary') { startTripSetupWizard('import'); openFile('itinerary'); return; }
@@ -1144,6 +1148,7 @@ async function handleClick(event) {
   if (action === 'applyItineraryImport') { await runActionOnce('applyItineraryImport', applyPreparedItineraryImport); return; }
   if (action === 'clearItinerary') { await clearCurrentItinerary(); return; }
   if (action === 'resetTripForm') {
+    state.pendingTripVersionChange = null;
     if (state.editingTripId) { state.editingTripId = null; clearDraft('trip'); render(); }
     else { clearDraft('trip'); render(); requestAnimationFrame(() => $('#tripNameInput')?.focus()); }
     return;
@@ -1630,6 +1635,13 @@ function bindInputs() {
       renderArticleList();
     });
   }
+  $$('#tripVersionInput, #onboardingTripVersion, #importTripVersionInput').forEach(select => {
+    select.addEventListener('change', () => {
+      const record = referenceVersionById(select.value);
+      const hint = select.closest('.tripReferenceField')?.querySelector('small');
+      if (hint) hint.textContent = record ? `${record.source || 'Ohne Quellenangabe'} · ${Number(record.packages?.length || record.packageCount || 0)} Paketdefinitionen` : 'Diese Version ist nicht verfügbar.';
+    });
+  });
   const dateInputs = $$('.dateDefaultToday');
   dateInputs.forEach(input => { if (!input.value) input.value = new Date().toISOString().slice(0, 10); });
 }
@@ -1657,6 +1669,7 @@ function viewOnboarding() {
         <div class="formField"><label for="onboardingTripName">Reisename</label><input id="onboardingTripName" name="name" required placeholder="z. B. AIDA Sommer 2026" value="${esc(draftValue('onboardingTrip', 'name', currentTrip()?.name || ''))}"></div>
         <div class="formField"><label for="onboardingTripShip">Schiff</label><input id="onboardingTripShip" name="ship" placeholder="z. B. AIDAcosma" value="${esc(draftValue('onboardingTrip', 'ship', currentTrip()?.ship || ''))}"></div>
         <div class="twoCols"><div class="formField"><label for="onboardingTripStart">Start</label><input id="onboardingTripStart" name="startDate" type="date" value="${esc(draftValue('onboardingTrip', 'startDate', currentTrip()?.startDate || ''))}"></div><div class="formField"><label for="onboardingTripEnd">Ende</label><input id="onboardingTripEnd" name="endDate" type="date" value="${esc(draftValue('onboardingTrip', 'endDate', currentTrip()?.endDate || ''))}"></div></div>
+        ${tripVersionFieldHtml(currentTrip(), 'onboardingTrip')}
         <button class="primary" type="submit">Reise speichern</button>
       </form>
       <div class="buttonStack">
@@ -3171,6 +3184,7 @@ function itineraryImportPreviewHtml() {
     <div class="backupPreviewHead"><div><b>Importvorschau – neue Reise</b><small>${esc(validation.fileName)} · Noch keine Daten verändert</small></div><span class="diagnosticSummary ${validation.warnings.length ? 'warn' : 'ok'}">${validation.warnings.length ? 'Hinweise prüfen' : 'Bereit'}</span></div>
     <div class="formField"><label for="importTripNameInput">Reisename</label><input id="importTripNameInput" value="${esc(validation.trip.name)}" placeholder="Reisename"></div>
     <div class="formField"><label for="importTripShipInput">Schiff</label><input id="importTripShipInput" value="${esc(validation.trip.ship)}" placeholder="Schiffsname"></div>
+    <div class="formField tripReferenceField"><label for="importTripVersionInput">Barkarten- und Paketversion</label><select id="importTripVersionInput" required>${referenceVersionOptionsHtml(defaultBarkarteVersionId())}</select><small>Die ausgewählte Version wird ausschließlich dieser neuen Reise zugeordnet.</small></div>
     <div class="tripImportSummary"><span><b>${validation.summary.days}</b> Reisetage</span><span><b>${validation.summary.ports}</b> Hafentage</span><span><b>${validation.summary.seaDays}</b> Seetage</span><span><b>${esc(formatDate(validation.summary.startDate))}</b> bis ${esc(formatDate(validation.summary.endDate))}</span></div>
     ${validation.warnings.length ? `<div class="backupMessages warn">${validation.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
     <details class="itineraryDetails" open><summary>Geprüften Verlauf anzeigen</summary><div class="itineraryPreviewList">${validation.days.map(itineraryDayRowHtml).join('')}</div></details>
@@ -3193,6 +3207,8 @@ async function applyPreparedItineraryImport() {
   const name = String($('#importTripNameInput')?.value || validation.trip.name || '').trim();
   const ship = String($('#importTripShipInput')?.value || validation.trip.ship || '').trim();
   if (!name) { alert('Bitte gib einen Reisenamen ein.'); $('#importTripNameInput')?.focus(); return; }
+  const selectedVersionId = String($('#importTripVersionInput')?.value || defaultBarkarteVersionId());
+  if (!referenceVersionAvailable(referenceVersionById(selectedVersionId))) throw new Error('Bitte eine verfügbare Barkarten- und Paketversion auswählen.');
   const id = `trip_${uid()}`;
   const timestamp = nowIso();
   const trip = {
@@ -3201,8 +3217,8 @@ async function applyPreparedItineraryImport() {
     ship,
     startDate: validation.summary.startDate,
     endDate: validation.summary.endDate,
-    barkarteVersionId: defaultBarkarteVersionId(),
-    packageVersionId: defaultPackageVersionId() || defaultBarkarteVersionId(),
+    barkarteVersionId: selectedVersionId,
+    packageVersionId: selectedVersionId,
     archived: false,
     itinerary: validation.days,
     itineraryImportedAt: timestamp,
@@ -3248,6 +3264,24 @@ function tripSetupWizardHtml() {
   if (wizard.step === 'importPreview') return `<div class="card tripSetupWizard" id="tripSetupWizard">${itineraryImportPreviewHtml()}</div>`;
   return '';
 }
+function referenceVersionOptionsHtml(selectedId = '') {
+  const rows = state.barkarten.filter(referenceVersionAvailable);
+  const options = rows.map(record => `<option value="${esc(record.id)}" ${record.id === selectedId ? 'selected' : ''}>${esc(record.version || record.id)} · ${Number(record.drinks?.length || record.count || 0)} Getränke</option>`);
+  if (selectedId && !rows.some(record => record.id === selectedId)) options.unshift(`<option value="${esc(selectedId)}" selected>Nicht verfügbare bisherige Version</option>`);
+  return options.join('');
+}
+function tripVersionFieldHtml(edit = null, draftSection = 'trip') {
+  const selectedId = draftValue(draftSection, 'barkarteVersionId', edit?.barkarteVersionId || defaultBarkarteVersionId());
+  const selected = referenceVersionById(selectedId);
+  return `<div class="formField tripReferenceField"><label for="${draftSection === 'onboardingTrip' ? 'onboardingTripVersion' : 'tripVersionInput'}">Barkarten- und Paketversion</label><select id="${draftSection === 'onboardingTrip' ? 'onboardingTripVersion' : 'tripVersionInput'}" name="barkarteVersionId" required>${referenceVersionOptionsHtml(selectedId)}</select><small>${selected ? `${esc(selected.source || 'Ohne Quellenangabe')} · ${Number(selected.packages?.length || selected.packageCount || 0)} Paketdefinitionen` : 'Bitte zuerst unter Setup → Barkarte eine Version importieren.'}</small></div>`;
+}
+function tripVersionModeHtml(edit = null) {
+  if (!edit) return '';
+  const logCount = state.logs.filter(log => (log.tripId || activeTripId()) === edit.id).length;
+  if (!logCount) return `<div class="tripVersionNoLogs"><b>Noch keine Erfassungen</b><span>Die Barkartenversion kann ohne weitere Prüfung gewechselt werden.</span></div>`;
+  const selectedMode = draftValue('trip', 'versionChangeMode', 'future');
+  return `<fieldset class="tripVersionMode"><legend>Falls die Barkartenversion geändert wird</legend><label class="tripVersionModeOption"><input type="radio" name="versionChangeMode" value="future" ${selectedMode !== 'review' ? 'checked' : ''}><span><b>Nur für neue Erfassungen verwenden</b><small>${logCount} bestehende Buchung${logCount === 1 ? '' : 'en'} behalten Preis und Paketstatus.</small></span></label><label class="tripVersionModeOption"><input type="radio" name="versionChangeMode" value="review" ${selectedMode === 'review' ? 'checked' : ''}><span><b>Bestehende Buchungen prüfen</b><small>Vor dem Wechsel erscheint eine Vorschau. Unklare Zuordnungen werden nicht verändert.</small></span></label></fieldset>`;
+}
 function tripFormHtml(edit = null) {
   const manualWizard = !edit && state.tripSetupWizard?.step === 'manual';
   if (!edit && !manualWizard) return '';
@@ -3259,6 +3293,8 @@ function tripFormHtml(edit = null) {
     <div class="formField"><label for="tripNameInput">Name</label><input id="tripNameInput" name="name" placeholder="z. B. AIDA Metropolen 2026" value="${esc(draftValue('trip', 'name', edit?.name || ''))}"></div>
     <div class="formField"><label for="tripShipInput">Schiff</label><input id="tripShipInput" name="ship" placeholder="z. B. AIDAprima" value="${esc(draftValue('trip', 'ship', edit?.ship || ''))}"></div>
     <div class="twoCols"><div class="formField"><label for="tripStartInput">Start</label><input id="tripStartInput" name="startDate" type="date" value="${esc(draftValue('trip', 'startDate', edit?.startDate || ''))}"></div><div class="formField"><label for="tripEndInput">Ende</label><input id="tripEndInput" name="endDate" type="date" value="${esc(draftValue('trip', 'endDate', edit?.endDate || ''))}"></div></div>
+    ${tripVersionFieldHtml(edit)}
+    ${tripVersionModeHtml(edit)}
     <button id="tripSaveButton" class="primary" type="submit" data-action="saveTrip">${edit ? 'Änderungen speichern' : 'Reise anlegen und weiter'}</button>
     <button class="secondary" type="button" data-action="resetTripForm">${edit ? 'Bearbeitung abbrechen' : 'Eingaben leeren'}</button>
     ${manualWizard ? '<button class="secondary" type="button" data-action="cancelTripWizard">Zurück zur Auswahl</button>' : ''}
@@ -3272,8 +3308,8 @@ function viewTrips() {
       ${activeTripContextHtml()}
       ${tripClosurePreviewHtml()}
       ${edit || state.pendingTripClosure ? '' : tripSetupWizardHtml()}
-      ${tripFormHtml(edit)}
-      ${state.tripSetupWizard?.step ? '' : itineraryManagementHtml(currentTrip())}
+      ${state.pendingTripVersionChange ? tripVersionChangePreviewHtml() : tripFormHtml(edit)}
+      ${state.tripSetupWizard?.step || state.pendingTripVersionChange ? '' : itineraryManagementHtml(currentTrip())}
       <div class="card"><h2>Vorhandene Reisen</h2><div class="itemList">${state.trips.map(tripCardHtml).join('') || '<p class="emptyText">Noch keine Reise angelegt.</p>'}</div></div>
     </section>`;
 }
@@ -3873,6 +3909,8 @@ async function trackDrink(drinkId, personIdsOverride = null) {
       price: Number(drink.price) || 0,
       packageId: person.packageId || 'none',
       packageStatus: status,
+      barkarteVersionId: tripReferenceVersionId(trip),
+      packageVersionId: tripPackageVersionId(trip),
       ts: timestamp,
       ...itineraryContext,
       trackedByDeviceId: state.settings.deviceId,
@@ -4054,19 +4092,110 @@ async function deleteLog(id) {
 function fillTripForm(id) {
   const trip = id ? state.trips.find(t => t.id === id) : null;
   if (trip?.archived) { alert('Eine abgeschlossene Reise ist schreibgeschützt. Reaktiviere sie vor einer Bearbeitung.'); return; }
+  state.pendingTripVersionChange = null;
   state.editingTripId = trip?.id || null;
-  state.formDraft.trip = trip ? { id: trip.id || '', name: trip.name || '', ship: trip.ship || '', startDate: trip.startDate || '', endDate: trip.endDate || '' } : {};
-  setFieldValue('#tripIdInput', trip?.id || '');
-  setFieldValue('#tripNameInput', trip?.name || '');
-  setFieldValue('#tripShipInput', trip?.ship || '');
-  setFieldValue('#tripStartInput', trip?.startDate || '');
-  setFieldValue('#tripEndInput', trip?.endDate || '');
-  const box = $('#tripForm');
-  const heading = $('#tripForm h2');
-  const button = $('#tripSaveButton');
-  if (heading) heading.textContent = trip ? 'Reise bearbeiten' : 'Reise anlegen';
-  if (button) button.textContent = trip ? 'Änderungen speichern' : 'Speichern';
-  box?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  state.formDraft.trip = trip ? { id: trip.id || '', name: trip.name || '', ship: trip.ship || '', startDate: trip.startDate || '', endDate: trip.endDate || '', barkarteVersionId: trip.barkarteVersionId || defaultBarkarteVersionId(), versionChangeMode: 'future' } : {};
+  render();
+  requestAnimationFrame(() => $('#tripForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+function tripLogsById(tripId) {
+  return state.logs.filter(log => (log.tripId || activeTripId()) === tripId);
+}
+function resolveVersionDrinkForLog(log, version) {
+  const drinks = Array.isArray(version?.drinks) ? version.drinks : [];
+  const byId = drinks.find(drink => drink.id === log.drinkId);
+  if (byId) return { drink: byId, match: 'id' };
+  const key = normalize(log.drinkName || '');
+  if (!key) return { drink: null, match: 'missing' };
+  const matches = drinks.filter(drink => normalize(drink.name) === key);
+  if (matches.length === 1) return { drink: matches[0], match: 'name' };
+  return { drink: null, match: matches.length > 1 ? 'ambiguous' : 'missing' };
+}
+function buildTripVersionChangePreview(trip, targetVersionId) {
+  const version = referenceVersionById(targetVersionId);
+  const persons = new Map(state.persons.map(person => [person.id, person]));
+  const items = tripLogsById(trip.id).map(log => {
+    const resolved = resolveVersionDrinkForLog(log, version);
+    if (!resolved.drink) return { log, status: 'unclear', reason: resolved.match === 'ambiguous' ? 'Name ist in der neuen Barkarte nicht eindeutig.' : 'Getränk ist in der neuen Barkarte nicht vorhanden.' };
+    const drink = resolved.drink;
+    const person = persons.get(log.personId);
+    const packageId = person?.packageId || log.packageId || 'none';
+    const nextPrice = Number(drink.price) || 0;
+    const nextStatus = statusForDrink(drink, packageId);
+    const changes = [];
+    if (Math.abs((Number(log.price) || 0) - nextPrice) > 0.0001) changes.push(`Preis ${eur(log.price)} → ${eur(nextPrice)}`);
+    if ((log.packageStatus || 'unclear') !== nextStatus) changes.push(`Paketstatus ${statusLabel(log.packageStatus)} → ${statusLabel(nextStatus)}`);
+    if (log.drinkId !== drink.id) changes.push('Zuordnung auf die Artikel-ID der neuen Version');
+    if ((log.drinkName || '') !== (drink.name || '')) changes.push(`Getränk ${log.drinkName || 'unbekannt'} → ${drink.name || 'unbekannt'}`);
+    if ((log.category || '') !== (drink.category || '')) changes.push(`Kategorie ${log.category || 'ohne'} → ${drink.category || 'ohne'}`);
+    return { log, drink, packageId, nextPrice, nextStatus, status: changes.length ? 'changed' : 'unchanged', changes, match: resolved.match };
+  });
+  return {
+    tripId: trip.id,
+    targetVersionId,
+    version: version?.version || targetVersionId,
+    total: items.length,
+    matched: items.filter(item => item.status !== 'unclear').length,
+    changed: items.filter(item => item.status === 'changed').length,
+    unchanged: items.filter(item => item.status === 'unchanged').length,
+    unclear: items.filter(item => item.status === 'unclear').length,
+    items
+  };
+}
+function tripVersionChangePreviewHtml() {
+  const pending = state.pendingTripVersionChange;
+  if (!pending?.preview) return '';
+  const preview = pending.preview;
+  const changed = preview.items.filter(item => item.status === 'changed').slice(0, 10);
+  const unclear = preview.items.filter(item => item.status === 'unclear').slice(0, 10);
+  const details = [
+    ...changed.map(item => `<div class="tripVersionReviewItem changed"><b>${esc(item.log.drinkName || 'Unbekanntes Getränk')} · ${esc(item.log.personName || 'Unbekannte Person')}</b><small>${esc(item.changes.join(' · '))}</small></div>`),
+    ...unclear.map(item => `<div class="tripVersionReviewItem unclear"><b>${esc(item.log.drinkName || 'Unbekanntes Getränk')} · ${esc(item.log.personName || 'Unbekannte Person')}</b><small>${esc(item.reason)}</small></div>`)
+  ].join('');
+  return `<div class="card tripVersionReviewCard"><div class="sectionHead"><div><p class="eyebrow">Barkartenwechsel prüfen</p><h2>${esc(pending.trip.name)}</h2><p class="hint">Neue Version: ${esc(preview.version)}. Unklare Buchungen werden niemals automatisch verändert.</p></div><span class="diagnosticSummary ${preview.unclear ? 'warn' : 'ok'}">${preview.unclear ? `${preview.unclear} unklar` : 'eindeutig'}</span></div><div class="closureSummaryGrid"><span><b>${preview.total}</b>Buchungen</span><span><b>${preview.matched}</b>eindeutig zuordenbar</span><span><b>${preview.changed}</b>mit Änderungen</span><span class="${preview.unclear ? 'warnText' : ''}"><b>${preview.unclear}</b>unklar</span></div>${details ? `<div class="tripVersionReviewList">${details}</div>` : '<div class="closureReadyMessage"><b>Keine inhaltlichen Änderungen</b><p>Alle Buchungen stimmen bereits mit der ausgewählten Version überein.</p></div>'}<div class="buttonStack"><button class="primary" data-action="applyTripVersionFuture">Version wechseln · Buchungen unverändert lassen</button><button class="secondary" data-action="applyTripVersionUpdate" ${preview.changed ? '' : 'disabled'}>Eindeutig zuordenbare Buchungen aktualisieren</button><button class="secondary" data-action="cancelTripVersionChange">Zurück zur Reisebearbeitung</button></div></div>`;
+}
+async function persistTripRecord(trip, message) {
+  await put('trips', trip);
+  const savedTrip = await get('trips', trip.id);
+  if (!savedTrip || savedTrip.id !== trip.id) throw new Error('IndexedDB hat den Reisedatensatz nicht bestätigt.');
+  await putSetting('currentTripId', trip.id);
+  await putSetting('barkarteVersionId', trip.barkarteVersionId || '');
+  state.currentTripId = trip.id;
+  state.editingTripId = null;
+  state.pendingTripVersionChange = null;
+  clearDraft('trip');
+  await loadState();
+  state.currentTripId = trip.id;
+  render();
+  toast(message);
+}
+async function applyPendingTripVersionChange(updateExisting = false) {
+  const pending = state.pendingTripVersionChange;
+  if (!pending?.trip || !pending.preview) throw new Error('Keine vorbereitete Versionsänderung vorhanden.');
+  const current = state.trips.find(row => row.id === pending.trip.id);
+  if (!current || current.archived) throw new Error('Die Reise ist nicht mehr bearbeitbar.');
+  if (!referenceVersionAvailable(referenceVersionById(pending.trip.barkarteVersionId))) throw new Error('Die ausgewählte Barkartenversion ist nicht mehr verfügbar.');
+  await createInternalRestorePoint('Vor dem Wechsel der Barkarten- und Paketversion', { tripId: pending.trip.id, fromVersionId: current.barkarteVersionId || '', toVersionId: pending.trip.barkarteVersionId || '', updateExisting });
+  const rows = { trips: [pending.trip] };
+  let updatedCount = 0;
+  if (updateExisting) {
+    rows.logs = pending.preview.items.filter(item => item.status === 'changed' && item.drink).map(item => {
+      updatedCount += 1;
+      return { ...item.log, drinkId: item.drink.id, drinkName: item.drink.name, category: item.drink.category || '', price: item.nextPrice, packageId: item.packageId, packageStatus: item.nextStatus, barkarteVersionId: pending.trip.barkarteVersionId, packageVersionId: pending.trip.packageVersionId, updatedAt: nowIso() };
+    });
+  }
+  await putRowsAtomic(rows);
+  await putSetting('currentTripId', pending.trip.id);
+  await putSetting('barkarteVersionId', pending.trip.barkarteVersionId || '');
+  state.currentTripId = pending.trip.id;
+  state.editingTripId = null;
+  state.pendingTripVersionChange = null;
+  clearDraft('trip');
+  await loadState();
+  state.currentTripId = pending.trip.id;
+  render();
+  toast(updateExisting ? `Barkartenversion gewechselt · ${updatedCount} Buchung${updatedCount === 1 ? '' : 'en'} aktualisiert` : 'Barkartenversion nur für neue Erfassungen gewechselt');
+  haptic();
 }
 async function saveTripForm(form = null) {
   setButtonBusy('#tripSaveButton', true);
@@ -4080,6 +4209,9 @@ async function saveTripForm(form = null) {
     }
     const existing = state.trips.find(t => t.id === id) || {};
     if (existing.id && existing.archived) { alert('Eine abgeschlossene Reise ist schreibgeschützt. Reaktiviere sie vor einer Bearbeitung.'); return; }
+    const selectedVersionId = fieldValue('#tripVersionInput', form, 'barkarteVersionId') || defaultBarkarteVersionId();
+    const selectedVersion = referenceVersionById(selectedVersionId);
+    if (!referenceVersionAvailable(selectedVersion)) throw new Error('Bitte eine verfügbare Barkarten- und Paketversion auswählen.');
     const trip = {
       ...existing,
       id,
@@ -4087,29 +4219,32 @@ async function saveTripForm(form = null) {
       ship: fieldValue('#tripShipInput', form, 'ship').trim(),
       startDate: fieldValue('#tripStartInput', form, 'startDate'),
       endDate: fieldValue('#tripEndInput', form, 'endDate'),
-      barkarteVersionId: existing.barkarteVersionId || defaultBarkarteVersionId(),
-      packageVersionId: existing.packageVersionId || defaultPackageVersionId() || defaultBarkarteVersionId(),
+      barkarteVersionId: selectedVersionId,
+      packageVersionId: selectedVersionId,
       archived: !!existing.archived,
       createdAt: existing.createdAt || nowIso(),
       updatedAt: nowIso()
     };
-    await put('trips', trip);
-    const savedTrip = await get('trips', id);
-    if (!savedTrip || savedTrip.id !== id) throw new Error('IndexedDB hat den Reisedatensatz nicht bestätigt.');
-    await putSetting('currentTripId', id);
+    const versionChanged = !!existing.id && (tripReferenceVersionId(existing) !== selectedVersionId || tripPackageVersionId(existing) !== selectedVersionId);
+    const existingLogs = existing.id ? tripLogsById(existing.id) : [];
+    const changeMode = formValue(form, 'versionChangeMode') || 'future';
+    if (versionChanged && existingLogs.length && changeMode === 'review') {
+      state.pendingTripVersionChange = { trip, preview: buildTripVersionChangePreview(trip, selectedVersionId), preparedAt: nowIso() };
+      render();
+      requestAnimationFrame(() => $('#view')?.scrollTo?.({ top: 0, behavior: 'smooth' }));
+      return;
+    }
+    if (versionChanged && existingLogs.length) {
+      await createInternalRestorePoint('Vor dem Wechsel der Barkarten- und Paketversion', { tripId: trip.id, fromVersionId: existing.barkarteVersionId || '', toVersionId: selectedVersionId, updateExisting: false });
+    }
     const createdViaWizard = !existing.id && state.tripSetupWizard?.step === 'manual';
-    clearDraft('trip');
-    state.currentTripId = id;
-    state.editingTripId = null;
+    await persistTripRecord(trip, createdViaWizard ? 'Reise angelegt – jetzt Personen einrichten' : (existing.id ? (versionChanged ? 'Reise und Barkartenversion gespeichert' : 'Reiseänderungen gespeichert') : 'Reise angelegt'));
     if (createdViaWizard) {
       state.tripSetupWizard = { step: 'persons', tripId: id, exported: false };
       state.selectedPersonId = null;
       state.route = 'devices';
+      render();
     }
-    await loadState();
-    state.currentTripId = id;
-    render();
-    toast(createdViaWizard ? 'Reise angelegt – jetzt Personen einrichten' : (existing.id ? 'Reiseänderungen gespeichert' : 'Reise angelegt'));
   } catch (error) {
     alert(`Reise konnte nicht gespeichert werden: ${error.message || error}`);
   } finally {
@@ -4120,7 +4255,11 @@ async function saveOnboardingTrip(form) {
   const current = currentTrip();
   const editableCurrent = current?.archived ? null : current;
   const id = editableCurrent?.id || `trip_${uid()}`;
-  const trip = { ...(editableCurrent || {}), id, name: formValue(form, 'name').trim() || 'Aktuelle Reise', ship: formValue(form, 'ship').trim(), startDate: formValue(form, 'startDate'), endDate: formValue(form, 'endDate'), barkarteVersionId: editableCurrent?.barkarteVersionId || defaultBarkarteVersionId(), packageVersionId: editableCurrent?.packageVersionId || defaultPackageVersionId() || defaultBarkarteVersionId(), archived: false, createdAt: editableCurrent?.createdAt || nowIso(), updatedAt: nowIso() };
+  const selectedVersionId = formValue(form, 'barkarteVersionId') || editableCurrent?.barkarteVersionId || defaultBarkarteVersionId();
+  if (!referenceVersionAvailable(referenceVersionById(selectedVersionId))) throw new Error('Bitte eine verfügbare Barkarten- und Paketversion auswählen.');
+  const versionChanged = !!editableCurrent && (tripReferenceVersionId(editableCurrent) !== selectedVersionId || tripPackageVersionId(editableCurrent) !== selectedVersionId);
+  if (versionChanged && tripLogsById(editableCurrent.id).length) throw new Error('Für diese Reise bestehen bereits Buchungen. Ändere die Barkartenversion bitte unter „Reisen → Bearbeiten“, damit die Buchungen sicher geprüft werden können.');
+  const trip = { ...(editableCurrent || {}), id, name: formValue(form, 'name').trim() || 'Aktuelle Reise', ship: formValue(form, 'ship').trim(), startDate: formValue(form, 'startDate'), endDate: formValue(form, 'endDate'), barkarteVersionId: selectedVersionId, packageVersionId: selectedVersionId, archived: false, createdAt: editableCurrent?.createdAt || nowIso(), updatedAt: nowIso() };
   await put('trips', trip);
   await putSetting('currentTripId', id);
   clearDraft('onboardingTrip');
@@ -5470,9 +5609,18 @@ async function activateReferenceVersionForCurrentTrip(id, options = {}) {
   if (!trip) throw new Error('Es ist keine Reise ausgewählt.');
   if (!ensureTripWritable(trip.id, 'Der Wechsel der Barkarten-Version')) return;
   if (trip.barkarteVersionId === id && trip.packageVersionId === id) { toast('Diese Version ist bereits der aktuellen Reise zugeordnet'); return; }
-  const logCount = currentLogs().length;
-  if (!options.skipConfirm && !confirm(`Barkarte und Getränkepakete der Reise „${trip.name}“ auf „${record.version}“ umstellen?\n\n${logCount ? `${logCount} vorhandene Buchung${logCount === 1 ? '' : 'en'} behält ihre gespeicherten Preise und Paketstatus. ` : ''}Nur neue Erfassungen verwenden die neue Version.`)) return;
-  await createInternalRestorePoint(options.reason || 'Vor dem Wechsel der Barkarten- und Paketversion', { tripId: trip.id, fromVersionId: trip.barkarteVersionId || '', toVersionId: id });
+  const logCount = tripLogsById(trip.id).length;
+  if (logCount) {
+    resetTripSetupWizard();
+    state.route = 'trips';
+    state.editingTripId = trip.id;
+    state.pendingTripVersionChange = null;
+    state.formDraft.trip = { id: trip.id || '', name: trip.name || '', ship: trip.ship || '', startDate: trip.startDate || '', endDate: trip.endDate || '', barkarteVersionId: id, versionChangeMode: 'future' };
+    render();
+    requestAnimationFrame(() => $('#tripForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    toast(`${logCount} bestehende Buchung${logCount === 1 ? '' : 'en'} – Wechsel bitte in der Reise prüfen`);
+    return;
+  }
   await put('trips', { ...trip, barkarteVersionId: id, packageVersionId: id, updatedAt: nowIso() });
   await putSetting('barkarteVersionId', id);
   await putSetting('barkarteVersion', referenceVersionMeta(record));
@@ -5606,6 +5754,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.3.1</h2>
+  <ul>
+    <li>Beim Anlegen und Bearbeiten einer Reise kann die Barkarten- und Paketversion direkt ausgewählt werden.</li>
+    <li>Vor der ersten Buchung erfolgt ein Wechsel ohne zusätzliche Rückfrage.</li>
+    <li>Bei vorhandenen Buchungen kann nur für neue Erfassungen umgestellt oder zunächst eine Prüfvorschau geöffnet werden.</li>
+    <li>Die Vorschau trennt eindeutige, geänderte und unklare Zuordnungen; unklare Buchungen bleiben unangetastet.</li>
+    <li>Vor einem Wechsel mit vorhandenen Buchungen wird automatisch ein interner Wiederherstellungspunkt erstellt.</li>
+  </ul>
   <h2>Version 5.3.0</h2>
   <ul>
     <li>Barkarten und Getränkepakete werden als vollständige, unveränderliche Referenzversionen gespeichert.</li>
