@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.3.1** (Build **5.3.1a**)
+Aktuelle Entwicklungsfassung: **5.4.0** (Build **5.4.0a**)
 
-Version 5.3.1 ergänzt die direkte Zuordnung einer Barkarten- und Paketversion beim Anlegen und Bearbeiten einer Reise. Vor der ersten Buchung kann die Version ohne Zusatzdialog gewechselt werden. Bei vorhandenen Buchungen kann entweder nur für neue Erfassungen umgestellt oder zunächst eine konservative Prüfvorschau geöffnet werden. Unklare Buchungen bleiben unangetastet. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 5.4.0 erweitert den Reiseabschluss um Wiederherstellungspunkt, Abschlussmetadaten, lokale Integritätsprüfung und einen konsequenten Archivschutz auch beim Geräteimport. Abgeschlossene Reisen öffnen direkt im Abschlussbericht.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v5.3.1 Barkartenversion je Reise`.
+4. Commit erstellen, z. B. `CruiseSip v5.4.0 Reiseabschluss und Archivschutz`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.3.1` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.4.0` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur
@@ -46,7 +46,7 @@ CruiseSip/
 
 ## Kernfunktionen
 
-- Reiseverwaltung mit kontrolliertem Abschluss, Schreibschutz, Reaktivierung und Sicherheitslöschung
+- Reiseverwaltung mit kontrolliertem Abschluss, Abschlussmetadaten, SHA-256-Integritätsprüfung, konsequentem Archivschutz, Reaktivierung und Sicherheitslöschung
 - Assistent für neue Reisen mit wahlweisem Reiseverlauf-Import oder manueller Anlage, anschließender Personeneinrichtung und optionalem Geräteexport
 - Personenverwaltung mit Getränkepaket und optionalem Paketpreis
 - Geräte-ID und Gerätename

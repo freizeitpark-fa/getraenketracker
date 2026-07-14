@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.3.1';
-const APP_CACHE_NAME = 'cruisesip-v5-3-1-20260714a';
-const APP_BUILD = '5.3.1a';
-const SERVICE_WORKER_URL = './sw.js?v=5.3.1a';
+const APP_VERSION = '5.4.0';
+const APP_CACHE_NAME = 'cruisesip-v5-4-0-20260714a';
+const APP_BUILD = '5.4.0a';
+const SERVICE_WORKER_URL = './sw.js?v=5.4.0a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -98,7 +98,8 @@ let state = {
   selectedPersonIds: [],
   undoLogs: [],
   migrationSnapshot: null,
-  restorePoints: []
+  restorePoints: [],
+  archiveIntegrity: {}
 };
 
 const actionLocks = Object.create(null);
@@ -137,6 +138,60 @@ const slug = (value) => normalize(value).replace(/\s+/g, '_').replace(/^_+|_+$/g
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 const deviceUid = () => `dev_${uid()}_${Math.random().toString(36).slice(2, 6)}`;
 const haptic = () => { try { if ('vibrate' in navigator) navigator.vibrate(8); } catch (_) {} };
+
+function stableArchiveValue(value) {
+  if (Array.isArray(value)) return value.map(stableArchiveValue);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(key => [key, stableArchiveValue(value[key])]));
+  return value;
+}
+function archiveIntegrityPayload(tripId) {
+  const trip = state.trips.find(row => row.id === tripId);
+  if (!trip) return null;
+  const tripData = {
+    id: trip.id,
+    name: trip.name || '',
+    ship: trip.ship || '',
+    startDate: trip.startDate || '',
+    endDate: trip.endDate || '',
+    barkarteVersionId: trip.barkarteVersionId || '',
+    packageVersionId: trip.packageVersionId || '',
+    itinerary: tripItinerary(trip)
+  };
+  const persons = state.persons
+    .filter(person => person.tripId === tripId)
+    .map(person => ({ id: person.id, tripId: person.tripId, name: person.name || '', packageId: person.packageId || '', packagePrice: Number(person.packagePrice) || 0, color: person.color || '' }))
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  const logs = state.logs
+    .filter(log => log.tripId === tripId)
+    .map(log => ({
+      id: log.id || '', originId: log.originId || '', mergeKey: logMergeKey(log, log.trackedByDeviceId || ''), tripId: log.tripId || '', personId: log.personId || '',
+      personName: log.personName || '', drinkId: log.drinkId || '', drinkName: log.drinkName || '', category: log.category || '', price: Number(log.price) || 0,
+      packageStatus: log.packageStatus || 'unclear', ts: Number(log.ts) || 0, trackedByDeviceId: log.trackedByDeviceId || '', trackedByDeviceName: log.trackedByDeviceName || '',
+      barkarteVersionId: log.barkarteVersionId || '', packageVersionId: log.packageVersionId || ''
+    }))
+    .sort((a, b) => String(a.mergeKey || a.id).localeCompare(String(b.mergeKey || b.id)));
+  return stableArchiveValue({ schema: 1, trip: tripData, persons, logs });
+}
+async function calculateTripArchiveDigest(tripId) {
+  const payload = archiveIntegrityPayload(tripId);
+  return payload ? sha256Hex(JSON.stringify(payload)) : '';
+}
+async function refreshArchiveIntegrity() {
+  const result = {};
+  for (const trip of state.trips.filter(row => row.archived)) {
+    if (!trip.closureDigest) { result[trip.id] = { status: 'legacy', label: 'Keine Prüfsumme', detail: 'Die Reise wurde vor v5.4.0 abgeschlossen.' }; continue; }
+    try {
+      const current = await calculateTripArchiveDigest(trip.id);
+      result[trip.id] = current === trip.closureDigest
+        ? { status: 'ok', label: 'Daten unverändert', detail: `Prüfsumme ${trip.closureDigest.slice(0, 12)}…` }
+        : { status: 'bad', label: 'Datenbestand verändert', detail: 'Die aktuellen Reise-, Personen- oder Buchungsdaten weichen vom Abschlussstand ab.' };
+    } catch (error) {
+      console.warn('Archivprüfung fehlgeschlagen.', error);
+      result[trip.id] = { status: 'warn', label: 'Prüfung nicht möglich', detail: 'Die lokale Integritätsprüfung konnte nicht abgeschlossen werden.' };
+    }
+  }
+  state.archiveIntegrity = result;
+}
 
 function openDb(name = DB_NAME, version = DB_VERSION, stores = ALL_DB_STORES) {
   return new Promise((resolve, reject) => {
@@ -637,6 +692,7 @@ async function loadState() {
   }
   const validSelectionIds = state.selectedPersonIds.filter(id => personsForTrip.some(person => person.id === id));
   state.selectedPersonIds = validSelectionIds.length ? validSelectionIds : (state.selectedPersonId ? [state.selectedPersonId] : []);
+  await refreshArchiveIntegrity();
 }
 
 async function registerServiceWorker() {
@@ -1107,9 +1163,10 @@ async function handleClick(event) {
     state.editingLogId = null;
     clearDraft('log');
     if (trip.archived) {
-      state.historyFilter = 'trip';
-      state.route = 'history';
-      toast(`Buchungen von ${trip.name || 'Reise'} geöffnet`);
+      state.statsFilter = 'trip';
+      state.statsPersonId = null;
+      state.route = 'stats';
+      toast(`Abschlussbericht von ${trip.name || 'Reise'} geöffnet`);
     } else {
       state.route = 'dashboard';
       toast(`${trip.name || 'Reise'} geöffnet`);
@@ -2108,6 +2165,7 @@ function viewStats() {
     <section class="screen statsScreen">
       <div class="sectionHead statsTitleRow"><h1>Auswertungen</h1></div>
       ${activeTripContextHtml()}
+      ${archiveIntegrityCardHtml()}
       ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
       <div class="kpiGrid">
@@ -2133,6 +2191,21 @@ function viewStats() {
       ${isTripView ? reportExportActionsHtml() : ''}
     </section>`;
 }
+function archiveIntegrityCardHtml(trip = currentTrip()) {
+  if (!trip?.archived) return '';
+  const integrity = state.archiveIntegrity?.[trip.id] || { status: 'warn', label: 'Prüfung läuft', detail: 'Der Abschlussstand wird lokal geprüft.' };
+  const snapshot = trip.closureSnapshot || {};
+  const closedAt = trip.archivedAt ? formatDateTime(Date.parse(trip.archivedAt)) : 'Zeitpunkt nicht gespeichert';
+  const device = trip.archivedByDeviceName || 'Gerät nicht gespeichert';
+  const sequence = Number(trip.closureSequence || 1);
+  return `<article class="card archiveIntegrityCard ${esc(integrity.status)}">
+    <div class="archiveIntegrityIcon" aria-hidden="true">${integrity.status === 'ok' ? '✓' : integrity.status === 'bad' ? '!' : 'i'}</div>
+    <div class="archiveIntegrityContent"><div class="sectionHead"><div><h2>Archivierter Abschlussstand</h2><p class="hint">Abschluss ${sequence} · ${esc(closedAt)} · ${esc(device)}</p></div><span class="archiveIntegrityBadge ${esc(integrity.status)}">${esc(integrity.label)}</span></div>
+    <p>${esc(integrity.detail)}</p>
+    ${snapshot.logCount !== undefined ? `<div class="archiveSnapshotFacts"><span><b>${Number(snapshot.logCount || 0)}</b> Buchungen</span><span><b>${eur(snapshot.totalValue || 0)}</b> Barkartenwert</span><span><b>${Number(snapshot.personCount || 0)}</b> Personen</span>${snapshot.favoriteDrink ? `<span><b>${esc(snapshot.favoriteDrink.count)}×</b> ${esc(snapshot.favoriteDrink.name)}</span>` : ''}</div>` : ''}
+    <p class="archiveIntegrityNote">Zum Ändern oder zum Nachimport fehlender Gerätedaten muss die Reise zuerst reaktiviert werden.</p></div>
+  </article>`;
+}
 function statsFilterHtml() {
   const filter = state.statsFilter || 'trip';
   return `<div class="segmented"><button class="${filter === 'today' ? 'active' : ''}" data-action="setStatsFilter" data-id="today">Heute</button><button class="${filter === 'yesterday' ? 'active' : ''}" data-action="setStatsFilter" data-id="yesterday">Gestern</button><button class="${filter === 'trip' ? 'active' : ''}" data-action="setStatsFilter" data-id="trip">Reise</button></div>`;
@@ -2140,14 +2213,15 @@ function statsFilterHtml() {
 function reportExportActionsHtml() {
   const trip = currentTrip();
   if (!trip) return '';
-  return `<article class="card reportExportCard">
-    <div class="sectionHead"><div><h2>Bericht exportieren</h2><p class="hint">Erstellt den vollständigen Reisebericht aus den lokal gespeicherten Daten. Die CSV enthält eine Zeile je Buchung; HTML und Druckansicht enthalten zusätzlich Zusammenfassungen, Tageswerte und Personenvergleiche.</p></div><span class="backupFormatBadge">offline</span></div>
+  const finalReport = !!trip.archived;
+  return `<article class="card reportExportCard ${finalReport ? 'finalReportExport' : ''}">
+    <div class="sectionHead"><div><h2>${finalReport ? 'Abschlussbericht sichern' : 'Bericht exportieren'}</h2><p class="hint">${finalReport ? 'Sichert den schreibgeschützten Endstand der Reise. HTML und Druckansicht enthalten Abschlusskennzeichnung, Abschlusszeitpunkt und lokale Integritätsprüfung.' : 'Erstellt den vollständigen Reisebericht aus den lokal gespeicherten Daten.'} Die CSV enthält eine Zeile je Buchung; HTML und Druckansicht enthalten zusätzlich Zusammenfassungen, Tageswerte und Personenvergleiche.</p></div><span class="backupFormatBadge">offline</span></div>
     <div class="reportExportButtons">
-      <button class="secondary" data-action="exportReportCsv"><span>CSV für Excel</span><small>Buchungsdaten strukturiert exportieren</small></button>
-      <button class="secondary" data-action="exportReportHtml"><span>HTML-Bericht</span><small>Speichern oder über iOS teilen</small></button>
-      <button class="primary" data-action="printTripReport"><span>Drucken / PDF</span><small>iOS-Druckansicht öffnen</small></button>
+      <button class="secondary" data-action="exportReportCsv"><span>${finalReport ? 'Abschlussdaten als CSV' : 'CSV für Excel'}</span><small>Buchungsdaten strukturiert exportieren</small></button>
+      <button class="secondary" data-action="exportReportHtml"><span>${finalReport ? 'Abschlussbericht als HTML' : 'HTML-Bericht'}</span><small>Speichern oder über iOS teilen</small></button>
+      <button class="primary" data-action="printTripReport"><span>${finalReport ? 'Abschlussbericht / PDF' : 'Drucken / PDF'}</span><small>iOS-Druckansicht öffnen</small></button>
     </div>
-    <p class="reportExportHint">PDF auf dem iPhone: „Drucken / PDF“ öffnen, die Vorschau vergrößern und anschließend über Teilen in der Dateien-App sichern.</p>
+    <p class="reportExportHint">PDF auf dem iPhone: „${finalReport ? 'Abschlussbericht / PDF' : 'Drucken / PDF'}“ öffnen, die Vorschau vergrößern und anschließend über Teilen in der Dateien-App sichern.</p>
   </article>`;
 }
 function csvSafeCell(value) {
@@ -2196,7 +2270,8 @@ function tripReportExportModel() {
     personRows,
     packageProgress,
     itinerary: tripItinerary(trip),
-    generatedAt: new Date()
+    generatedAt: new Date(),
+    archiveIntegrity: state.archiveIntegrity?.[trip.id] || null
   };
 }
 function tripReportCsvText(model = tripReportExportModel()) {
@@ -2204,7 +2279,7 @@ function tripReportCsvText(model = tripReportExportModel()) {
   const headers = [
     'Reise', 'Schiff', 'Reisestatus', 'Reisebeginn', 'Reiseende', 'Reisetag', 'Datum', 'Uhrzeit',
     'Station', 'Land', 'Tagesart', 'Ankunft', 'Abfahrt', 'Person', 'Getränkepaket', 'Paketpreis EUR',
-    'Getränk', 'Kategorie', 'Paketstatus', 'Preis EUR', 'Erfasst auf', 'Buchungs-ID'
+    'Getränk', 'Kategorie', 'Paketstatus', 'Preis EUR', 'Erfasst auf', 'Buchungs-ID', 'Abgeschlossen am', 'Abschluss-Prüfsumme'
   ];
   const rows = model.logs.map(log => {
     const person = model.persons.find(row => row.id === log.personId);
@@ -2232,7 +2307,9 @@ function tripReportCsvText(model = tripReportExportModel()) {
       statusLabel(log.packageStatus),
       csvNumber(log.price),
       logOriginInfo(log).deviceName,
-      log.id || ''
+      log.id || '',
+      model.trip.archivedAt || '',
+      model.trip.closureDigest || ''
     ];
   });
   return `\uFEFFsep=;\r\n${[headers, ...rows].map(row => row.map(csvSafeCell).join(';')).join('\r\n')}\r\n`;
@@ -2264,6 +2341,7 @@ function tripReportDocumentBodyHtml(model = tripReportExportModel(), options = {
   const status = model.trip.archived ? 'Abschlussbericht' : 'Zwischenbericht';
   const dayInfo = tripDayInfo(model.logs, model.trip);
   const period = `${formatDate(model.trip.startDate)} – ${formatDate(model.trip.endDate)}`;
+  const closureMeta = model.trip.archived ? [model.trip.archivedAt ? `Abgeschlossen am ${formatDateTime(Date.parse(model.trip.archivedAt))}` : 'Abschlusszeitpunkt nicht gespeichert', model.trip.archivedByDeviceName ? `Gerät: ${model.trip.archivedByDeviceName}` : '', model.trip.closureDigest ? `Prüfsumme: ${model.trip.closureDigest}` : ''].filter(Boolean) : [];
   const personRows = model.personRows.map(({ person, data, result }) => [
     `<b>${esc(person.name)}</b>`,
     esc(packageName(person.packageId)),
@@ -2334,7 +2412,8 @@ function tripReportDocumentBodyHtml(model = tripReportExportModel(), options = {
     : '';
   const toolbar = options.toolbar === false ? '' : `<div class="exportToolbar"><div class="exportToolbarActions">${returnButton}<button type="button" onclick="window.print()">Drucken / als PDF sichern</button></div><span>Der Bericht enthält ausschließlich lokal exportierte CruiseSip-Daten.</span></div>`;
   return `${toolbar}<main class="exportReport">
-    <header class="exportHeader"><div><p>CruiseSip · ${esc(status)}</p><h1>${esc(model.trip.name || 'Kreuzfahrt')}</h1><h2>${esc(model.trip.ship || 'Schiff nicht hinterlegt')}</h2></div><div class="exportHeaderMeta"><b>${esc(period)}</b><span>${esc(dayInfo.label)}</span><span>Erstellt am ${esc(model.generatedAt.toLocaleString('de-DE'))}</span></div></header>
+    <header class="exportHeader"><div><p>CruiseSip · ${esc(status)}</p><h1>${esc(model.trip.name || 'Kreuzfahrt')}</h1><h2>${esc(model.trip.ship || 'Schiff nicht hinterlegt')}</h2></div><div class="exportHeaderMeta"><b>${esc(period)}</b><span>${esc(dayInfo.label)}</span><span>Erstellt am ${esc(model.generatedAt.toLocaleString('de-DE'))}</span>${closureMeta.map(row => `<span>${esc(row)}</span>`).join('')}</div></header>
+    ${model.trip.archived ? `<section class="exportArchiveNotice ${esc(model.archiveIntegrity?.status || 'legacy')}"><b>Archivierter Abschlussstand · ${esc(model.archiveIntegrity?.label || 'lokaler Endstand')}</b><p>${esc(model.archiveIntegrity?.detail || 'Dieser Bericht wurde aus dem lokal gespeicherten Abschlussstand erstellt.')}</p></section>` : ''}
     <section class="exportNotice"><b>Berechnungsgrundlage</b><p>Die Paketbilanz ist konservativ. Nur eindeutig enthaltene Getränke werden dem Paketpreis gegenübergestellt. Nicht enthaltene Getränke und unklare Paketstatus bleiben getrennt ausgewiesen.</p></section>
     <section><h2>Gesamtübersicht</h2><div class="exportMetricGrid">
       ${reportMetricHtml('Getränke gesamt', String(model.total.count), eur(model.total.value))}
@@ -2355,7 +2434,7 @@ function tripReportDocumentBodyHtml(model = tripReportExportModel(), options = {
   </main>`;
 }
 function reportDocumentCss() {
-  return `:root{color-scheme:only light}html{background:#fff!important;color-scheme:only light}*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;line-height:1.35}.exportToolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 18px;background:#172033;color:#fff}.exportToolbarActions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}.exportToolbar button{border:0;border-radius:12px;padding:11px 16px;background:#fff;color:#172033;font-weight:800;cursor:pointer}.exportToolbar button.secondary{background:#dfeaf5;color:#172033}.exportToolbar span{font-size:13px}.exportReport{width:min(1120px,calc(100% - 28px));margin:20px auto;padding:28px;background:#fff;border-radius:20px;box-shadow:0 16px 50px rgba(15,23,42,.12)}.exportHeader{display:flex;justify-content:space-between;gap:24px;padding-bottom:20px;border-bottom:3px solid #1f73b7}.exportHeader p{margin:0 0 6px;color:#1f73b7;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.exportHeader h1{margin:0;font-size:30px;line-height:1.12}.exportHeader h2{margin:6px 0 0;font-size:18px;color:#526071}.exportHeaderMeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right;font-size:13px}.exportReport section{margin-top:26px;break-inside:auto}.exportReport section>h2,.exportTwoColumns>div>h2{margin:0 0 12px;font-size:19px;color:#172033}.exportNotice{padding:14px 16px;border:1px solid #b9d6ed;border-radius:14px;background:#f2f8fd}.exportNotice p{margin:4px 0 0;font-size:13px}.exportSectionHint{margin:-4px 0 12px;color:#64748b;font-size:12px}.exportMetricGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.exportMetric{display:flex;flex-direction:column;gap:4px;padding:13px;border:1px solid #dbe3ec;border-radius:12px;background:#f8fafc}.exportMetric span{font-size:12px;color:#5e6b7a}.exportMetric b{font-size:18px}.exportMetric small{font-size:11px;color:#64748b}.exportChart{display:grid;grid-template-columns:180px 1fr;align-items:center;gap:24px;margin-top:16px;padding:14px;border:1px solid #dbe3ec;border-radius:14px}.exportChart svg{width:165px;height:165px}.exportChart circle{fill:none;stroke-width:15}.exportChart .track{stroke:#e8edf3}.exportChart .included{stroke:#2f9e62}.exportChart .outside{stroke:#df5b50}.exportChart .unclear{stroke:#d9a21b}.exportChart .value{font-size:18px;font-weight:800;fill:#172033}.exportChart .label{font-size:7px;fill:#64748b}.exportLegend{display:grid;gap:10px}.exportLegend>div{display:flex;align-items:center;gap:9px}.exportLegend p{display:flex;flex-direction:column;margin:0}.exportLegend small{color:#64748b}.dot{width:11px;height:11px;border-radius:50%}.dot.included{background:#2f9e62}.dot.outside{background:#df5b50}.dot.unclear{background:#d9a21b}.exportTableWrap{width:100%;overflow-x:auto;border:1px solid #dbe3ec;border-radius:12px}.exportTableWrap table{width:100%;border-collapse:collapse;font-size:11px}.exportTableWrap th{background:#edf3f8;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em}.exportTableWrap th,.exportTableWrap td{padding:8px 7px;border-bottom:1px solid #e5eaf0;vertical-align:top}.exportTableWrap tr:last-child td{border-bottom:0}.exportTableWrap tbody tr:nth-child(even){background:#fafbfd}.exportTableWrap small{color:#64748b}.exportTwoColumns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.exportEmpty{margin:0;padding:15px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b}.exportReport footer{margin-top:28px;padding-top:14px;border-top:1px solid #dbe3ec;color:#64748b;font-size:11px;text-align:center}@media(max-width:760px){.exportReport{width:100%;margin:0;padding:18px;border-radius:0}.exportHeader{flex-direction:column}.exportHeaderMeta{align-items:flex-start;text-align:left}.exportMetricGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.exportChart{grid-template-columns:1fr}.exportChart svg{justify-self:center}.exportTwoColumns{grid-template-columns:1fr}.exportToolbar{align-items:flex-start;flex-direction:column}.exportToolbarActions{width:100%;justify-content:flex-start}}@media (prefers-color-scheme:dark){html,body,.exportReport{background:#fff!important;color:#18202a!important}}@media print{@page{size:A4 portrait;margin:10mm}html,body{background:#fff!important;color:#18202a!important;color-scheme:only light}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.exportToolbar{display:none!important}.exportReport{width:auto;margin:0;padding:0;border-radius:0;box-shadow:none}.exportHeader{break-inside:avoid}.exportMetricGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.exportMetric,.exportChart,.exportTableWrap{break-inside:avoid}.exportTableWrap{overflow:visible}.exportTableWrap table{font-size:8.5px}.exportTableWrap th{font-size:8px}.exportTableWrap th,.exportTableWrap td{padding:5px 4px}.exportTwoColumns{grid-template-columns:1fr 1fr}.exportBookings{break-before:page}.exportReport section>h2,.exportTwoColumns>div>h2{font-size:15px}.exportHeader h1{font-size:24px}}`;
+  return `:root{color-scheme:only light}html{background:#fff!important;color-scheme:only light}*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#18202a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;line-height:1.35}.exportToolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 18px;background:#172033;color:#fff}.exportToolbarActions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}.exportToolbar button{border:0;border-radius:12px;padding:11px 16px;background:#fff;color:#172033;font-weight:800;cursor:pointer}.exportToolbar button.secondary{background:#dfeaf5;color:#172033}.exportToolbar span{font-size:13px}.exportReport{width:min(1120px,calc(100% - 28px));margin:20px auto;padding:28px;background:#fff;border-radius:20px;box-shadow:0 16px 50px rgba(15,23,42,.12)}.exportHeader{display:flex;justify-content:space-between;gap:24px;padding-bottom:20px;border-bottom:3px solid #1f73b7}.exportHeader p{margin:0 0 6px;color:#1f73b7;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.exportHeader h1{margin:0;font-size:30px;line-height:1.12}.exportHeader h2{margin:6px 0 0;font-size:18px;color:#526071}.exportHeaderMeta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right;font-size:13px}.exportReport section{margin-top:26px;break-inside:auto}.exportReport section>h2,.exportTwoColumns>div>h2{margin:0 0 12px;font-size:19px;color:#172033}.exportNotice,.exportArchiveNotice{padding:14px 16px;border:1px solid #b9d6ed;border-radius:14px;background:#f2f8fd}.exportArchiveNotice{border-color:#9fd5b5;background:#edf9f2}.exportArchiveNotice.bad{border-color:#efaaa4;background:#fff1f0}.exportArchiveNotice.warn,.exportArchiveNotice.legacy{border-color:#e4c879;background:#fff9e8}.exportNotice p{margin:4px 0 0;font-size:13px}.exportSectionHint{margin:-4px 0 12px;color:#64748b;font-size:12px}.exportMetricGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.exportMetric{display:flex;flex-direction:column;gap:4px;padding:13px;border:1px solid #dbe3ec;border-radius:12px;background:#f8fafc}.exportMetric span{font-size:12px;color:#5e6b7a}.exportMetric b{font-size:18px}.exportMetric small{font-size:11px;color:#64748b}.exportChart{display:grid;grid-template-columns:180px 1fr;align-items:center;gap:24px;margin-top:16px;padding:14px;border:1px solid #dbe3ec;border-radius:14px}.exportChart svg{width:165px;height:165px}.exportChart circle{fill:none;stroke-width:15}.exportChart .track{stroke:#e8edf3}.exportChart .included{stroke:#2f9e62}.exportChart .outside{stroke:#df5b50}.exportChart .unclear{stroke:#d9a21b}.exportChart .value{font-size:18px;font-weight:800;fill:#172033}.exportChart .label{font-size:7px;fill:#64748b}.exportLegend{display:grid;gap:10px}.exportLegend>div{display:flex;align-items:center;gap:9px}.exportLegend p{display:flex;flex-direction:column;margin:0}.exportLegend small{color:#64748b}.dot{width:11px;height:11px;border-radius:50%}.dot.included{background:#2f9e62}.dot.outside{background:#df5b50}.dot.unclear{background:#d9a21b}.exportTableWrap{width:100%;overflow-x:auto;border:1px solid #dbe3ec;border-radius:12px}.exportTableWrap table{width:100%;border-collapse:collapse;font-size:11px}.exportTableWrap th{background:#edf3f8;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em}.exportTableWrap th,.exportTableWrap td{padding:8px 7px;border-bottom:1px solid #e5eaf0;vertical-align:top}.exportTableWrap tr:last-child td{border-bottom:0}.exportTableWrap tbody tr:nth-child(even){background:#fafbfd}.exportTableWrap small{color:#64748b}.exportTwoColumns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.exportEmpty{margin:0;padding:15px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b}.exportReport footer{margin-top:28px;padding-top:14px;border-top:1px solid #dbe3ec;color:#64748b;font-size:11px;text-align:center}@media(max-width:760px){.exportReport{width:100%;margin:0;padding:18px;border-radius:0}.exportHeader{flex-direction:column}.exportHeaderMeta{align-items:flex-start;text-align:left}.exportMetricGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.exportChart{grid-template-columns:1fr}.exportChart svg{justify-self:center}.exportTwoColumns{grid-template-columns:1fr}.exportToolbar{align-items:flex-start;flex-direction:column}.exportToolbarActions{width:100%;justify-content:flex-start}}@media (prefers-color-scheme:dark){html,body,.exportReport{background:#fff!important;color:#18202a!important}}@media print{@page{size:A4 portrait;margin:10mm}html,body{background:#fff!important;color:#18202a!important;color-scheme:only light}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.exportToolbar{display:none!important}.exportReport{width:auto;margin:0;padding:0;border-radius:0;box-shadow:none}.exportHeader{break-inside:avoid}.exportMetricGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.exportMetric,.exportChart,.exportTableWrap{break-inside:avoid}.exportTableWrap{overflow:visible}.exportTableWrap table{font-size:8.5px}.exportTableWrap th{font-size:8px}.exportTableWrap th,.exportTableWrap td{padding:5px 4px}.exportTwoColumns{grid-template-columns:1fr 1fr}.exportBookings{break-before:page}.exportReport section>h2,.exportTwoColumns>div>h2{font-size:15px}.exportHeader h1{font-size:24px}}`;
 }
 function standaloneTripReportHtml(model = tripReportExportModel(), options = {}) {
   if (!model) return '';
@@ -2373,7 +2452,7 @@ function standaloneTripReportHtml(model = tripReportExportModel(), options = {})
 async function exportTripReportCsv() {
   const model = tripReportExportModel();
   if (!model) { alert('Keine Reise ausgewählt.'); return; }
-  const filename = `CruiseSip_Buchungen_${safeFile(model.trip.name)}_${safeFile(model.trip.startDate || localBackupFileStamp())}.csv`;
+  const filename = `${model.trip.archived ? 'CruiseSip_Abschlussdaten' : 'CruiseSip_Buchungen'}_${safeFile(model.trip.name)}_${safeFile(model.trip.startDate || localBackupFileStamp())}.csv`;
   const result = await saveTextFile(filename, tripReportCsvText(model), ['text/csv;charset=utf-8', 'text/plain;charset=utf-8'], { title: `CruiseSip CSV – ${model.trip.name}` });
   if (result.cancelled) toast('CSV-Export abgebrochen');
   else toast(result.method === 'share' ? 'CSV zum Speichern bereitgestellt' : 'CSV wurde heruntergeladen');
@@ -2382,7 +2461,7 @@ async function exportTripReportCsv() {
 async function exportTripReportHtml() {
   const model = tripReportExportModel();
   if (!model) { alert('Keine Reise ausgewählt.'); return; }
-  const filename = `CruiseSip_Bericht_${safeFile(model.trip.name)}_${safeFile(model.trip.startDate || localBackupFileStamp())}.html`;
+  const filename = `${model.trip.archived ? 'CruiseSip_Abschlussbericht' : 'CruiseSip_Bericht'}_${safeFile(model.trip.name)}_${safeFile(model.trip.startDate || localBackupFileStamp())}.html`;
   const result = await saveTextFile(filename, standaloneTripReportHtml(model), ['text/html;charset=utf-8', 'text/plain;charset=utf-8'], { title: `CruiseSip Bericht – ${model.trip.name}` });
   if (result.cancelled) toast('HTML-Export abgebrochen');
   else toast(result.method === 'share' ? 'HTML-Bericht zum Speichern bereitgestellt' : 'HTML-Bericht wurde heruntergeladen');
@@ -3322,9 +3401,10 @@ function tripCardHtml(trip) {
       ? '<span class="tripStateBadge active">Aktive Reise</span>'
       : '<span class="tripStateBadge available">Weitere Reise</span>';
   const version = referenceVersionById(trip.barkarteVersionId || '')?.version || activeBarkarteVersion().version || 'unbekannt';
+  const archiveMeta = trip.archived ? ` · abgeschlossen ${trip.archivedAt ? formatDateTime(Date.parse(trip.archivedAt)) : ''}${state.archiveIntegrity?.[trip.id]?.status === 'bad' ? ' · Datenabweichung' : ''}` : '';
   return `<article class="itemCard tripListCard ${active ? 'activeTripSelection' : ''} ${trip.archived ? 'completedTripCard' : ''}">
-    <div><b>${esc(trip.name)}${badge}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${tripItinerary(trip).length ? ` · ${tripItinerary(trip).length} Routentage` : ''} · Barkarte ${esc(version)}${active ? ' · geöffnet' : ''}</small></div>
-    <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Buchungen ansehen' : 'Öffnen'}</button>${trip.archived ? '' : `<button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button>`}<button class="mini ${trip.archived ? '' : 'completeTripButton'}" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Reise abschließen'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
+    <div><b>${esc(trip.name)}${badge}</b><small>${esc(trip.ship || 'Ohne Schiff')} · ${esc(formatDate(trip.startDate))} – ${esc(formatDate(trip.endDate))} · ${logs.length} Einträge${tripItinerary(trip).length ? ` · ${tripItinerary(trip).length} Routentage` : ''} · Barkarte ${esc(version)}${archiveMeta}${active ? ' · geöffnet' : ''}</small></div>
+    <div class="rowActions"><button class="mini" data-action="setTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Abschlussbericht' : 'Öffnen'}</button>${trip.archived ? '' : `<button class="mini" data-action="editTrip" data-id="${esc(trip.id)}">Bearbeiten</button>`}<button class="mini ${trip.archived ? '' : 'completeTripButton'}" data-action="archiveTrip" data-id="${esc(trip.id)}">${trip.archived ? 'Reaktivieren' : 'Reise abschließen'}</button><button class="mini dangerText" data-action="deleteTrip" data-id="${esc(trip.id)}">Löschen</button></div>
   </article>`;
 }
 function addTripClosureIssue(bucket, code, title, message, detail = '') {
@@ -3456,6 +3536,29 @@ function tripClosurePreviewHtml() {
     <div class="buttonStack"><button class="primary" data-action="confirmTripClosure" data-id="${esc(trip.id)}" ${blocked ? 'disabled' : ''}>${result.warningCount ? 'Trotz Hinweisen abschließen' : 'Reise jetzt abschließen'}</button><button class="secondary" data-action="cancelTripClosure">Prüfung schließen</button></div>
   </div>`;
 }
+function buildTripClosureSnapshot(tripId) {
+  const trip = tripById(tripId);
+  const persons = state.persons.filter(person => person.tripId === tripId);
+  const logs = state.logs.filter(log => log.tripId === tripId);
+  const total = calcDetailed(logs);
+  const completion = completionTotals(persons, logs);
+  const daily = tripDailyReport(logs, trip);
+  const favorite = drinkReportRows(logs).sort((a, b) => b.count - a.count || b.value - a.value)[0] || null;
+  return {
+    schema: 1,
+    createdAt: nowIso(),
+    personCount: persons.length,
+    logCount: logs.length,
+    totalValue: total.value,
+    includedValue: total.included,
+    outsideValue: total.notIncluded,
+    unclearValue: total.unclear,
+    packagePriceTotal: completion.packagePriceTotal,
+    packageResult: completion.packageResult,
+    strongestDay: daily.strongest ? { date: daily.strongest.key, count: daily.strongest.count, value: daily.strongest.value } : null,
+    favoriteDrink: favorite ? { name: favorite.key, count: favorite.count, value: favorite.value } : null
+  };
+}
 function prepareTripClosure(id) {
   const trip = tripById(id);
   if (!trip || trip.archived) return;
@@ -3482,7 +3585,24 @@ async function confirmTripClosure(id) {
     render();
     return;
   }
-  await put('trips', { ...trip, archived: true, updatedAt: nowIso() });
+  const closureSnapshot = buildTripClosureSnapshot(id);
+  const closureDigest = await calculateTripArchiveDigest(id);
+  await createInternalRestorePoint('Vor dem Abschluss einer Reise', { tripId: id, tripName: trip.name || '', logs: closureSnapshot.logCount });
+  const archivedAt = nowIso();
+  await put('trips', {
+    ...trip,
+    archived: true,
+    archivedAt,
+    archivedByDeviceId: state.settings.deviceId || '',
+    archivedByDeviceName: state.settings.deviceName || '',
+    closureAppVersion: APP_VERSION,
+    closureBuild: APP_BUILD,
+    closureSequence: Number(trip.closureSequence || 0) + 1,
+    closureSnapshot,
+    closureValidation: { criticalCount: result.criticalCount, warningCount: result.warningCount, checkedAt: result.checkedAt },
+    closureDigest,
+    updatedAt: archivedAt
+  });
   if (state.undoLog?.tripId === id) {
     clearUndoAutoHide();
     state.undoLog = null;
@@ -3493,16 +3613,20 @@ async function confirmTripClosure(id) {
   if (editedPerson?.tripId === id) { state.editingPersonId = null; clearDraft('person'); }
   if (state.editingTripId === id) { state.editingTripId = null; clearDraft('trip'); }
   state.pendingTripClosure = null;
+  state.statsFilter = 'trip';
+  state.statsPersonId = null;
+  state.route = 'stats';
   await loadState();
   render();
-  toast('Reise abgeschlossen');
+  toast('Reise abgeschlossen · Abschlussbericht geöffnet');
   haptic();
 }
 async function reactivateTrip(id) {
   const trip = tripById(id);
   if (!trip || !trip.archived) return;
   if (!confirm(`Reise „${trip.name}“ wieder reaktivieren?\n\nDanach können erneut Getränke erfasst sowie Personen und Buchungen geändert werden.`)) return;
-  await put('trips', { ...trip, archived: false, updatedAt: nowIso() });
+  const restorePoint = await createInternalRestorePoint('Vor der Reaktivierung einer Reise', { tripId: id, tripName: trip.name || '', closureSequence: Number(trip.closureSequence || 1) });
+  await put('trips', { ...trip, archived: false, reactivatedAt: nowIso(), reactivatedByDeviceId: state.settings.deviceId || '', reactivatedByDeviceName: state.settings.deviceName || '', reactivationRestorePointId: restorePoint?.id || '', updatedAt: nowIso() });
   await putSetting('currentTripId', id);
   state.pendingTripClosure = null;
   state.currentTripId = id;
@@ -4438,10 +4562,12 @@ function rowsMeaningfullyEqual(store, left, right) {
 }
 function tripRowForDeviceSync(row) {
   const copy = meaningfulRow('trips', row);
-  delete copy.archived;
-  delete copy.itinerary;
-  delete copy.itineraryImportedAt;
-  delete copy.itinerarySource;
+  for (const key of [
+    'archived', 'itinerary', 'itineraryImportedAt', 'itinerarySource',
+    'archivedAt', 'archivedByDeviceId', 'archivedByDeviceName', 'closureAppVersion', 'closureBuild',
+    'closureSequence', 'closureSnapshot', 'closureValidation', 'closureDigest',
+    'reactivatedAt', 'reactivatedByDeviceId', 'reactivatedByDeviceName', 'reactivationRestorePointId'
+  ]) delete copy[key];
   return copy;
 }
 function tripRowsEqualForDeviceSync(left, right) {
@@ -5148,6 +5274,7 @@ async function buildTripImportPlan(parsed, local) {
     const tripId = trip.id;
     importedTripIds.push(tripId);
     const existingTrip = tripById.get(tripId);
+    const locallyArchived = !!existingTrip?.archived;
     const fileSummary = {
       fileName,
       deviceId: payload.device?.id || '',
@@ -5180,7 +5307,14 @@ async function buildTripImportPlan(parsed, local) {
     } else if (!tripRowsEqualForDeviceSync(existingTrip, trip)) {
       summary.conflicts += 1;
       fileSummary.conflicts += 1;
-      conflicts.push(tripConflictDetail('trip', fileName, payload, existingTrip, trip, 'Reise mit gleicher ID besitzt abweichende Stammdaten.'));
+      const conflict = tripConflictDetail('trip', fileName, payload, existingTrip, trip, 'Reise mit gleicher ID besitzt abweichende Stammdaten.');
+      if (locallyArchived) {
+        conflict.resolvable = false;
+        conflict.message += ' Die lokal abgeschlossene Reise ist schreibgeschützt und muss vor Änderungen reaktiviert werden.';
+        summary.blockedConflicts += 1;
+        fileSummary.blockedConflicts += 1;
+      }
+      conflicts.push(conflict);
     }
 
     for (const incomingPerson of payload.persons || []) {
@@ -5188,6 +5322,12 @@ async function buildTripImportPlan(parsed, local) {
       person.tripId = tripId;
       const existingPerson = personById.get(person.id);
       if (!existingPerson) {
+        if (locallyArchived) {
+          blockedPersonIds.add(person.id);
+          summary.conflicts += 1; summary.blockedConflicts += 1; fileSummary.conflicts += 1; fileSummary.blockedConflicts += 1;
+          conflicts.push(tripConflictDetail('reference', fileName, payload, null, person, 'Die lokal abgeschlossene Reise ist schreibgeschützt. Die neue Person wird erst nach einer Reaktivierung übernommen.'));
+          continue;
+        }
         const sameName = Array.from(personById.values()).find(row => row.tripId === tripId && normalize(row.name) === normalize(person.name) && row.id !== person.id);
         if (sameName) {
           summary.nameWarnings += 1;
@@ -5202,14 +5342,17 @@ async function buildTripImportPlan(parsed, local) {
       } else if (existingPerson.tripId !== tripId || !rowsMeaningfullyEqual('persons', existingPerson, person)) {
         summary.conflicts += 1;
         fileSummary.conflicts += 1;
-        if (existingPerson.tripId !== tripId) {
+        const conflict = tripConflictDetail('person', fileName, payload, existingPerson, person, existingPerson.tripId !== tripId
+          ? 'Die Personen-ID ist lokal einer anderen Reise zugeordnet. Buchungen für diese Person werden aus dieser Datei nicht übernommen.'
+          : 'Person mit gleicher ID besitzt abweichende Stammdaten. Der lokale Personenstand bleibt erhalten; neue Buchungen können weiterhin dieser Person zugeordnet werden.');
+        if (locallyArchived || existingPerson.tripId !== tripId) {
           blockedPersonIds.add(person.id);
+          conflict.resolvable = false;
+          conflict.message += locallyArchived ? ' Die lokal abgeschlossene Reise ist schreibgeschützt und muss vor Personenänderungen reaktiviert werden.' : '';
           summary.blockedConflicts += 1;
           fileSummary.blockedConflicts += 1;
         }
-        conflicts.push(tripConflictDetail('person', fileName, payload, existingPerson, person, existingPerson.tripId !== tripId
-          ? 'Die Personen-ID ist lokal einer anderen Reise zugeordnet. Buchungen für diese Person werden aus dieser Datei nicht übernommen.'
-          : 'Person mit gleicher ID besitzt abweichende Stammdaten. Der lokale Personenstand bleibt erhalten; neue Buchungen können weiterhin dieser Person zugeordnet werden.'));
+        conflicts.push(conflict);
       }
     }
 
@@ -5227,9 +5370,9 @@ async function buildTripImportPlan(parsed, local) {
           fileSummary.changedLogs += 1;
           const conflict = tripConflictDetail('log', fileName, payload, existingLog, incomingLog, 'Buchung mit gleichem Merge-Key wurde auf mindestens einem Gerät verändert.');
           const incomingPerson = personById.get(incomingLog.personId);
-          if (blockedPersonIds.has(incomingLog.personId) || !incomingPerson || incomingPerson.tripId !== tripId || (incomingLog.tripId && incomingLog.tripId !== tripId)) {
+          if (locallyArchived || blockedPersonIds.has(incomingLog.personId) || !incomingPerson || incomingPerson.tripId !== tripId || (incomingLog.tripId && incomingLog.tripId !== tripId)) {
             conflict.resolvable = false;
-            conflict.message += ' Die importierte Version besitzt keine sicher verwendbare Reise- oder Personenzuordnung und bleibt deshalb gesperrt.';
+            conflict.message += locallyArchived ? ' Die lokal abgeschlossene Reise ist schreibgeschützt; die importierte Änderung wird erst nach einer Reaktivierung übernehmbar.' : ' Die importierte Version besitzt keine sicher verwendbare Reise- oder Personenzuordnung und bleibt deshalb gesperrt.';
             summary.blockedConflicts += 1;
             fileSummary.blockedConflicts += 1;
           }
@@ -5261,16 +5404,18 @@ async function buildTripImportPlan(parsed, local) {
         conflicts.push(tripConflictDetail('reference', fileName, payload, null, incomingLog, 'Die zugehörige Person ist nicht verfügbar.'));
         continue;
       }
+      if (locallyArchived) {
+        summary.archivedTripLogs += 1; fileSummary.archivedTripLogs += 1;
+        summary.conflicts += 1; summary.blockedConflicts += 1; fileSummary.conflicts += 1; fileSummary.blockedConflicts += 1;
+        conflicts.push(tripConflictDetail('reference', fileName, payload, null, incomingLog, 'Die lokal abgeschlossene Reise ist schreibgeschützt. Diese neue Buchung wird nicht übernommen; reaktiviere die Reise und starte den Import erneut.'));
+        continue;
+      }
       const log = normalizeIncomingLog(incomingLog, payload.device?.id || '', usedLogIds);
       log.tripId = tripId;
       log.personId = incomingLog.personId;
       log.personName = personById.get(log.personId)?.name || log.personName;
       log.trackedByDeviceId = incomingLog.trackedByDeviceId || payload.device?.id || 'unknown';
       log.trackedByDeviceName = incomingLog.trackedByDeviceName || payload.device?.name || 'Import';
-      if (tripById.get(tripId)?.archived) {
-        summary.archivedTripLogs += 1;
-        fileSummary.archivedTripLogs += 1;
-      }
       rows.logs.push(log);
       logByKey.set(key, log);
       usedLogIds.add(log.id);
@@ -5278,7 +5423,7 @@ async function buildTripImportPlan(parsed, local) {
       fileSummary.addedLogs += 1;
     }
     fileSummary.added = fileSummary.addedTrips + fileSummary.addedPersons + fileSummary.addedLogs + fileSummary.addedReferenceVersions;
-    if (fileSummary.archivedTripLogs) warnings.push(`${fileName}: ${fileSummary.archivedTripLogs} neue Buchung${fileSummary.archivedTripLogs === 1 ? '' : 'en'} wird einer lokal abgeschlossenen Reise hinzugefügt. Die Reise bleibt abgeschlossen.`);
+    if (fileSummary.archivedTripLogs) warnings.push(`${fileName}: ${fileSummary.archivedTripLogs} neue Buchung${fileSummary.archivedTripLogs === 1 ? '' : 'en'} für eine lokal abgeschlossene Reise wurde blockiert. Reaktiviere die Reise und importiere erneut.`);
     fileSummaries.push(fileSummary);
   }
 
@@ -5317,7 +5462,7 @@ function tripImportFileHtml(row) {
     <div class="tripImportFileHead"><div><b>${esc(row.deviceName)}</b><small>${esc(row.tripName)} · ${esc(exportedAt)}</small></div><span class="diagnosticSummary ${row.conflicts ? 'warn' : 'ok'}">${row.conflicts ? `${row.conflicts} Konflikt${row.conflicts === 1 ? '' : 'e'}` : 'Geprüft'}</span></div>
     <div class="tripImportFileCounts"><span><b>+${row.addedLogs}</b> neu</span><span><b>${row.changedLogs || 0}</b> geändert</span><span><b>${row.duplicates}</b> doppelt</span></div>
     ${row.addedPersons || row.addedTrips || row.addedReferenceVersions ? `<small class="tripImportReferenceCounts">Zusätzlich: ${row.addedTrips || 0} Reise(n) · ${row.addedPersons || 0} Person(en) · ${row.addedReferenceVersions || 0} Barkarten-Version(en)</small>` : ''}
-    ${row.archivedTripLogs ? `<div class="archivedImportWarning">${row.archivedTripLogs} neue Buchung${row.archivedTripLogs === 1 ? '' : 'en'} für eine abgeschlossene Reise</div>` : ''}
+    ${row.archivedTripLogs ? `<div class="archivedImportWarning">${row.archivedTripLogs} Buchung${row.archivedTripLogs === 1 ? '' : 'en'} durch Archivschutz blockiert</div>` : ''}
     <small class="tripImportFileName">${esc(row.fileName)}${row.legacy ? ' · älteres Exportformat' : ''}</small>
   </div>`;
 }
@@ -5352,7 +5497,7 @@ function tripImportPreviewHtml() {
   return `<div class="tripImportPreview" id="tripImportPreview">
     <div class="backupPreviewHead"><div><b>Importvorschau</b><small>${summary.files} Datei${summary.files === 1 ? '' : 'en'} geprüft · Noch keine lokalen Daten verändert</small></div><span class="diagnosticSummary ${summary.conflicts ? 'warn' : 'ok'}">${summary.conflicts ? 'Auswahl erforderlich' : 'Bereit zum Zusammenführen'}</span></div>
     <div class="tripImportSummary">
-      <span><b>+${summary.logs}</b> neue Buchungen</span><span><b>${summary.changedLogs || 0}</b> geänderte Buchungen</span><span><b>${summary.duplicates}</b> doppelte Buchungen</span><span><b>+${summary.persons}</b> Personen</span><span><b>+${summary.referenceVersions || 0}</b> Barkarten-Versionen</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte gesamt</span>${summary.archivedTripLogs ? `<span class="warnText"><b>${summary.archivedTripLogs}</b> für abgeschlossene Reisen</span>` : ''}
+      <span><b>+${summary.logs}</b> neue Buchungen</span><span><b>${summary.changedLogs || 0}</b> geänderte Buchungen</span><span><b>${summary.duplicates}</b> doppelte Buchungen</span><span><b>+${summary.persons}</b> Personen</span><span><b>+${summary.referenceVersions || 0}</b> Barkarten-Versionen</span><span class="${summary.conflicts ? 'warnText' : ''}"><b>${summary.conflicts}</b> Konflikte gesamt</span>${summary.archivedTripLogs ? `<span class="warnText"><b>${summary.archivedTripLogs}</b> durch Archivschutz blockiert</span>` : ''}
     </div>
     <div class="tripImportFiles">${plan.fileSummaries.map(tripImportFileHtml).join('')}</div>
     ${plan.warnings.length ? `<div class="backupMessages warn">${plan.warnings.map(message => `<p>${esc(message)}</p>`).join('')}</div>` : ''}
@@ -5450,7 +5595,6 @@ async function applyPreparedTripImport() {
   }
   state.pendingTripImport = { ...pending, plan, resolutions };
   const resolutionStats = applyTripConflictResolutions(plan, resolutions);
-  if (plan.summary.archivedTripLogs && !confirm(`${plan.summary.archivedTripLogs} neue Buchung${plan.summary.archivedTripLogs === 1 ? '' : 'en'} wird einer lokal abgeschlossenen Reise hinzugefügt. Die Reise bleibt abgeschlossen und die neuen Daten sollten anschließend erneut geprüft werden. Trotzdem importieren?`)) return;
   if (plan.summary.conflicts && !confirm(`${plan.summary.conflicts} Konflikt${plan.summary.conflicts === 1 ? '' : 'e'}: ${resolutionStats.local} lokal, ${resolutionStats.incoming} importiert, ${resolutionStats.blocked} nicht übernehmbar. Auswahl jetzt anwenden?`)) return;
 
   const importedAt = nowIso();
@@ -5466,7 +5610,7 @@ async function applyPreparedTripImport() {
     plan.rows.imports.push({
       id: `import_${uid()}`,
       batchId,
-      kind: 'Geräteabgleich v5.3',
+      kind: 'Geräteabgleich v5.4',
       status: 'abgeschlossen',
       fileName: fileSummary.fileName,
       importedAt,
@@ -5497,7 +5641,7 @@ async function applyPreparedTripImport() {
   const notices = [];
   if (plan.summary.nameWarnings) notices.push(`${plan.summary.nameWarnings} gleichnamige Person(en) mit unterschiedlicher ID wurden getrennt beibehalten.`);
   if (plan.summary.legacyFiles) notices.push(`${plan.summary.legacyFiles} ältere Exportdatei(en) wurden kompatibel importiert.`);
-  if (plan.summary.archivedTripLogs) notices.push(`${plan.summary.archivedTripLogs} neue Buchung(en) wurden abgeschlossenen Reisen hinzugefügt; der lokale Abschlussstatus blieb erhalten.`);
+  if (plan.summary.archivedTripLogs) notices.push(`${plan.summary.archivedTripLogs} Buchung(en) für lokal abgeschlossene Reisen wurden durch den Archivschutz blockiert. Reaktiviere die Reise und importiere erneut.`);
   alert(`Geräteabgleich abgeschlossen.\n\nDateien: ${plan.summary.files}\nNeue Reisen: ${plan.summary.trips}\nNeue Personen: ${plan.summary.persons}\nNeue Barkarten-Versionen: ${plan.summary.referenceVersions || 0}\nNeue Buchungen: ${plan.summary.logs}\nGeänderte Buchungen: ${plan.summary.changedLogs || 0}\nBereits vorhanden: ${plan.summary.duplicates}\nKonflikte lokal behalten: ${resolutionStats.local}\nImportierte Version übernommen: ${resolutionStats.incoming}\nNicht sicher übernehmbar: ${resolutionStats.blocked}\nWiederherstellungspunkt: erstellt${notices.length ? `\n\nHinweise:\n${notices.join('\n')}` : ''}`);
   toast(`${plan.summary.logs} neu · ${resolutionStats.incoming} importiert · ${plan.summary.duplicates} doppelt`);
 }
@@ -5754,6 +5898,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.4.0</h2>
+  <ul>
+    <li>Reiseabschluss speichert Abschlusszeitpunkt, abschließendes Gerät, App-Build und kompakte Abschlusskennzahlen.</li>
+    <li>Vor Abschluss und Reaktivierung wird automatisch ein interner Wiederherstellungspunkt erstellt.</li>
+    <li>Lokale SHA-256-Prüfsumme zeigt, ob Reise-, Personen- und Buchungsdaten seit dem Abschluss unverändert sind.</li>
+    <li>Abgeschlossene Reisen öffnen direkt im Abschlussbericht und bleiben auch beim Geräteimport schreibgeschützt.</li>
+    <li>CSV-, HTML- und PDF-Berichte werden eindeutig als Abschlussstand gekennzeichnet.</li>
+  </ul>
   <h2>Version 5.3.1</h2>
   <ul>
     <li>Beim Anlegen und Bearbeiten einer Reise kann die Barkarten- und Paketversion direkt ausgewählt werden.</li>

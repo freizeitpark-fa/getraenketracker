@@ -1,3 +1,16 @@
+# CruiseSip Changelog
+
+## 5.4.0 – Reiseabschluss und Archivmodus
+
+- Vor jedem Reiseabschluss wird automatisch ein interner Wiederherstellungspunkt erstellt.
+- Abschlusszeitpunkt, abschließendes Gerät, App-Build, Prüfergebnis und kompakte Abschlusskennzahlen werden im Reisedatensatz gespeichert.
+- SHA-256-Prüfsumme über Reise, Personen und Buchungen ergänzt; der Abschlussbericht zeigt, ob der lokale Datenbestand seit dem Abschluss unverändert ist.
+- Abgeschlossene Reisen öffnen direkt in der Abschlussauswertung statt im Verlauf.
+- Abschlussberichte und Dateinamen werden in CSV, HTML und Druck/PDF eindeutig als Endstand gekennzeichnet.
+- Geräteimporte dürfen lokal abgeschlossene Reisen nicht mehr verändern. Neue oder geänderte Buchungen werden blockiert und erfordern eine bewusste Reaktivierung.
+- Vor einer Reaktivierung wird ebenfalls ein Wiederherstellungspunkt erstellt.
+- Dokumentation `docs/REISEABSCHLUSS_V54.md` ergänzt.
+
 # Changelog
 
 ## 5.3.1 – Barkartenversion direkt an der Reise

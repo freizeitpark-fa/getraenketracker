@@ -277,3 +277,14 @@ Mögliche spätere Punkte:
 - Export über das iOS-Teilen-Menü und Speichern in der Dateien-App
 - PDF-Erstellung über die iOS-Druckfunktion
 - vollständig offline und ohne externe Bibliotheken
+
+
+## Erledigt mit Version 5.4.0
+
+- kontrollierter Reiseabschluss mit Datenprüfung
+- Wiederherstellungspunkt vor Abschluss und Reaktivierung
+- Abschlussmetadaten und kompakter Endstand je Reise
+- lokale SHA-256-Integritätsprüfung des archivierten Datenbestands
+- direkter Einstieg in den Abschlussbericht
+- Archivschutz auch beim Geräteabgleich
+- Abschlussbericht als CSV, HTML und Druck/PDF mit Abschlusskennzeichnung

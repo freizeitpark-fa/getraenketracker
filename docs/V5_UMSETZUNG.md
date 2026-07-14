@@ -42,7 +42,7 @@ Beim ersten Start nach dem Update von v4 auf v5 wird vor der Migration einmalig 
 ## Technischer Stand
 
 - App-Version: 5.3.0
-- Build: 5.3.1a
+- Build: 5.4.0a
 - IndexedDB-Version: 2
 - Neue Store-Struktur: `snapshots`
 - Bestehende Kern-Stores und IDs bleiben unverändert.
@@ -83,3 +83,12 @@ Barkarten und Getränkepakete werden als vollständige Referenzversionen gespeic
 ## Ergänzung v5.3.1
 
 Die Referenzversion kann direkt beim Anlegen und Bearbeiten einer Reise gewählt werden. Vorhandene Buchungen werden nur nach einer ausdrücklichen Prüfvorschau und Bestätigung aktualisiert.
+
+
+## Ergänzung v5.4.0
+
+- Abschlussmetadaten und Abschluss-Snapshot je archivierter Reise
+- lokale SHA-256-Integritätsprüfung
+- Wiederherstellungspunkt vor Abschluss und Reaktivierung
+- Archivschutz beim Geräteabgleich
+- direkter Einstieg in den Abschlussbericht

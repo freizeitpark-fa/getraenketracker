@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 5.3.1**, Build **5.3.1a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 5.4.0**, Build **5.4.0a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -97,3 +97,8 @@ Der Geräteabgleich bleibt vollständig dateibasiert und offline. Vor der Übern
 
 Alle gespeicherten Referenzversionen liegen lokal in IndexedDB. Neue JSON- oder CSV-Dateien können vollständig offline aus der Dateien-App importiert und zunächst verglichen werden. Ein Import überschreibt keine ältere Reiseversion. Reiseexporte führen die zugehörige Referenzversion mit, sodass der Geräteabgleich auch ohne separaten Onlinezugriff vollständig bleibt.
 
+
+
+## Archivierte Reisen ab Version 5.4
+
+Die Integritätsprüfung des Abschlussstands erfolgt vollständig lokal und benötigt keine Internetverbindung. Die Prüfsumme wird beim Abschluss auf dem Gerät erzeugt. Geräteimporte verändern eine lokal abgeschlossene Reise nicht; für fehlende Buchungen muss die Reise bewusst reaktiviert werden.
