@@ -41,8 +41,16 @@ Beim ersten Start nach dem Update von v4 auf v5 wird vor der Migration einmalig 
 
 ## Technischer Stand
 
-- App-Version: 5.0.0
-- Build: 5.0.0a
+- App-Version: 5.0.1
+- Build: 5.0.1a
 - IndexedDB-Version: 2
 - Neue Store-Struktur: `snapshots`
 - Bestehende Kern-Stores und IDs bleiben unverändert.
+
+## Ergänzung 5.0.1
+
+- Die Darstellung wird über zentrale CSS-Variablen und `data-theme` am HTML-Element gesteuert.
+- Verfügbare Themes: `system`, `light`, `dark`, `ocean`, `sunset`, `nordic`, `contrast`.
+- Die Einstellung `reducedEffects` deaktiviert Animationen, stärkere Schatten, Transparenzen und dekorative Verläufe.
+- Theme und Effekte werden lokal in den Geräteeinstellungen gespeichert und nicht durch Reiseexporte verändert.
+- Home-Reihenfolge: aktive Reise, Schnellzugriff, persönliche Wiederholung, Kennzahlen, Reisetag, Tagesübersicht.

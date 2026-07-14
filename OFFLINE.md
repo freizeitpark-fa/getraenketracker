@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 5.0.0**, Build **5.0.0a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 5.0.1**, Build **5.0.1a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 

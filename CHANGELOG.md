@@ -1,5 +1,16 @@
 # Changelog
 
+## 5.0.1 – Themes und Home-Priorisierung
+
+- Sieben Darstellungen: Automatisch, Hell, Dunkel, Ocean, Sunset, Nordic und Hoher Kontrast.
+- Ocean ist als empfohlenes CruiseSip-Theme gekennzeichnet.
+- Live-Vorschau und lokale, gerätebezogene Speicherung der Theme-Auswahl.
+- Option „Reduzierte Effekte“ für weniger Animationen, Schatten, Transparenzen und dekorative Verläufe.
+- Home neu geordnet: Schnellzugriff direkt oben, „Noch einmal erfassen“ darunter, Kennzahlen und Tagesbereiche anschließend.
+- Tagesübersicht bewusst weiter nach unten verschoben.
+- Navigation, Statusbereiche und Bedienelemente auf die neuen Theme-Farbvariablen umgestellt.
+- App- und Service-Worker-Build auf `5.0.1a` erhöht.
+
 ## 5.0.0 – Reiseintelligenz und Mehrfacherfassung
 
 - Home zeigt den heutigen oder nächsten Reisetag mit Hafen, Land, Tagesart und Liegezeiten.

@@ -1,3 +1,9 @@
+## Version 5.0.1 Themes und Home-Priorisierung
+
+- Theme-System mit Automatisch, Hell, Dunkel, Ocean, Sunset, Nordic und Hohem Kontrast umgesetzt.
+- Reduzierte Effekte als gerätebezogene Darstellungsoption ergänzt.
+- Home für die Erfassungspraxis neu geordnet: Schnellzugriff und Wiederholung vor Kennzahlen und Tagesübersicht.
+
 ## Version 5.0.0 Reiseintelligenz und Mehrfacherfassung
 
 - Reiseverlaufs-Karte auf Home

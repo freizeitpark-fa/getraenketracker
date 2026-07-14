@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.0.0';
-const APP_CACHE_NAME = 'cruisesip-v5-0-0-20260714a';
-const APP_BUILD = '5.0.0a';
-const SERVICE_WORKER_URL = './sw.js?v=5.0.0a';
+const APP_VERSION = '5.0.1';
+const APP_CACHE_NAME = 'cruisesip-v5-0-1-20260714a';
+const APP_BUILD = '5.0.1a';
+const SERVICE_WORKER_URL = './sw.js?v=5.0.1a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -34,6 +34,25 @@ const DRINK_SORT_OPTIONS = [
   { id: 'priceDesc', label: 'Preis absteigend' },
   { id: 'alphabetical', label: 'Alphabetisch' }
 ];
+
+const THEME_OPTIONS = [
+  { id: 'system', label: 'Automatisch', description: 'Folgt der iPhone-Einstellung', preview: 'system' },
+  { id: 'light', label: 'Hell', description: 'Klar und neutral', preview: 'light' },
+  { id: 'dark', label: 'Dunkel', description: 'Für Bars und Kabine', preview: 'dark' },
+  { id: 'ocean', label: 'Ocean', description: 'Maritim und frisch', preview: 'ocean', recommended: true },
+  { id: 'sunset', label: 'Sunset', description: 'Warm und urlaubstypisch', preview: 'sunset' },
+  { id: 'nordic', label: 'Nordic', description: 'Kühl und reduziert', preview: 'nordic' },
+  { id: 'contrast', label: 'Hoher Kontrast', description: 'Maximale Erkennbarkeit', preview: 'contrast' }
+];
+
+const THEME_COLORS = {
+  light: '#f5f5f7',
+  dark: '#05070b',
+  ocean: '#e8f5f7',
+  sunset: '#fff4eb',
+  nordic: '#edf3f5',
+  contrast: '#000000'
+};
 
 let db;
 let state = {
@@ -391,7 +410,7 @@ async function restoreV5MigrationSnapshot() {
   await loadState();
   state.route = 'dashboard';
   render();
-  alert('Die interne Sicherung wurde wiederhergestellt. CruiseSip läuft weiterhin mit der App-Version 5.0.0.');
+  alert(`Die interne Sicherung wurde wiederhergestellt. CruiseSip läuft weiterhin mit der App-Version ${APP_VERSION}.`);
 }
 
 async function bootstrap() {
@@ -431,6 +450,7 @@ async function ensureDefaults() {
   if (!(await getSetting('deviceName'))) await putSetting('deviceName', 'Mein iPhone');
   if (!(await getSetting('favorites'))) await putSetting('favorites', []);
   if (!(await getSetting('theme'))) await putSetting('theme', 'system');
+  if ((await getSetting('reducedEffects')) === undefined) await putSetting('reducedEffects', false);
   if (!(await getSetting('drinkSort'))) await putSetting('drinkSort', 'frequent');
   const trips = await all('trips');
   if (!trips.length) {
@@ -858,7 +878,7 @@ function bindShell() {
   window.addEventListener('orientationchange', () => setTimeout(scheduleViewportLayout, 250));
   const themeMedia = window.matchMedia?.('(prefers-color-scheme: dark)');
   if (themeMedia?.addEventListener) themeMedia.addEventListener('change', () => {
-    if (!['light', 'dark'].includes(state.settings.theme)) applyTheme();
+    if ((state.settings.theme || 'system') === 'system') applyTheme();
   });
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', scheduleViewportLayout);
@@ -941,6 +961,7 @@ async function handleClick(event) {
 
   if (action === 'finishOnboarding') { await putSetting('onboardingComplete', true); state.route = 'dashboard'; await loadState(); render(); return; }
   if (action === 'setTheme') { await setTheme(id); return; }
+  if (action === 'setReducedEffects') { await setReducedEffects(id === 'true'); return; }
   if (action === 'checkAppUpdate') { await checkForAppUpdate({ silent: false }); return; }
   if (action === 'runOfflineDiagnostics') { await runOfflineDiagnostics({ silent: false }); return; }
   if (action === 'applyAppUpdate') { await applyAppUpdate(); return; }
@@ -1329,32 +1350,56 @@ function render() {
   }
 }
 
+function selectedTheme() {
+  const selected = state.settings.theme || 'system';
+  return THEME_OPTIONS.some(option => option.id === selected) ? selected : 'system';
+}
+
 function effectiveTheme() {
-  if (state.settings.theme === 'light' || state.settings.theme === 'dark') return state.settings.theme;
+  const selected = selectedTheme();
+  if (selected !== 'system') return selected;
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+function themeLabel(theme = selectedTheme()) {
+  const option = THEME_OPTIONS.find(row => row.id === theme);
+  if (!option) return 'Automatisch';
+  if (theme === 'system') return `Automatisch · ${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}`;
+  return option.label;
+}
+
 function applyTheme() {
+  const preference = selectedTheme();
   const theme = effectiveTheme();
   document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset.themePreference = preference;
+  document.documentElement.dataset.reducedEffects = state.settings.reducedEffects ? 'true' : 'false';
   const lightMeta = document.querySelector('meta[name="theme-color"][media*="light"]');
   const darkMeta = document.querySelector('meta[name="theme-color"][media*="dark"]');
-  const selectedColor = theme === 'dark' ? '#05070b' : '#f5f5f7';
-  if (state.settings.theme === 'light' || state.settings.theme === 'dark') {
+  if (preference === 'system') {
+    if (lightMeta) lightMeta.content = THEME_COLORS.light;
+    if (darkMeta) darkMeta.content = THEME_COLORS.dark;
+  } else {
+    const selectedColor = THEME_COLORS[theme] || THEME_COLORS.light;
     if (lightMeta) lightMeta.content = selectedColor;
     if (darkMeta) darkMeta.content = selectedColor;
-  } else {
-    if (lightMeta) lightMeta.content = '#f5f5f7';
-    if (darkMeta) darkMeta.content = '#05070b';
   }
 }
 
 async function setTheme(theme) {
-  if (!['light', 'dark'].includes(theme)) return;
+  if (!THEME_OPTIONS.some(option => option.id === theme)) return;
   await putSetting('theme', theme);
   applyTheme();
   render();
-  toast(theme === 'dark' ? 'Dunkle Ansicht aktiviert' : 'Helle Ansicht aktiviert');
+  toast(`${themeLabel(theme)} aktiviert`);
+  haptic();
+}
+
+async function setReducedEffects(enabled) {
+  await putSetting('reducedEffects', Boolean(enabled));
+  applyTheme();
+  render();
+  toast(enabled ? 'Reduzierte Effekte aktiviert' : 'Standardeffekte aktiviert');
   haptic();
 }
 
@@ -1458,6 +1503,8 @@ function viewDashboard() {
         </div>
       </div>
       ${tripStatusNoticeHtml('dashboard', trip)}
+      <div id="dashboardQuick">${dashboardQuickHtml()}</div>
+      ${personalRepeatCardHtml()}
       <div class="kpiGrid">
         ${kpi('Heute', eur(today.value), `${today.count} Getränke`)}
         ${kpi('Gesamtreise', eur(total.value), `${total.count} Getränke`)}
@@ -1466,8 +1513,6 @@ function viewDashboard() {
       </div>
       ${todayItineraryCardHtml()}
       ${dailyOverviewHtml()}
-      ${personalRepeatCardHtml()}
-      <div id="dashboardQuick">${dashboardQuickHtml()}</div>
       ${setupWarningsHtml()}
     </section>`;
 }
@@ -3482,12 +3527,12 @@ function viewSettings() {
       ${migrationSnapshotCardHtml()}
       ${fullBackupCardHtml()}
       ${deviceSyncCardHtml()}
-      <div class="card themeCard"><div class="sectionHead"><h2>Darstellung</h2><span class="subtle">${effectiveTheme() === 'dark' ? 'Dunkel' : 'Hell'}</span></div>
-        <div class="themeSwitch" role="group" aria-label="Farbdarstellung wählen">
-          <button class="themeOption ${effectiveTheme() === 'light' ? 'active' : ''}" data-action="setTheme" data-id="light" aria-pressed="${effectiveTheme() === 'light'}"><span aria-hidden="true">☀</span><b>Hell</b></button>
-          <button class="themeOption ${effectiveTheme() === 'dark' ? 'active' : ''}" data-action="setTheme" data-id="dark" aria-pressed="${effectiveTheme() === 'dark'}"><span aria-hidden="true">☾</span><b>Dunkel</b></button>
+      <div class="card themeCard"><div class="sectionHead"><div><h2>Darstellung</h2><p class="hint">Theme sofort als Live-Vorschau auf diesem Gerät anwenden.</p></div><span class="subtle">${esc(themeLabel())}</span></div>
+        <div class="themeGallery" role="group" aria-label="Farbdarstellung wählen">
+          ${THEME_OPTIONS.map(option => `<button class="themeOption ${selectedTheme() === option.id ? 'active' : ''}" data-action="setTheme" data-id="${esc(option.id)}" aria-pressed="${selectedTheme() === option.id}"><span class="themePreview themePreview-${esc(option.preview)}" aria-hidden="true"><i></i><i></i><i></i></span><span class="themeOptionText"><b>${esc(option.label)}${option.recommended ? '<em>Empfohlen</em>' : ''}</b><small>${esc(option.description)}</small></span></button>`).join('')}
         </div>
-        <p class="hint">Die Auswahl wird ausschließlich lokal auf diesem Gerät gespeichert.</p>
+        <div class="effectsSetting"><div><b>Reduzierte Effekte</b><small>Deaktiviert Animationen, stärkere Schatten, Transparenzen und dekorative Verläufe.</small></div><div class="effectsSwitch" role="group" aria-label="Visuelle Effekte wählen"><button class="${state.settings.reducedEffects ? '' : 'active'}" data-action="setReducedEffects" data-id="false" aria-pressed="${state.settings.reducedEffects ? 'false' : 'true'}">Standard</button><button class="${state.settings.reducedEffects ? 'active' : ''}" data-action="setReducedEffects" data-id="true" aria-pressed="${state.settings.reducedEffects ? 'true' : 'false'}">Reduziert</button></div></div>
+        <p class="hint">Darstellung und Effekte sind gerätebezogen. Reiseexporte und Zusammenführungsdateien verändern diese Auswahl nicht.</p>
       </div>
       <div class="card"><h2>Verwaltung</h2><div class="buttonStack"><button class="secondary" data-route="trips">Reisen verwalten</button><button class="secondary" data-route="devices">Geräte & Personen</button><button class="secondary" data-route="barkarte">Barkarte verwalten</button></div></div>
       <div class="card"><h2>Aktionen</h2><div class="buttonStack"><button class="secondary" data-action="checkAppUpdate">Jetzt auf Update prüfen</button><button class="secondary" data-route="changelog">Changelog öffnen</button><button class="secondary" data-action="reRunOnboarding">Onboarding erneut anzeigen</button><button class="secondary" data-action="exportFullBackup">Vollständiges Backup exportieren</button></div></div>
@@ -4848,6 +4893,14 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Version 5.0.1</h2>
+  <ul>
+    <li>Neues Theme-System mit Automatisch, Hell, Dunkel, Ocean, Sunset, Nordic und Hoher Kontrast.</li>
+    <li>Theme-Auswahl als Live-Vorschau mit gerätebezogener Speicherung; Ocean ist als empfohlenes CruiseSip-Theme gekennzeichnet.</li>
+    <li>Option „Reduzierte Effekte“ deaktiviert Animationen, stärkere Schatten, Transparenzen und dekorative Verläufe.</li>
+    <li>Home neu priorisiert: Schnellzugriff direkt oben, „Noch einmal erfassen“ unmittelbar darunter und Tagesübersicht weiter unten.</li>
+    <li>Navigation, Dialoge, Diagramme und Statusdarstellungen an alle Themes angepasst; fachliche Statusfarben bleiben erhalten.</li>
+  </ul>
   <h2>Version 5.0.0</h2>
   <ul>
     <li>Reiseverlauf ist nun direkt auf Home präsent: CruiseSip zeigt den heutigen beziehungsweise nächsten Reisetag mit Hafen, Land, Tagesart und Liegezeiten.</li>
