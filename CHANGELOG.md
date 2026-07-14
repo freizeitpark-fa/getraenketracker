@@ -1,3 +1,15 @@
+## v5.5.1a – externe Backup-Erinnerung
+
+- Letztes externes Vollbackup und Zahl der seitdem neuen oder geänderten Erfassungen werden im Setup angezeigt.
+- Dezente Home-Erinnerung ergänzt, wenn seit dem letzten Backup ein neuer Kalendertag begonnen hat und ungesicherte Erfassungen vorliegen.
+- Schaltflächen „Jetzt sichern“ und „Heute nicht mehr erinnern“ ergänzt.
+- Die Tagesausblendung gilt nur bis zum nächsten Kalendertag.
+- Interne Wiederherstellungspunkte und externe Dateien-Backups werden sprachlich und visuell klar getrennt.
+- Ein abgebrochener iOS-Teilen-Dialog wird weiterhin nicht als erfolgreiches Backup protokolliert.
+- Vollbackups enthalten ihren eigenen Backup-Zeitpunkt und die Zahl der gesicherten Erfassungen, sodass der Status nach einer Wiederherstellung nachvollziehbar bleibt.
+- App- und Service-Worker-Build auf `5.5.1a` erhöht.
+- Dokumentation `docs/EXTERNE_BACKUP_ERINNERUNG_V551.md` ergänzt.
+
 ## v5.5.0a – Datenprüfung und Diagnose
 
 - Zentrale Datenprüfung für die aktuelle Reise oder den gesamten lokalen Datenbestand ergänzt.

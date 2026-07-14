@@ -1,9 +1,9 @@
 'use strict';
 
-const APP_VERSION = '5.5.0';
-const APP_CACHE_NAME = 'cruisesip-v5-5-0-20260714a';
-const APP_BUILD = '5.5.0a';
-const SERVICE_WORKER_URL = './sw.js?v=5.5.0a';
+const APP_VERSION = '5.5.1';
+const APP_CACHE_NAME = 'cruisesip-v5-5-1-20260714a';
+const APP_BUILD = '5.5.1a';
+const SERVICE_WORKER_URL = './sw.js?v=5.5.1a';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -991,13 +991,13 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
         label: 'Speicherverwaltung',
         value: `${usage} belegt`,
         level: persisted === true ? 'ok' : 'info',
-        detail: persisted === true ? `Dauerhafter Browserspeicher bestätigt · verfügbar: ${quota}.` : `Speicher wird von iOS verwaltet · verfügbar: ${quota}. Regelmäßig vollständige Backups erstellen.`
+        detail: persisted === true ? `Dauerhafter Browserspeicher bestätigt · verfügbar: ${quota}.` : `Speicher wird von iOS verwaltet · verfügbar: ${quota}. Ein externes Vollbackup pro Reisetag mit neuen Erfassungen wird empfohlen.`
       });
     } catch (_) {
-      items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Regelmäßige vollständige Backups bleiben die wichtigste Datensicherung.' });
+      items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Externe Vollbackups in der Dateien-App bleiben die wichtigste Datensicherung.' });
     }
   } else {
-    items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Eine Speicherquote wird nicht bereitgestellt. Regelmäßig vollständige Backups erstellen.' });
+    items.push({ label: 'Speicherverwaltung', value: 'iOS-verwaltet', level: 'info', detail: 'Eine Speicherquote wird nicht bereitgestellt. Externe Vollbackups in der Dateien-App bleiben erforderlich.' });
   }
 
   items.push({
@@ -1285,6 +1285,7 @@ async function handleClick(event) {
   if (action === 'exportReportHtml') { await runActionOnce('exportReportHtml', exportTripReportHtml); return; }
   if (action === 'printTripReport') { printTripReport(); return; }
   if (action === 'exportFullBackup') { await runActionOnce('exportFullBackup', exportFullBackup); return; }
+  if (action === 'dismissExternalBackupReminder') { await dismissExternalBackupReminderForToday(); return; }
   if (action === 'importFullBackup') { openFile('fullBackup'); return; }
   if (action === 'cancelFullBackupImport') { state.pendingBackup = null; render(); return; }
   if (action === 'mergeFullBackup') { await runActionOnce('mergeFullBackup', mergeFullBackup); return; }
@@ -1802,6 +1803,7 @@ function viewDashboard() {
       </div>
       ${todayItineraryCardHtml()}
       ${dailyOverviewHtml()}
+      ${externalBackupReminderHtml()}
       ${setupWarningsHtml()}
     </section>`;
 }
@@ -2645,6 +2647,70 @@ function localLogDayKey(ts) {
   const date = new Date(Number(ts));
   if (Number.isNaN(date.getTime())) return '';
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function parsedTimestamp(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+function backupRelevantLogTimestamp(log) {
+  return Math.max(
+    Number(log?.ts) || 0,
+    parsedTimestamp(log?.createdAt),
+    parsedTimestamp(log?.updatedAt),
+    parsedTimestamp(log?.importedAt)
+  );
+}
+function externalBackupStatus() {
+  const lastAt = String(state.settings.lastFullBackupAt || '');
+  const lastAtMs = parsedTimestamp(lastAt);
+  const todayKey = localLogDayKey(Date.now());
+  const changedLogs = lastAtMs
+    ? state.logs.filter(log => backupRelevantLogTimestamp(log) > lastAtMs + 1000)
+    : state.logs.slice();
+  const referenceTimes = lastAtMs
+    ? [lastAtMs]
+    : changedLogs.map(backupRelevantLogTimestamp).filter(Boolean);
+  const referenceMs = referenceTimes.length ? Math.min(...referenceTimes) : 0;
+  const referenceDay = referenceMs ? localLogDayKey(referenceMs) : '';
+  const atLeastNextCalendarDay = !!referenceDay && referenceDay < todayKey;
+  const dismissedToday = String(state.settings.externalBackupReminderDismissedDate || '') === todayKey;
+  const reminderDue = changedLogs.length > 0 && atLeastNextCalendarDay && !dismissedToday;
+  const storedSecuredCount = Number(state.settings.lastFullBackupLogCount);
+  const securedLogCount = Number.isFinite(storedSecuredCount) && state.settings.lastFullBackupLogCount !== undefined
+    ? storedSecuredCount
+    : (lastAtMs ? state.logs.filter(log => backupRelevantLogTimestamp(log) <= lastAtMs + 1000).length : 0);
+  return {
+    lastAt,
+    lastAtMs,
+    lastLabel: lastAtMs ? formatDateTime(lastAtMs) : 'noch nicht erstellt',
+    changedCount: changedLogs.length,
+    securedLogCount,
+    dismissedToday,
+    reminderDue,
+    todayKey,
+    method: String(state.settings.lastFullBackupMethod || ''),
+    deviceName: String(state.settings.lastFullBackupDeviceName || '')
+  };
+}
+function externalBackupReminderHtml() {
+  const status = externalBackupStatus();
+  if (!status.reminderDue) return '';
+  const countLabel = `${status.changedCount} ${status.changedCount === 1 ? 'Erfassung' : 'Erfassungen'} seit dem letzten externen Backup`;
+  return `<article class="card externalBackupReminder" id="externalBackupReminder">
+    <div class="externalBackupReminderIcon" aria-hidden="true">↥</div>
+    <div class="externalBackupReminderContent">
+      <div class="sectionHead"><div><p class="eyebrow">Sicherung empfohlen</p><h2>Reisetag extern sichern</h2></div><span class="backupReminderBadge">${esc(status.changedCount)} offen</span></div>
+      <p>${esc(countLabel)}. Interne Wiederherstellungspunkte liegen im selben iOS-Webspeicher und ersetzen kein Backup in der Dateien-App.</p>
+      <div class="externalBackupReminderActions"><button class="primary" data-action="exportFullBackup">Jetzt sichern</button><button class="secondary" data-action="dismissExternalBackupReminder">Heute nicht mehr erinnern</button></div>
+    </div>
+  </article>`;
+}
+async function dismissExternalBackupReminderForToday() {
+  await putSetting('externalBackupReminderDismissedDate', localLogDayKey(Date.now()));
+  render();
+  toast('Sicherungserinnerung für heute ausgeblendet');
 }
 function tripDayInfo(logs = currentLogs(), trip = currentTrip()) {
   const start = isoDateDayNumber(trip?.startDate);
@@ -5033,6 +5099,16 @@ async function exportFullBackup() {
   const exportedAt = nowIso();
   const deviceId = settingValueFromRows(snapshot.settings, 'deviceId') || state.settings.deviceId || '';
   const deviceName = settingValueFromRows(snapshot.settings, 'deviceName') || state.settings.deviceName || 'Gerät';
+  const upsertSnapshotSetting = (id, value) => {
+    const existing = snapshot.settings.find(row => row.id === id);
+    const row = { id, value, updatedAt: exportedAt };
+    if (existing) Object.assign(existing, row);
+    else snapshot.settings.push(row);
+  };
+  upsertSnapshotSetting('lastFullBackupAt', exportedAt);
+  upsertSnapshotSetting('lastFullBackupLogCount', snapshot.logs.length);
+  upsertSnapshotSetting('lastFullBackupDeviceName', deviceName);
+  upsertSnapshotSetting('externalBackupReminderDismissedDate', '');
   const payload = {
     type: FULL_BACKUP_TYPE,
     backupFormatVersion: FULL_BACKUP_FORMAT_VERSION,
@@ -5049,7 +5125,12 @@ async function exportFullBackup() {
   });
   if (result.cancelled) { toast('Speichern des Vollbackups abgebrochen'); return; }
   await putSetting('lastFullBackupAt', exportedAt);
-  toast(result.method === 'share' ? 'Vollbackup zum Speichern bereitgestellt' : 'Vollbackup wurde heruntergeladen');
+  await putSetting('lastFullBackupLogCount', snapshot.logs.length);
+  await putSetting('lastFullBackupDeviceName', deviceName);
+  await putSetting('lastFullBackupMethod', result.method || 'export');
+  await putSetting('externalBackupReminderDismissedDate', '');
+  render();
+  toast(result.method === 'share' ? 'Externes Vollbackup zum Speichern bereitgestellt' : 'Externes Vollbackup wurde heruntergeladen');
 }
 function isPlainRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
 function meaningfulRow(store, row) {
@@ -5397,12 +5478,21 @@ function backupCountRow(label, localCount, backupCount, additionCount = null) {
   return `<div class="backupCountRow"><span>${esc(label)}</span><b>${Number(localCount) || 0}</b><span>→</span><b>${Number(backupCount) || 0}</b>${addition}</div>`;
 }
 function fullBackupCardHtml() {
-  const lastBackup = state.settings.lastFullBackupAt ? formatDateTime(Date.parse(state.settings.lastFullBackupAt)) : 'noch nicht erstellt';
+  const backupStatus = externalBackupStatus();
+  const changedLabel = backupStatus.changedCount === 1 ? '1 Erfassung' : `${backupStatus.changedCount} Erfassungen`;
+  const statusClass = !backupStatus.lastAtMs || backupStatus.reminderDue ? 'warn' : backupStatus.changedCount ? 'pending' : 'ok';
+  const statusLabel = !backupStatus.lastAtMs ? 'Noch kein externes Backup' : backupStatus.changedCount ? `${changedLabel} seitdem` : 'Aktuell gesichert';
   return `<div class="card fullBackupCard" id="fullBackupCard">
-    <div class="sectionHead"><div><h2>Vollständige Datensicherung</h2><p class="hint">Sichert Reisen, Personen, Buchungen, Favoriten, Einstellungen, Geräteinformationen sowie lokale Preis- und Paketänderungen.</p></div><span class="backupFormatBadge">JSON · offline</span></div>
-    <div class="infoBox"><span>Letztes Vollbackup</span><b>${esc(lastBackup)}</b></div>
+    <div class="sectionHead"><div><h2>Externe Datensicherung</h2><p class="hint">Sichert Reisen, Personen, Buchungen, Favoriten, Einstellungen, Geräteinformationen sowie lokale Preis- und Paketänderungen außerhalb des CruiseSip-Webspeichers.</p></div><span class="backupFormatBadge">JSON · Dateien-App</span></div>
+    <div class="externalBackupStatus ${esc(statusClass)}">
+      <div><span>Letztes externes Backup</span><b>${esc(backupStatus.lastLabel)}</b>${backupStatus.deviceName ? `<small>${esc(backupStatus.deviceName)}</small>` : ''}</div>
+      <strong>${esc(statusLabel)}</strong>
+    </div>
+    <div class="backupStatusFacts"><span><b>${esc(backupStatus.changedCount)}</b> Erfassungen seitdem</span><span><b>${esc(backupStatus.securedLogCount)}</b> Erfassungen im letzten Backup</span></div>
+    ${backupStatus.reminderDue ? '<div class="backupMessages warn"><p>Seit dem letzten externen Backup ist mindestens ein Kalendertag vergangen und es liegen neue oder geänderte Erfassungen vor.</p></div>' : ''}
     <div class="buttonStack"><button class="primary" data-action="exportFullBackup">Vollständiges Backup exportieren</button><button class="secondary" data-action="importFullBackup">Vollbackup auswählen und prüfen</button></div>
-    <p class="hint">CruiseSip öffnet nach der Erstellung das iOS-Teilen-Menü. Wähle „In Dateien sichern“, um den Zielordner unter „Auf meinem iPhone“, iCloud Drive oder einem eingebundenen Dateidienst festzulegen. Es erfolgt kein automatischer Cloud-Abgleich.</p>
+    <p class="hint">CruiseSip öffnet nach der Erstellung das iOS-Teilen-Menü. Wähle „In Dateien sichern“ und möglichst einen Ordner unter „Auf meinem iPhone“. Es erfolgt kein automatischer Cloud-Abgleich.</p>
+    <div class="backupSeparationNote"><b>Interne Wiederherstellung ≠ externes Backup</b><p>Interne Wiederherstellungspunkte helfen bei Fehlbedienung, liegen aber im selben iOS-Webspeicher wie CruiseSip. Nur die exportierte JSON-Datei bleibt erhalten, wenn iOS die Web-App-Daten entfernt.</p></div>
     <div class="backupDeviceHint"><b>Mehrere Geräte vorbereiten</b><p>Das Vollbackup auf dem zweiten Gerät vollständig wiederherstellen und dort die eigene Geräte-ID beibehalten. Dadurch bleiben Reise- und Personen-IDs identisch; anschließend kann jedes Gerät für jede Person Getränke erfassen.</p></div>
     ${fullBackupPreviewHtml()}
   </div>`;

@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **5.5.0** (Build **5.5.0a**)
+Aktuelle Entwicklungsfassung: **5.5.1** (Build **5.5.1a**)
 
-Version 5.5.0 ergänzt eine zentrale Datenprüfung. Reisen, Reiseverläufe, Personen, Buchungen, Barkartenstände, Paketzuordnungen und lokale Speicherbedingungen können kontrolliert geprüft und als JSON-Bericht exportiert werden. Die Prüfung verändert keine Daten.
+Version 5.5.1 ergänzt eine tagesbezogene Erinnerung für externe Vollbackups. Im Setup werden der letzte externe Sicherungszeitpunkt und die Zahl der Erfassungen seitdem angezeigt. Die Datenprüfung aus Version 5.5.0 bleibt vollständig erhalten.
 
 
 ## Manueller Geräteabgleich
@@ -20,9 +20,9 @@ Die vollständige Schritt-für-Schritt-Anleitung für die Einrichtung eines zwei
 1. ZIP entpacken.
 2. Inhalt des Ordners `CruiseSip/` in das GitHub-Repository kopieren und vorhandene Dateien ersetzen.
 3. In GitHub Desktop prüfen, ob die Änderungen korrekt erkannt werden.
-4. Commit erstellen, z. B. `CruiseSip v5.5.0 Datenprüfung und Diagnose`.
+4. Commit erstellen, z. B. `CruiseSip v5.5.1 Externe Backup-Erinnerung`.
 5. Push durchführen.
-6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.5.0` angezeigt wird. Der technische Build steht im Setup.
+6. GitHub Pages kurz online öffnen und prüfen, ob oben `v5.5.1` angezeigt wird. Der technische Build steht im Setup.
 7. Auf dem iPhone über Safari öffnen und über „Teilen“ → „Zum Home-Bildschirm“ installieren.
 
 ## Projektstruktur
@@ -73,6 +73,7 @@ CruiseSip/
 - Artikelverwaltung mit automatisch abgeleiteten lokalen Arbeitsversionen für Preis- und Paketstatus-Anpassungen
 - Offline-Onboarding und Backup-Test
 - Offline-Sicherheitsstatus mit Prüfung von Installation, Service Worker, App-Cache und IndexedDB
+- tagesbezogene Erinnerung für externe Vollbackups mit Anzeige der Erfassungen seit der letzten Sicherung
 - Berichtsexport als Excel-CSV, eigenständige HTML-Datei und druckfreundliche PDF-Ansicht
 - bis zu fünf lokale Wiederherstellungspunkte vor kritischen Änderungen
 - lokal gespeicherter Wechsler zwischen heller und dunkler Ansicht
@@ -95,3 +96,8 @@ Die mitgelieferte Barkarte basiert auf den bereits strukturierten Stammdaten aus
 Ab Version 4.3.4 prüft CruiseSip beim Online-Start aktiv auf eine neue Version. Ein bereitstehendes Update wird sichtbar angezeigt und erst nach Bestätigung aktiviert. Lokale IndexedDB-Daten bleiben erhalten.
 
 - Build 4.5.3c: PDF-Druckansicht wird auf iOS in einer eigenständigen hellen Berichtseite geöffnet.
+
+
+## Externe Backup-Erinnerung (v5.5.1)
+
+CruiseSip zeigt im Setup den letzten externen Backup-Zeitpunkt und die Zahl der Erfassungen seitdem. Auf Home erscheint erst am folgenden Kalendertag eine dezente Erinnerung, sofern neue oder geänderte Erfassungen noch nicht in einem Vollbackup gesichert wurden.

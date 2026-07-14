@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 5.5.0**, Build **5.5.0a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
+Aktueller Stand: **CruiseSip 5.5.1**, Build **5.5.1a**. Neue Reisen können vollständig offline über einen Assistenten eingerichtet werden. Das responsive Layout und die Analyse einschließlich Kreisgrafik werden vollständig lokal aus den gespeicherten Buchungen dargestellt. Sämtliche Reisedaten bleiben ausschließlich auf dem Gerät.
 
 ## Einrichtung vor der Kreuzfahrt
 
@@ -109,6 +109,11 @@ Die Integritätsprüfung des Abschlussstands erfolgt vollständig lokal und ben�
 Unter **Reisen → Reiseverlauf** können importierte oder manuell angelegte Reisetage vollständig offline ergänzt, bearbeitet und gelöscht werden. CruiseSip sortiert nach Datum und nummeriert die Tage automatisch neu. Vor jeder Änderung wird ein interner Wiederherstellungspunkt erstellt. Abgeschlossene Reisen müssen vor einer Änderung bewusst reaktiviert werden.
 
 
-## Lokale Datenprüfung ab Version 5.5.0
+## Lokale Datenprüfung ab Version 5.5.1
 
 Unter `Setup → Datenprüfung & Diagnose` kann CruiseSip den aktuellen Reisebestand oder alle lokalen Daten prüfen. Die Prüfung läuft vollständig offline, verändert keine Datensätze und kann als JSON-Bericht exportiert werden.
+
+
+## Tägliche externe Sicherung
+
+Bei neuen Erfassungen erinnert CruiseSip frühestens am nächsten Kalendertag an ein vollständiges Backup. Interne Wiederherstellungspunkte liegen im selben iOS-Webspeicher und ersetzen die JSON-Datei in der Dateien-App nicht.

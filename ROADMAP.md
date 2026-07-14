@@ -300,10 +300,17 @@ Mögliche spätere Punkte:
 - kontrollierte Übernahme abweichender Reiseverläufe im Geräteabgleich
 
 
-## Erledigt mit Version 5.5.0
+## Erledigt mit Version 5.5.1
 
 - Zentrale Datenprüfung für aktuelle Reise oder gesamten Datenbestand
 - Prüfung von Reise-, Personen-, Buchungs-, Reiseverlaufs- und Referenzverknüpfungen
 - Speicherdiagnose und Archiv-Prüfsummenprüfung
 - Keine automatischen Datenänderungen
 - Exportierbarer JSON-Prüfbericht
+
+
+## Erledigt in v5.5.1
+
+- Tagesbezogene Erinnerung für externe Vollbackups
+- Anzeige des letzten externen Backups und der Erfassungen seitdem
+- Trennung interner Wiederherstellungspunkte von Dateien-Backups
