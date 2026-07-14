@@ -1,3 +1,10 @@
+## Build 4.5.4b – Exportbereich am Ende der Analyse
+
+- Der Bereich „Bericht exportieren“ wurde an das Ende der Reiseanalyse verschoben.
+- Kennzahlen, Paket-Amortisation, Tagesbericht, Personen-, Getränke-, Kategorien- und Tagesauswertungen werden zuerst angezeigt.
+- CSV-, HTML- und PDF-Export sowie sämtliche Berichtsinhalte bleiben unverändert.
+- Keine Änderung an IndexedDB, Reisen, Personen, Buchungen, Backup oder Geräteabgleich.
+
 ## Version 4.5.4 – Paket-Amortisation und Verbrauchsprognose
 
 - Grafischer Amortisationsgrad je Person mit eindeutig enthaltenem Paketwert, Paketpreis und Restwert bis zum Break-even.

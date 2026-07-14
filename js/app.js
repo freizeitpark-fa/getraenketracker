@@ -1,9 +1,9 @@
 'use strict';
 
 const APP_VERSION = '4.5.4';
-const APP_CACHE_NAME = 'cruisesip-v4-5-4-20260714a';
-const APP_BUILD = '4.5.4a';
-const SERVICE_WORKER_URL = './sw.js?v=4.5.4a';
+const APP_CACHE_NAME = 'cruisesip-v4-5-4-20260714b';
+const APP_BUILD = '4.5.4b';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.4b';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -1669,7 +1669,6 @@ function viewStats() {
       <div class="sectionHead statsTitleRow"><h1>Auswertungen</h1><span class="subtle statsTripName" title="${esc(currentTrip()?.name || '')}">${esc(currentTrip()?.name || '')}</span></div>
       ${tripStatusNoticeHtml('stats')}
       ${statsFilterHtml()}
-      ${isTripView ? reportExportActionsHtml() : ''}
       <div class="kpiGrid">
         ${kpi('Konsumwert', eur(total.value), `${total.count} Getränke`)}
         ${kpi('Im Paket', eur(total.included), `${total.includedCount} eindeutig enthalten`)}
@@ -1688,6 +1687,7 @@ function viewStats() {
       ${statsSection('Pro Kategorie', groupStats(logs, l => resolvedLogCategory(l) || 'Ohne Kategorie'))}
       ${statsSection('Pro Tag', groupStats(logs, l => formatDateKey(l.ts)))}
       ${statsSection('Lieblingsgetränke', groupStats(logs, l => l.drinkName || 'Unbekannt').sort((a, b) => b.count - a.count).slice(0, 10), 10)}
+      ${isTripView ? reportExportActionsHtml() : ''}
     </section>`;
 }
 function statsFilterHtml() {
@@ -4533,6 +4533,11 @@ function toast(message) {
 }
 
 const CHANGELOG_HTML = `
+  <h2>Build 4.5.4b</h2>
+  <ul>
+    <li>Die Exportfunktionen stehen jetzt am Ende der Reiseanalyse, nachdem alle Kennzahlen und Detailauswertungen angezeigt wurden.</li>
+    <li>CSV-, HTML- und PDF-Export sowie sämtliche Berichtsinhalte bleiben unverändert.</li>
+  </ul>
   <h2>Version 4.5.4</h2>
   <ul>
     <li>Paket-Amortisation je Person mit grafischem Fortschrittsbalken, Restwert bis zum Break-even und tatsächlichem Break-even-Tag ergänzt.</li>

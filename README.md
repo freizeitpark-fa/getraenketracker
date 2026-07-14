@@ -4,9 +4,9 @@ CruiseSip ist eine vollständig offline nutzbare iPhone-PWA zum Erfassen von Get
 
 ## Version
 
-Aktuelle Entwicklungsfassung: **4.5.4** (Build **4.5.4a**)
+Aktuelle Entwicklungsfassung: **4.5.4** (Build **4.5.4b**)
 
-Version 4.5.4 ergänzt die Analyse um Paket-Amortisation, tatsächlichen Break-even und eine konservative Hochrechnung bis zum Reiseende. Die Hauptnavigation öffnet jede Zielseite wieder am Seitenanfang. Berichtsexport, responsives Layout und lokale Datenhaltung bleiben vollständig erhalten. Änderungen werden im `CHANGELOG.md` dokumentiert.
+Version 4.5.4 ergänzt die Analyse um Paket-Amortisation, tatsächlichen Break-even und eine konservative Hochrechnung bis zum Reiseende. Build 4.5.4b ordnet den Berichtsexport am Ende der Analyse ein, damit zunächst sämtliche Kennzahlen sichtbar sind. Die Hauptnavigation öffnet jede Zielseite wieder am Seitenanfang. Änderungen werden im `CHANGELOG.md` dokumentiert.
 
 
 ## Manueller Geräteabgleich
