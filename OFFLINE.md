@@ -1,6 +1,6 @@
 # Offline-Nutzung
 
-Aktueller Stand: **CruiseSip 4.5.1**. Reisen können vollständig offline abgeschlossen und anschließend je Person sowie insgesamt ausgewertet werden. Sämtliche Abschlusskennzahlen werden direkt aus den lokal gespeicherten Buchungen berechnet; es werden keine Daten an einen Server übertragen.
+Aktueller Stand: **CruiseSip 4.5.1**, Build **4.5.1b**. Reisen können vollständig offline abgeschlossen und anschließend je Person sowie insgesamt ausgewertet werden. Sämtliche Abschlusskennzahlen werden direkt aus den lokal gespeicherten Buchungen berechnet; es werden keine Daten an einen Server übertragen.
 
 ## Einrichtung vor der Kreuzfahrt
 

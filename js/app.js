@@ -1,7 +1,9 @@
 'use strict';
 
 const APP_VERSION = '4.5.1';
-const APP_CACHE_NAME = 'cruisesip-v4-5-1-20260714a';
+const APP_CACHE_NAME = 'cruisesip-v4-5-1-20260714b';
+const APP_BUILD = '4.5.1b';
+const SERVICE_WORKER_URL = './sw.js?v=4.5.1b';
 const APP_NAME = 'CruiseSip';
 const DB_NAME = 'cruisesip_v4';
 const LEGACY_DB_NAME = 'gt_db_v3';
@@ -409,7 +411,7 @@ async function registerServiceWorker() {
     return;
   }
   try {
-    swRegistration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+    swRegistration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, { updateViaCache: 'none' });
     swUpdateState = swRegistration.waiting ? 'ready' : 'current';
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -625,8 +627,8 @@ async function runOfflineDiagnostics({ silent = false } = {}) {
 
   const coreAssets = [
     './index.html',
-    './css/styles.css?v=4.5.1',
-    './js/app.js?v=4.5.1',
+    './css/styles.css?v=4.5.1b',
+    './js/app.js?v=4.5.1b',
     './data/barkarte.json',
     './data/pakete.json'
   ];
@@ -2247,6 +2249,7 @@ function viewSettings() {
       <div class="sectionHead"><h1>Einstellungen</h1><span class="subtle">${esc(APP_VERSION)}</span></div>
       <div class="card"><h2>Status</h2>
         ${infoRow('App-Version', APP_VERSION)}
+        ${infoRow('Build', APP_BUILD)}
         ${infoRow('Barkarten-Version', b.version || 'unbekannt')}
         ${infoRow('Geräte-ID', state.settings.deviceId || '')}
         ${infoRow('Verbindung', state.online ? 'Online' : 'Offline')}

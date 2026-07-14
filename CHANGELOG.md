@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.5.1b – Hotfix zuverlässige PWA-Aktualisierung auf iOS
+
+### Behoben
+
+- Die ausgelieferte Version 4.5.1 enthielt bereits die korrekte App-Version, konnte auf einer installierten iPhone-PWA jedoch weiterhin als 4.5.0 erscheinen, wenn iOS den bisherigen Service-Worker-Skriptpfad weiterverwendete.
+- Der Service Worker wird nun über eine versionsgebundene URL `sw.js?v=4.5.1b` registriert. Dadurch wird die neue Worker-Datei eindeutig als neuer Build erkannt.
+- CSS, JavaScript und Manifest erhalten ebenfalls die Build-Kennung `4.5.1b`.
+- Der Offline-Cache wurde auf `cruisesip-v4-5-1-20260714b` erhöht.
+- Im Setup wird zusätzlich zur App-Version der technische Build angezeigt.
+- IndexedDB, Reisen, Personen, Buchungen, Backups und Geräteabgleich bleiben unverändert.
+
 ## 4.5.1 – Abschlussauswertung je Person und Gesamtübersicht
 
 ### Neu
